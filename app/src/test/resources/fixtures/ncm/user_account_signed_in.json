@@ -1,0 +1,18 @@
+{
+  "code": 200,
+  "account": {
+    "id": 90000001,
+    "status": 0,
+    "vipType": 11
+  },
+  "profile": {
+    "userId": 90000001,
+    "nickname": "swirl-test",
+    "avatarUrl": "https://example.invalid/avatar.jpg",
+    "signature": "test fixture",
+    "vipType": 11,
+    "backgroundUrl": "https://example.invalid/background.jpg",
+    "followeds": 12,
+    "playlistCount": 3
+  }
+}

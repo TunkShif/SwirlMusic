@@ -1,0 +1,9 @@
+# Copy to local.properties and fill in. Never commit local.properties.
+sdk.dir=/path/to/Android/sdk
+
+# API deployment. See docs/credentials.md.
+swirl.apiBaseUrl=https://ncm-api.tunkshif.one
+swirl.apiToken=
+
+# Optional, for end-to-end runs only. Never set in a release build.
+swirl.testSessionCookie=

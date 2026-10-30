@@ -1,0 +1,12 @@
+<resources>
+    <string name="app_name">Swirl Music</string>
+
+    <string name="placeholder_headline">Foundation build</string>
+    <string name="placeholder_body">Dependency injection, networking, storage, and the theme are wired. Screens arrive in the next phase.</string>
+    <string name="placeholder_check_api">Check API</string>
+    <string name="placeholder_api_idle">Not checked yet</string>
+    <string name="placeholder_api_loading">Checking the API…</string>
+    <string name="placeholder_api_reachable">API reachable · code %1$d</string>
+    <string name="placeholder_api_failed">API check failed: %1$s</string>
+    <string name="placeholder_version">Version %1$s</string>
+</resources>
