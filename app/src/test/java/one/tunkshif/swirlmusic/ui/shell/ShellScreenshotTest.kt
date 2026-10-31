@@ -9,7 +9,13 @@ import androidx.compose.ui.test.performClick
 import com.github.takahirom.roborazzi.captureRoboImage
 import one.tunkshif.swirlmusic.data.model.UserProfile
 import one.tunkshif.swirlmusic.navigation.TopLevelDestination
+import one.tunkshif.swirlmusic.ui.home.HomeScreen
+import one.tunkshif.swirlmusic.ui.home.HomeTestData
 import one.tunkshif.swirlmusic.ui.theme.SwirlMusicTheme
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.ColorPainter
+import one.tunkshif.swirlmusic.ui.components.LocalArtworkPainter
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -68,7 +74,7 @@ class ShellScreenshotTest {
     @Test
     fun playing_light() {
         compose.setContent {
-            SwirlMusicTheme(dynamicColor = false) { SwirlApp(profile = profile, onSignOut = {}) }
+            SwirlMusicTheme(dynamicColor = false) { SwirlApp(profile = profile, onSignOut = {}, homeContent = { TestHome() }) }
         }
         compose.onNodeWithText(context.getString(one.tunkshif.swirlmusic.R.string.mini_player_idle_title))
             .performClick()
@@ -81,11 +87,24 @@ class ShellScreenshotTest {
         tab: TopLevelDestination? = null,
     ) {
         compose.setContent {
-            SwirlMusicTheme(darkTheme = dark, dynamicColor = false) { SwirlApp(profile = profile, onSignOut = {}) }
+            SwirlMusicTheme(darkTheme = dark, dynamicColor = false) { SwirlApp(profile = profile, onSignOut = {}, homeContent = { TestHome() }) }
         }
         if (tab != null) {
             compose.onAllNodesWithText(context.getString(tab.labelRes)).onFirst().performClick()
         }
         compose.onRoot().captureRoboImage("src/test/screenshots/shell/$name.png")
+    }
+
+    @androidx.compose.runtime.Composable
+    private fun TestHome() {
+        CompositionLocalProvider(LocalArtworkPainter provides ColorPainter(Color(0xFF9AA0C8))) {
+            HomeScreen(
+                nickname = profile.nickname,
+                state = HomeTestData.content,
+                onRefresh = {},
+                onRetry = {},
+                now = HomeTestData.evening,
+            )
+        }
     }
 }

@@ -17,7 +17,13 @@ import one.tunkshif.swirlmusic.data.api.dto.QrCreateBody
 import one.tunkshif.swirlmusic.data.api.dto.QrCreateResponse
 import one.tunkshif.swirlmusic.data.api.dto.QrKeyBody
 import one.tunkshif.swirlmusic.data.api.dto.QrKeyResponse
+import one.tunkshif.swirlmusic.data.api.dto.RecommendResourceResponse
+import one.tunkshif.swirlmusic.data.api.dto.RecommendSongsResponse
+import one.tunkshif.swirlmusic.data.api.dto.ToplistResponse
 import one.tunkshif.swirlmusic.data.api.dto.UserAccountResponse
+import one.tunkshif.swirlmusic.data.model.ChartSummary
+import one.tunkshif.swirlmusic.data.model.PlaylistSummary
+import one.tunkshif.swirlmusic.data.model.Track
 import one.tunkshif.swirlmusic.di.IoDispatcher
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
@@ -31,7 +37,7 @@ class NcmApi @Inject constructor(
     private val json: Json,
     private val config: ApiConfig,
     @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
-) : NcmAuthApi {
+) : NcmAuthApi, NcmHomeApi {
 
     suspend fun loginStatus(): ApiResult<AccountStatusBody> =
         request("/login/status", LoginStatusResponse.serializer()).map { it.data }
@@ -51,6 +57,18 @@ class NcmApi @Inject constructor(
 
     override suspend fun logout(): ApiResult<LogoutResponse> =
         request("/logout", LogoutResponse.serializer())
+
+    override suspend fun dailySongs(): ApiResult<List<Track>> =
+        request("/recommend/songs", RecommendSongsResponse.serializer())
+            .map { response -> response.data.dailySongs.map { it.toDomain() } }
+
+    override suspend fun recommendedPlaylists(): ApiResult<List<PlaylistSummary>> =
+        request("/recommend/resource", RecommendResourceResponse.serializer())
+            .map { response -> response.recommend.map { it.toDomain() } }
+
+    override suspend fun charts(): ApiResult<List<ChartSummary>> =
+        request("/toplist/detail", ToplistResponse.serializer())
+            .map { response -> response.list.take(CHART_PREVIEW_COUNT).map { it.toDomain() } }
 
     private suspend fun <T> request(
         path: String,

@@ -1,0 +1,23 @@
+{
+  "code": 200,
+  "data": {
+    "dailySongs": [
+      {
+        "id": 1001,
+        "name": "Nightcall",
+        "dt": 258000,
+        "fee": 0,
+        "ar": [{ "id": 501, "name": "Kavinsky" }],
+        "al": { "id": 601, "name": "OutRun", "picUrl": "http://p1.music.126.net/cover-1001.jpg" }
+      },
+      {
+        "id": 1002,
+        "name": "Midnight City",
+        "dt": 244000,
+        "fee": 1,
+        "ar": [{ "id": 502, "name": "M83" }, { "id": 503, "name": "Guest" }],
+        "al": { "id": 602, "name": "Hurry Up, We're Dreaming", "picUrl": "http://p1.music.126.net/cover-1002.jpg" }
+      }
+    ]
+  }
+}

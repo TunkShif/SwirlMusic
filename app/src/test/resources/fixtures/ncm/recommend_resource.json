@@ -1,0 +1,21 @@
+{
+  "code": 200,
+  "featureFirst": false,
+  "recommend": [
+    {
+      "id": 2001,
+      "name": "Late night drive",
+      "picUrl": "http://p2.music.126.net/pl-2001.jpg",
+      "playcount": 1234567,
+      "trackCount": 42,
+      "copywriter": "编辑推荐"
+    },
+    {
+      "id": 2002,
+      "name": "Focus",
+      "picUrl": "http://p2.music.126.net/pl-2002.jpg",
+      "playCount": 987000,
+      "trackCount": 30
+    }
+  ]
+}

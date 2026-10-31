@@ -22,7 +22,7 @@ import one.tunkshif.swirlmusic.navigation.ProfileKey
 import one.tunkshif.swirlmusic.navigation.TopLevelDestination
 import one.tunkshif.swirlmusic.ui.components.MiniPlayerBar
 import one.tunkshif.swirlmusic.data.model.UserProfile
-import one.tunkshif.swirlmusic.ui.home.HomeScreen
+import one.tunkshif.swirlmusic.ui.home.HomeRoute
 import one.tunkshif.swirlmusic.ui.library.LibraryScreen
 import one.tunkshif.swirlmusic.ui.playing.PlayingScreen
 import one.tunkshif.swirlmusic.ui.profile.ProfileScreen
@@ -39,6 +39,11 @@ fun SwirlApp(
     profile: UserProfile?,
     onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * The home destination. A parameter, not a hard reference, so shell tests can render the shell
+     * without Hilt or a network. Production uses the default.
+     */
+    homeContent: @Composable () -> Unit = { HomeRoute(nickname = profile?.nickname) },
 ) {
     val backStack = rememberNavBackStack(HomeKey)
     val currentKey = backStack.lastOrNull()
@@ -86,7 +91,7 @@ fun SwirlApp(
             onBack = { backStack.removeLastOrNull() },
             modifier = Modifier.padding(innerPadding),
             entryProvider = entryProvider {
-                entry<HomeKey> { HomeScreen() }
+                entry<HomeKey> { homeContent() }
                 entry<LibraryKey> { LibraryScreen() }
                 entry<ProfileKey> { ProfileScreen(profile = profile, onSignOut = onSignOut) }
                 entry<PlayingKey> { PlayingScreen(onBack = { backStack.removeLastOrNull() }) }

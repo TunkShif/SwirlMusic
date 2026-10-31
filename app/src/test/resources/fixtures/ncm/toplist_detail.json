@@ -1,0 +1,42 @@
+{
+  "code": 200,
+  "list": [
+    {
+      "id": 3001,
+      "name": "Soaring",
+      "coverImgUrl": "http://p3.music.126.net/chart-3001.jpg",
+      "updateFrequency": "Updated daily",
+      "trackCount": 100,
+      "tracks": [
+        { "first": "Song A", "second": "Artist A" },
+        { "first": "Song B", "second": "Artist B" },
+        { "first": "Song C", "second": "Artist C" },
+        { "first": "Song D", "second": "Artist D" }
+      ]
+    },
+    {
+      "id": 3002,
+      "name": "New songs",
+      "coverImgUrl": "http://p3.music.126.net/chart-3002.jpg",
+      "updateFrequency": "Updated weekly",
+      "trackCount": 100,
+      "tracks": [{ "first": "Song E", "second": "Artist E" }]
+    },
+    {
+      "id": 3003,
+      "name": "Original",
+      "coverImgUrl": "http://p3.music.126.net/chart-3003.jpg",
+      "updateFrequency": "Updated weekly",
+      "trackCount": 100,
+      "tracks": []
+    },
+    {
+      "id": 3004,
+      "name": "Fourth chart is dropped",
+      "coverImgUrl": "http://p3.music.126.net/chart-3004.jpg",
+      "updateFrequency": "Updated weekly",
+      "trackCount": 100,
+      "tracks": []
+    }
+  ]
+}

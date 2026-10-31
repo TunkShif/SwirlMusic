@@ -1,0 +1,82 @@
+package one.tunkshif.swirlmusic.data.api
+
+import com.google.common.truth.Truth.assertThat
+import kotlinx.serialization.json.Json
+import one.tunkshif.swirlmusic.data.api.dto.RecommendResourceResponse
+import one.tunkshif.swirlmusic.data.api.dto.RecommendSongsResponse
+import one.tunkshif.swirlmusic.data.api.dto.ToplistResponse
+import org.junit.Test
+
+/**
+ * DTO to domain, against fixtures shaped like real payloads. NetEase renames fields between
+ * endpoints (`playcount` here, `playCount` there) and uses short track keys, so this is the layer
+ * that keeps the UI honest.
+ */
+class HomeMappersTest {
+
+    private val json = Json {
+        ignoreUnknownKeys = true
+        explicitNulls = false
+    }
+
+    @Test
+    fun `a track keeps its artists, album art, and duration`() {
+        val response = json.decodeFromString<RecommendSongsResponse>(fixture("recommend_songs.json"))
+        val track = response.data.dailySongs.first().toDomain()
+
+        assertThat(track.title).isEqualTo("Nightcall")
+        assertThat(track.artistLine).isEqualTo("Kavinsky")
+        assertThat(track.durationMs).isEqualTo(258000)
+        assertThat(track.artworkUrl)
+            .isEqualTo("https://p1.music.126.net/cover-1001.jpg?param=300y300")
+    }
+
+    @Test
+    fun `several artists are joined into one line`() {
+        val response = json.decodeFromString<RecommendSongsResponse>(fixture("recommend_songs.json"))
+
+        assertThat(response.data.dailySongs[1].toDomain().artistLine).isEqualTo("M83 / Guest")
+    }
+
+    @Test
+    fun `play counts are read from either spelling`() {
+        val response = json.decodeFromString<RecommendResourceResponse>(
+            fixture("recommend_resource.json"),
+        )
+
+        assertThat(response.recommend[0].toDomain().playCount).isEqualTo(1234567)
+        assertThat(response.recommend[1].toDomain().playCount).isEqualTo(987000)
+    }
+
+    @Test
+    fun `charts keep three preview lines at most and are cut to three charts`() {
+        val response = json.decodeFromString<ToplistResponse>(fixture("toplist_detail.json"))
+        val charts = response.list.take(CHART_PREVIEW_COUNT).map { it.toDomain() }
+
+        assertThat(charts).hasSize(3)
+        assertThat(charts.first().previewLines).hasSize(3)
+        assertThat(charts.first().previewLines.first()).isEqualTo("Song A — Artist A")
+        assertThat(charts.first().updateFrequency).isEqualTo("Updated daily")
+    }
+
+    @Test
+    fun `a chart preview line without an artist has no separator`() {
+        val response = json.decodeFromString<ToplistResponse>(fixture("toplist_detail.json"))
+        val empty = response.list.take(CHART_PREVIEW_COUNT).flatMap { it.toDomain().previewLines }
+
+        assertThat(empty).isNotEmpty()
+    }
+
+    @Test
+    fun `artwork sizing keeps an existing query string`() {
+        assertThat(sizedArtwork("https://host/a.jpg?x=1", 64))
+            .isEqualTo("https://host/a.jpg?x=1&param=64y64")
+        assertThat(sizedArtwork("http://host/a.jpg", 64))
+            .isEqualTo("https://host/a.jpg?param=64y64")
+    }
+
+    private fun fixture(name: String): String =
+        requireNotNull(javaClass.classLoader?.getResource("fixtures/ncm/$name")) {
+            "missing fixture $name"
+        }.readText()
+}

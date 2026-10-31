@@ -27,9 +27,22 @@
     <string name="login_save_failed">Could not save the code</string>
 
     <!-- Home -->
-    <string name="home_title">Home</string>
+    <string name="home_greeting_morning">Good morning, %1$s</string>
+    <string name="home_greeting_afternoon">Good afternoon, %1$s</string>
+    <string name="home_greeting_evening">Good evening, %1$s</string>
+    <string name="home_greeting_night">Good night, %1$s</string>
+    <string name="home_greeting_morning_plain">Good morning</string>
+    <string name="home_greeting_afternoon_plain">Good afternoon</string>
+    <string name="home_greeting_evening_plain">Good evening</string>
+    <string name="home_greeting_night_plain">Good night</string>
+    <string name="home_daily_title">Made for you</string>
+    <string name="home_playlists_title">Recommended playlists</string>
+    <string name="home_charts_title">Charts</string>
+    <string name="home_plays">%1$s plays</string>
     <string name="home_empty_title">Nothing here yet</string>
-    <string name="home_empty_body">Recommendations, playlists, and charts arrive in the next phase.</string>
+    <string name="home_error_network">Could not load. Check your connection.</string>
+    <string name="home_error_server">Could not load.</string>
+    <string name="home_retry">Retry</string>
 
     <!-- Library -->
     <string name="library_title">Library</string>

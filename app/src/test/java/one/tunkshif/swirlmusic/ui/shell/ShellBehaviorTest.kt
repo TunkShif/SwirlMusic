@@ -11,7 +11,13 @@ import com.google.common.truth.Truth.assertThat
 import one.tunkshif.swirlmusic.R
 import one.tunkshif.swirlmusic.data.model.UserProfile
 import one.tunkshif.swirlmusic.navigation.TopLevelDestination
+import one.tunkshif.swirlmusic.ui.home.HomeScreen
+import one.tunkshif.swirlmusic.ui.home.HomeTestData
 import one.tunkshif.swirlmusic.ui.theme.SwirlMusicTheme
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.ColorPainter
+import one.tunkshif.swirlmusic.ui.components.LocalArtworkPainter
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -35,16 +41,16 @@ class ShellBehaviorTest {
     @Test
     fun `starts on home and shows an empty state`() {
         compose.setContent {
-            SwirlMusicTheme(dynamicColor = false) { SwirlApp(profile = profile, onSignOut = {}) }
+            SwirlMusicTheme(dynamicColor = false) { SwirlApp(profile = profile, onSignOut = {}, homeContent = { TestHome() }) }
         }
 
-        compose.onNodeWithText(context.getString(R.string.home_empty_body)).assertExists()
+        compose.onNodeWithText(context.getString(R.string.home_daily_title)).assertExists()
     }
 
     @Test
     fun `tapping a tab replaces the screen`() {
         compose.setContent {
-            SwirlMusicTheme(dynamicColor = false) { SwirlApp(profile = profile, onSignOut = {}) }
+            SwirlMusicTheme(dynamicColor = false) { SwirlApp(profile = profile, onSignOut = {}, homeContent = { TestHome() }) }
         }
 
         compose.onAllNodesWithText(label(TopLevelDestination.Library)).onFirst().performClick()
@@ -57,7 +63,7 @@ class ShellBehaviorTest {
     @Test
     fun `the mini player opens the playing screen and hides the chrome`() {
         compose.setContent {
-            SwirlMusicTheme(dynamicColor = false) { SwirlApp(profile = profile, onSignOut = {}) }
+            SwirlMusicTheme(dynamicColor = false) { SwirlApp(profile = profile, onSignOut = {}, homeContent = { TestHome() }) }
         }
 
         compose.onNodeWithText(context.getString(R.string.mini_player_idle_title)).performClick()
@@ -71,7 +77,7 @@ class ShellBehaviorTest {
     @Test
     fun `back from the playing screen returns to the tab`() {
         compose.setContent {
-            SwirlMusicTheme(dynamicColor = false) { SwirlApp(profile = profile, onSignOut = {}) }
+            SwirlMusicTheme(dynamicColor = false) { SwirlApp(profile = profile, onSignOut = {}, homeContent = { TestHome() }) }
         }
 
         compose.onAllNodesWithText(label(TopLevelDestination.Library)).onFirst().performClick()
@@ -85,7 +91,7 @@ class ShellBehaviorTest {
     fun `the selected tab survives recreation, as after a rotation`() {
         val restorationTester = StateRestorationTester(compose)
         restorationTester.setContent {
-            SwirlMusicTheme(dynamicColor = false) { SwirlApp(profile = profile, onSignOut = {}) }
+            SwirlMusicTheme(dynamicColor = false) { SwirlApp(profile = profile, onSignOut = {}, homeContent = { TestHome() }) }
         }
 
         compose.onAllNodesWithText(label(TopLevelDestination.Library)).onFirst().performClick()
@@ -95,4 +101,17 @@ class ShellBehaviorTest {
     }
 
     private fun label(destination: TopLevelDestination) = context.getString(destination.labelRes)
+
+    @androidx.compose.runtime.Composable
+    private fun TestHome() {
+        CompositionLocalProvider(LocalArtworkPainter provides ColorPainter(Color(0xFF9AA0C8))) {
+            HomeScreen(
+                nickname = profile.nickname,
+                state = HomeTestData.content,
+                onRefresh = {},
+                onRetry = {},
+                now = HomeTestData.evening,
+            )
+        }
+    }
 }
