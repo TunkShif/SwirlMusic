@@ -65,6 +65,25 @@ import one.tunkshif.swirlmusic.ui.common.SectionState
 import one.tunkshif.swirlmusic.ui.components.Artwork
 import one.tunkshif.swirlmusic.ui.components.TrackRow
 import one.tunkshif.swirlmusic.ui.theme.Spacing
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.TopAppBarState
+import androidx.compose.material3.rememberTopAppBarState
+import androidx.compose.animation.rememberSplineBasedDecay
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.layoutId
+import androidx.compose.ui.layout.Placeable
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.semantics.invisibleToUser
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.foundation.shape.RoundedCornerShape
+import kotlin.math.roundToInt
 
 @Composable
 fun TrackListRoute(
@@ -96,107 +115,94 @@ fun TrackListScreen(
     state: TrackListUiState,
     modifier: Modifier = Modifier,
     isAlbum: Boolean = false,
+    appBarState: TopAppBarState = rememberTopAppBarState(),
     onBack: () -> Unit,
     onRetry: () -> Unit,
     onLoadMore: () -> Unit,
     onPlayTracks: (List<Track>, Int) -> Unit,
 ) {
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
+        state = appBarState,
+        snapAnimationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+        flingAnimationSpec = rememberSplineBasedDecay(),
+    )
     Scaffold(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier
+            .fillMaxSize()
+            .nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = state.title.ifBlank { stringResource(R.string.track_list_title) },
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+            CollapsingTrackListHeader(
+                state = state,
+                appBarState = appBarState,
+                onBack = onBack,
+                onPlayAll = {
+                    (state.tracks as? SectionState.Content)?.let { onPlayTracks(it.value, 0) }
                 },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.action_back),
-                        )
-                    }
-                },
-                windowInsets = WindowInsets(0, 0, 0, 0),
             )
         },
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
     ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-        ) {
-            Header(state)
-
-            when (val tracks = state.tracks) {
-                is SectionState.Loading -> LoadingRows()
-
-                is SectionState.Failed -> SectionError(error = tracks.error, onRetry = onRetry)
-
-                is SectionState.Content -> {
-                    if (tracks.value.isEmpty()) {
-                        Text(
-                            text = stringResource(R.string.track_list_empty),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(Spacing.xl),
-                        )
-                    } else {
-                        val list = tracks.value
-                        Button(
-                            onClick = { onPlayTracks(list, 0) },
-                            shape = MaterialTheme.shapes.extraLarge,
-                            modifier = Modifier.padding(horizontal = Spacing.xl),
-                        ) {
-                            Icon(Icons.Default.PlayArrow, contentDescription = null)
-                            Text(
-                                text = stringResource(R.string.track_list_play_all),
-                                modifier = Modifier.padding(start = Spacing.sm),
-                            )
-                        }
-                        val listState = rememberLazyListState()
-                        LaunchedEffect(listState, list.size) {
-                            snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
-                                .collect { last ->
-                                    if (state.canLoadMore && last != null && last >= list.size - 20) {
-                                        onLoadMore()
-                                    }
-                                }
-                        }
-                        LazyColumn(
-                            state = listState,
-                            contentPadding = PaddingValues(top = Spacing.md, bottom = Spacing.xxl),
-                        ) {
-                            val rows = if (isAlbum) albumRows(list) else list.mapIndexed { i, t -> AlbumRow.Song(t, i, t.trackNumber ?: (i + 1)) }
-                            itemsIndexed(rows, key = { i, row -> (row as? AlbumRow.Song)?.track?.id ?: -i.toLong() }) { _, row ->
-                                when (row) {
-                                    is AlbumRow.Disc -> Row(
-                                        modifier = Modifier.padding(start = Spacing.lg, top = Spacing.sm, bottom = Spacing.xs),
-                                        horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
-                                    ) {
-                                        Icon(painterResource(R.drawable.ic_album), contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
-                                        Text(stringResource(R.string.track_list_disc_fmt, row.number), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
-                                    }
-                                    is AlbumRow.Song -> TrackRow(
-                                        track = row.track,
-                                        onClick = { onPlayTracks(list, row.index) },
-                                        leading = if (isAlbum) {
-                                            { Text(row.number.toString(), style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"), color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center, modifier = Modifier.width(40.dp)) }
-                                        } else null,
-                                    )
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            state = rememberLazyListState().also { listState ->
+                val tracks = (state.tracks as? SectionState.Content)?.value
+                if (tracks != null) {
+                    LaunchedEffect(listState, tracks.size) {
+                        snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
+                            .collect { last ->
+                                if (state.canLoadMore && last != null && last >= tracks.size - 20) {
+                                    onLoadMore()
                                 }
                             }
-                            if (state.canLoadMore || state.loadingMore || state.moreError != null) {
-                                item {
-                                    MoreFooter(
-                                        loading = state.loadingMore,
-                                        error = state.moreError,
-                                        onRetry = onLoadMore,
-                                    )
+                    }
+                }
+            },
+            contentPadding = PaddingValues(
+                top = innerPadding.calculateTopPadding(),
+                bottom = innerPadding.calculateBottomPadding() + Spacing.xxl,
+            ),
+        ) {
+            when (val tracks = state.tracks) {
+                is SectionState.Loading -> item { LoadingRows() }
+                is SectionState.Failed -> item { SectionError(error = tracks.error, onRetry = onRetry) }
+                is SectionState.Content -> {
+                    if (tracks.value.isEmpty()) {
+                        item {
+                            Text(
+                                text = stringResource(R.string.track_list_empty),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(Spacing.xl),
+                            )
+                        }
+                    } else {
+                        val list = tracks.value
+                        val rows = if (isAlbum) albumRows(list) else list.mapIndexed { i, t -> AlbumRow.Song(t, i, t.trackNumber ?: (i + 1)) }
+                        itemsIndexed(rows, key = { i, row -> (row as? AlbumRow.Song)?.track?.id ?: -i.toLong() }) { _, row ->
+                            when (row) {
+                                is AlbumRow.Disc -> Row(
+                                    modifier = Modifier.padding(start = Spacing.lg, top = Spacing.sm, bottom = Spacing.xs),
+                                    horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+                                ) {
+                                    Icon(painterResource(R.drawable.ic_album), contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                                    Text(stringResource(R.string.track_list_disc_fmt, row.number), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
                                 }
+                                is AlbumRow.Song -> TrackRow(
+                                    track = row.track,
+                                    onClick = { onPlayTracks(list, row.index) },
+                                    leading = if (isAlbum) {
+                                        { Text(row.number.toString(), style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"), color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center, modifier = Modifier.width(40.dp)) }
+                                    } else null,
+                                )
+                            }
+                        }
+                        if (state.canLoadMore || state.loadingMore || state.moreError != null) {
+                            item {
+                                MoreFooter(
+                                    loading = state.loadingMore,
+                                    error = state.moreError,
+                                    onRetry = onLoadMore,
+                                )
                             }
                         }
                     }
@@ -206,58 +212,60 @@ fun TrackListScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+/**
+ * Morphing header: artwork, titles, meta and the play button lerp between the expanded
+ * header and a 64dp collapsed bar. `appBarState` is read ONLY inside layout/draw lambdas
+ * (Layout, graphicsLayer, drawBehind), so scrolling never triggers recomposition.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun MoreFooter(loading: Boolean, error: LoadError?, onRetry: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(Spacing.md),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        when {
-            loading -> LoadingIndicator(modifier = Modifier.size(32.dp))
-            error != null -> {
-                Text(
-                    text = stringResource(
-                        when (error) {
-                            LoadError.Network -> R.string.error_network
-                            LoadError.Server -> R.string.error_server
-                        },
-                    ),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                TextButton(onClick = onRetry) {
-                    Text(stringResource(R.string.action_retry))
-                }
-            }
-        }
-    }
-}
+private fun CollapsingTrackListHeader(
+    state: TrackListUiState,
+    appBarState: TopAppBarState,
+    onBack: () -> Unit,
+    onPlayAll: () -> Unit,
+) {
+    val collapsedPlayVisible = remember { derivedStateOf { appBarState.collapsedFraction > 0.5f } }
+    val colorSchemeSurface = MaterialTheme.colorScheme.surface
+    val colorSchemeSurfaceContainer = MaterialTheme.colorScheme.surfaceContainer
 
-@Composable
-private fun Header(state: TrackListUiState) {
-    Column(
+    Layout(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = Spacing.xl, vertical = Spacing.md),
-        verticalArrangement = Arrangement.spacedBy(Spacing.lg),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(Spacing.md),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+            .clipToBounds()
+            .drawBehind {
+                drawRect(
+                    androidx.compose.ui.graphics.lerp(
+                        colorSchemeSurface,
+                        colorSchemeSurfaceContainer,
+                        appBarState.collapsedFraction,
+                    ),
+                )
+            },
+        content = {
+            // "back"
+            IconButton(onClick = onBack, modifier = Modifier.layoutId("back")) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = stringResource(R.string.action_back),
+                )
+            }
+            // "art" — one Artwork morphed between the expanded and collapsed slots.
             Artwork(
                 url = state.artworkUrl,
                 contentDescription = null,
-                modifier = Modifier.size(112.dp),
+                modifier = Modifier.layoutId("art"),
             )
-            Column(modifier = Modifier.weight(1f)) {
+            // "bigText"
+            Column(
+                modifier = Modifier
+                    .layoutId("bigText")
+                    .graphicsLayer {
+                        alpha = (1f - appBarState.collapsedFraction / 0.4f).coerceIn(0f, 1f)
+                    },
+            ) {
                 Text(
-                    text = state.title,
+                    text = state.title.ifBlank { stringResource(R.string.track_list_title) },
                     style = MaterialTheme.typography.headlineSmall,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
@@ -293,51 +301,176 @@ private fun Header(state: TrackListUiState) {
                     )
                 }
             }
-        }
-        @OptIn(ExperimentalMaterial3Api::class)
-        state.description?.let { description ->
-            var showSheet by remember { mutableStateOf(false) }
-            Column(
+            // "barTitle"
+            Text(
+                text = state.title.ifBlank { stringResource(R.string.track_list_title) },
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(
-                        role = Role.Button,
-                        onClickLabel = stringResource(R.string.track_list_show_details),
-                    ) { showSheet = true },
-            ) {
-                Text(
-                    text = description,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Row(
-                    modifier = Modifier.align(Alignment.End),
-                    verticalAlignment = Alignment.CenterVertically,
+                    .layoutId("barTitle")
+                    .graphicsLayer {
+                        alpha = ((appBarState.collapsedFraction - 0.6f) / 0.4f).coerceIn(0f, 1f)
+                    }
+                    ,
+            )
+            // "desc"
+            if (state.description != null) {
+                var showSheet by remember { mutableStateOf(false) }
+                Column(
+                    modifier = Modifier
+                        .layoutId("desc")
+                        .graphicsLayer {
+                            alpha = (1f - appBarState.collapsedFraction / 0.35f).coerceIn(0f, 1f)
+                        }
+                        .clickable(
+                            role = Role.Button,
+                            onClickLabel = stringResource(R.string.track_list_show_details),
+                        ) { showSheet = true },
                 ) {
                     Text(
-                        text = stringResource(R.string.track_list_more),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary,
+                        text = state.description,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
                     )
-                    Icon(
-                        painterResource(R.drawable.ic_chevron_right),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(16.dp),
-                    )
+                    Row(
+                        modifier = Modifier.align(Alignment.End),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.track_list_more),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        Icon(
+                            painterResource(R.drawable.ic_chevron_right),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp),
+                        )
+                    }
+                }
+                if (showSheet) {
+                    ModalBottomSheet(onDismissRequest = { showSheet = false }) {
+                        DetailSheetContent(state)
+                    }
                 }
             }
-            if (showSheet) {
-                ModalBottomSheet(onDismissRequest = { showSheet = false }) {
-                    DetailSheetContent(state)
-                }
+            // "playAll" — expanded pill
+            Button(
+                onClick = onPlayAll,
+                shape = MaterialTheme.shapes.extraLarge,
+                modifier = Modifier
+                    .layoutId("playAll")
+                    .graphicsLayer {
+                        alpha = (1f - appBarState.collapsedFraction / 0.35f).coerceIn(0f, 1f)
+                    },
+            ) {
+                Icon(Icons.Default.PlayArrow, contentDescription = null)
+                Text(
+                    text = stringResource(R.string.track_list_play_all),
+                    modifier = Modifier.padding(start = Spacing.sm),
+                )
+            }
+            // "playCollapsed" — round 40dp button in the bar
+            FilledIconButton(
+                onClick = onPlayAll,
+                enabled = collapsedPlayVisible.value,
+                shape = CircleShape,
+                modifier = Modifier
+                    .layoutId("playCollapsed")
+                    .size(40.dp)
+                    .graphicsLayer {
+                        val t = ((appBarState.collapsedFraction - 0.6f) / 0.4f).coerceIn(0f, 1f)
+                        alpha = t
+                        scaleX = 0.8f + 0.2f * t
+                        scaleY = 0.8f + 0.2f * t
+                    }
+                    ,
+            ) {
+                Icon(
+                    Icons.Default.PlayArrow,
+                    contentDescription = stringResource(R.string.track_list_play_all),
+                )
+            }
+        },
+    ) { measurables, constraints ->
+        // Layout phase: state reads here never recompose.
+        val f = appBarState.collapsedFraction
+        val offset = appBarState.heightOffset
+        val barH = 64.dp.roundToPx()
+        val padH = Spacing.xl.roundToPx()
+        val gap = Spacing.md.roundToPx()
+
+        val byId = measurables.associateBy { it.layoutId }
+        fun place(id: String) = byId[id]?.measure(constraints.copy(minWidth = 0, minHeight = 0))
+
+        val back = place("back")
+        val bigText = place("bigText")
+        val barTitle = place("barTitle")
+        val desc = place("desc")
+        val playAll = place("playAll")
+        val playCollapsed = place("playCollapsed")
+
+        val artExpSize = 112.dp.roundToPx()
+        val artColSize = 40.dp.roundToPx()
+        val artExpX = padH
+        val artExpY = barH + 8.dp.roundToPx()
+        val artColX = padH + 48.dp.roundToPx() + 8.dp.roundToPx()
+        val artColY = (barH - artColSize) / 2
+        val rowH = maxOf(artExpSize, bigText?.height ?: 0)
+        val descTop = artExpY + rowH + gap
+        val playAllTop = descTop + (desc?.height ?: 0) + if (desc != null) gap else 0
+        val expandedHeight = playAllTop + (playAll?.height ?: 0) + gap
+
+        appBarState.heightOffsetLimit = barH - expandedHeight.toFloat()
+
+        val height = (expandedHeight + offset).roundToInt().coerceAtLeast(barH)
+        val dims = HeaderDims(
+            barHeight = barH.toFloat(),
+            artworkExpandedSize = artExpSize.toFloat(),
+            artworkExpandedX = artExpX.toFloat(),
+            artworkExpandedY = artExpY.toFloat(),
+            artworkCollapsedSize = artColSize.toFloat(),
+            artworkCollapsedX = artColX.toFloat(),
+            artworkCollapsedY = artColY.toFloat(),
+            contentExpandedY = descTop.toFloat(),
+        )
+        val g = headerGeometry(f, dims, expandedHeight.toFloat())
+        val artSide = g.artworkSize.roundToInt()
+        val art = byId["art"]?.measure(
+            androidx.compose.ui.unit.Constraints.fixed(artSide, artSide),
+        )
+
+        layout(constraints.maxWidth, height) {
+            back?.place(padH, (barH - back.height) / 2)
+
+            art?.placeWithLayer(g.artworkX.roundToInt(), g.artworkY.roundToInt()) {
+                clip = true
+                shape = RoundedCornerShape(g.artworkCorner.dp)
+            }
+
+            bigText?.place(
+                artExpX + artExpSize + gap,
+                artExpY + offset.roundToInt(),
+            )
+            barTitle?.place(
+                (artColX + artColSize + 12.dp.roundToPx()),
+                (barH - barTitle.height) / 2,
+            )
+            desc?.place(padH, descTop + offset.roundToInt())
+            playAll?.place(padH, playAllTop + offset.roundToInt())
+            if (g.playButtonEnabled) {
+                playCollapsed?.place(
+                    constraints.maxWidth - padH - artColSize,
+                    (barH - playCollapsed.height) / 2,
+                )
             }
         }
     }
 }
-
 @Composable
 internal fun DetailSheetContent(state: TrackListUiState) {
     Column(
@@ -376,6 +509,37 @@ internal fun DetailSheetContent(state: TrackListUiState) {
         SelectionContainer {
             state.description?.let {
                 Text(it, style = MaterialTheme.typography.bodyLarge)
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun MoreFooter(loading: Boolean, error: LoadError?, onRetry: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(Spacing.md),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        when {
+            loading -> LoadingIndicator(modifier = Modifier.size(32.dp))
+            error != null -> {
+                Text(
+                    text = stringResource(
+                        when (error) {
+                            LoadError.Network -> R.string.error_network
+                            LoadError.Server -> R.string.error_server
+                        },
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                TextButton(onClick = onRetry) {
+                    Text(stringResource(R.string.action_retry))
+                }
             }
         }
     }

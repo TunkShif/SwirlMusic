@@ -66,6 +66,43 @@ class TrackListScreenshotTest {
         capture("playlist-description-dark", playlistState(), dark = true)
 
     @Test
+    fun collapsed_light() = captureCollapsed("collapsed-light", playlistState(), fraction = 1f)
+
+    @Test
+    fun collapsed_dark() = captureCollapsed("collapsed-dark", playlistState(), fraction = 1f, dark = true)
+
+    @Test
+    fun mid_collapse_light() = captureCollapsed("mid-collapse-light", playlistState(), fraction = 0.5f)
+
+    private fun captureCollapsed(
+        name: String,
+        state: TrackListUiState,
+        fraction: Float,
+        dark: Boolean = false,
+    ) {
+        val appBarState = androidx.compose.material3.TopAppBarState(-1f, 0f, 0f)
+        compose.setContent {
+            CompositionLocalProvider(LocalArtworkPainter provides ColorPainter(Color(0xFF9AA0C8))) {
+                SwirlMusicTheme(darkTheme = dark, dynamicColor = false) {
+                    TrackListScreen(
+                        state = state,
+                        appBarState = appBarState,
+                        onBack = {},
+                        onRetry = {},
+                        onLoadMore = {},
+                        onPlayTracks = { _, _ -> },
+                    )
+                }
+            }
+        }
+        // One layout pass computes the limit, then snap to the requested fraction.
+        compose.runOnIdle {
+            appBarState.heightOffset = appBarState.heightOffsetLimit * fraction
+        }
+        compose.onRoot().captureRoboImage("src/test/screenshots/tracklist/$name.png")
+    }
+
+    @Test
     fun details_sheet_light() {
         compose.setContent {
             CompositionLocalProvider(LocalArtworkPainter provides ColorPainter(Color(0xFF9AA0C8))) {
