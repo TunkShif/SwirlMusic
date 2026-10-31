@@ -7,6 +7,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import com.github.takahirom.roborazzi.captureRoboImage
+import one.tunkshif.swirlmusic.data.model.UserProfile
 import one.tunkshif.swirlmusic.navigation.TopLevelDestination
 import one.tunkshif.swirlmusic.ui.theme.SwirlMusicTheme
 import org.junit.Rule
@@ -32,6 +33,7 @@ class ShellScreenshotTest {
     val compose = createComposeRule()
 
     private val context = RuntimeEnvironment.getApplication()
+    private val profile = UserProfile(userId = 1, nickname = "tester", avatarUrl = null, vipType = 0)
 
     @Test
     fun home_light() = capture("home-light", dark = false)
@@ -66,7 +68,7 @@ class ShellScreenshotTest {
     @Test
     fun playing_light() {
         compose.setContent {
-            SwirlMusicTheme(dynamicColor = false) { SwirlApp() }
+            SwirlMusicTheme(dynamicColor = false) { SwirlApp(profile = profile, onSignOut = {}) }
         }
         compose.onNodeWithText(context.getString(one.tunkshif.swirlmusic.R.string.mini_player_idle_title))
             .performClick()
@@ -79,7 +81,7 @@ class ShellScreenshotTest {
         tab: TopLevelDestination? = null,
     ) {
         compose.setContent {
-            SwirlMusicTheme(darkTheme = dark, dynamicColor = false) { SwirlApp() }
+            SwirlMusicTheme(darkTheme = dark, dynamicColor = false) { SwirlApp(profile = profile, onSignOut = {}) }
         }
         if (tab != null) {
             compose.onAllNodesWithText(context.getString(tab.labelRes)).onFirst().performClick()

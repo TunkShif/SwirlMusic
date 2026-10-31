@@ -21,6 +21,7 @@ import one.tunkshif.swirlmusic.navigation.PlayingKey
 import one.tunkshif.swirlmusic.navigation.ProfileKey
 import one.tunkshif.swirlmusic.navigation.TopLevelDestination
 import one.tunkshif.swirlmusic.ui.components.MiniPlayerBar
+import one.tunkshif.swirlmusic.data.model.UserProfile
 import one.tunkshif.swirlmusic.ui.home.HomeScreen
 import one.tunkshif.swirlmusic.ui.library.LibraryScreen
 import one.tunkshif.swirlmusic.ui.playing.PlayingScreen
@@ -34,7 +35,11 @@ import one.tunkshif.swirlmusic.ui.profile.ProfileScreen
  * its first child destination, which is Phase 3.
  */
 @Composable
-fun SwirlApp(modifier: Modifier = Modifier) {
+fun SwirlApp(
+    profile: UserProfile?,
+    onSignOut: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val backStack = rememberNavBackStack(HomeKey)
     val currentKey = backStack.lastOrNull()
     val showChrome = currentKey != PlayingKey
@@ -83,7 +88,7 @@ fun SwirlApp(modifier: Modifier = Modifier) {
             entryProvider = entryProvider {
                 entry<HomeKey> { HomeScreen() }
                 entry<LibraryKey> { LibraryScreen() }
-                entry<ProfileKey> { ProfileScreen() }
+                entry<ProfileKey> { ProfileScreen(profile = profile, onSignOut = onSignOut) }
                 entry<PlayingKey> { PlayingScreen(onBack = { backStack.removeLastOrNull() }) }
             },
         )

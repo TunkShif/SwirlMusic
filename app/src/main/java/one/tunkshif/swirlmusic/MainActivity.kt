@@ -5,7 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import dagger.hilt.android.AndroidEntryPoint
-import one.tunkshif.swirlmusic.ui.shell.SwirlApp
+import one.tunkshif.swirlmusic.ui.SwirlRoot
 import one.tunkshif.swirlmusic.ui.theme.SwirlMusicTheme
 
 @AndroidEntryPoint
@@ -16,7 +16,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             SwirlMusicTheme {
-                SwirlApp()
+                SwirlRoot()
             }
         }
     }

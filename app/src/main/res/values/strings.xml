@@ -6,6 +6,26 @@
     <string name="nav_library">Library</string>
     <string name="nav_profile">Profile</string>
 
+    <!-- Welcome and sign-in -->
+    <string name="welcome_title">Swirl Music</string>
+    <string name="welcome_body">Sign in with the NetEase app. You scan a QR code, so no password is typed here.</string>
+    <string name="welcome_action">Sign in with QR</string>
+    <string name="login_loading">Preparing your code…</string>
+    <string name="login_waiting_title">Waiting for scan</string>
+    <string name="login_scanned_title">Confirm on your phone</string>
+    <string name="login_qr_description">Sign-in QR code</string>
+    <string name="login_hint">On this phone: open the NetEase app, scan, then choose the saved image.</string>
+    <string name="login_expired_title">Code expired</string>
+    <string name="login_expired_body">Get a fresh code and try again.</string>
+    <string name="login_failed_title">Sign-in failed</string>
+    <string name="login_failed_network">The API did not answer. Check your connection.</string>
+    <string name="login_failed_server">The server refused the request.</string>
+    <string name="login_retry">Get a new code</string>
+    <string name="login_back">Back</string>
+    <string name="login_save_qr">Save code to gallery</string>
+    <string name="login_saved_fmt">Saved to %1$s</string>
+    <string name="login_save_failed">Could not save the code</string>
+
     <!-- Home -->
     <string name="home_title">Home</string>
     <string name="home_empty_title">Nothing here yet</string>
@@ -18,8 +38,10 @@
 
     <!-- Profile -->
     <string name="profile_title">Profile</string>
-    <string name="profile_empty_title">Not signed in</string>
-    <string name="profile_empty_body">Sign in with a QR code to see your account.</string>
+    <string name="profile_signed_in">Signed in</string>
+    <string name="profile_unknown_user">NetEase account</string>
+    <string name="profile_load_failed">The profile could not be loaded. Sign out and back in if this persists.</string>
+    <string name="profile_sign_out">Sign out</string>
 
     <!-- Playing -->
     <string name="playing_title">Now playing</string>

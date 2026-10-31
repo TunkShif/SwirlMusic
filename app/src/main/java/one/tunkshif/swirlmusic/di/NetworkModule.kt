@@ -10,10 +10,12 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.serialization.json.Json
 import one.tunkshif.swirlmusic.BuildConfig
 import one.tunkshif.swirlmusic.data.api.ApiConfig
+import one.tunkshif.swirlmusic.data.api.NcmAuthApi
 import one.tunkshif.swirlmusic.data.api.NcmApi
 import one.tunkshif.swirlmusic.data.api.SwirlApiInterceptor
 import one.tunkshif.swirlmusic.data.api.SystemTimeSource
 import one.tunkshif.swirlmusic.data.api.TimeSource
+import one.tunkshif.swirlmusic.data.auth.LoginTuning
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 
@@ -59,6 +61,14 @@ object NetworkModule {
                 }
             }
             .build()
+
+    @Provides
+    @Singleton
+    fun authApi(api: NcmApi): NcmAuthApi = api
+
+    @Provides
+    @Singleton
+    fun loginTuning(): LoginTuning = LoginTuning()
 
     @Provides
     @Singleton
