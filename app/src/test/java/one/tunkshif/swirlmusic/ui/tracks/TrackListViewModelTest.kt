@@ -154,7 +154,7 @@ class TrackListViewModelTest {
 
         val state = viewModel.state.value
         assertThat(state.title).isEqualTo("OutRun")
-        assertThat(state.subtitle).contains("2013")
+        assertThat(state.subtitle).isEqualTo("Kavinsky")
         assertThat((state.tracks as SectionState.Content).value).hasSize(1)
         assertThat(api.calls).contains("albumDetail:1")
     }

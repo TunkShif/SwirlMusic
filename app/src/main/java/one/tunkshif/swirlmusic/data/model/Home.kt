@@ -7,6 +7,8 @@ data class Track(
     val artistLine: String,
     val artworkUrl: String?,
     val durationMs: Long,
+    val discNumber: Int? = null,
+    val trackNumber: Int? = null,
 )
 
 data class PlaylistSummary(
@@ -15,6 +17,10 @@ data class PlaylistSummary(
     val artworkUrl: String?,
     val playCount: Long,
     val trackCount: Int,
+    val subscribed: Boolean = false,
+    val creatorName: String? = null,
+    /** `specialType == 5`: the account's liked-songs list. */
+    val isLiked: Boolean = false,
 )
 
 data class ChartSummary(

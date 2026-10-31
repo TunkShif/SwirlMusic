@@ -21,6 +21,8 @@ internal fun PlaylistDto.toDetail(): PlaylistDetail = PlaylistDetail(
     playCount = if (playcount > 0) playcount else playCount,
     creatorName = creator?.nickname?.takeIf { it.isNotBlank() },
     description = description?.takeIf { it.isNotBlank() },
+    createdAt = createTime.takeIf { it > 0 },
+    tags = tags,
 )
 
 internal fun AlbumDto.toSummary(): AlbumSummary = AlbumSummary(

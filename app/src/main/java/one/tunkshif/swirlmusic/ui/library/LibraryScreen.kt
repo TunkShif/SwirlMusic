@@ -358,29 +358,53 @@ private fun PlaylistList(
             EmptyText(R.string.library_empty_playlists)
         }
 
-        else -> LazyColumn(
-            contentPadding = PaddingValues(horizontal = Spacing.md, vertical = Spacing.md),
-            verticalArrangement = Arrangement.spacedBy(Spacing.sm),
-        ) {
-            itemsIndexed(paged.items, key = { _, item -> item.id }) { _, playlist ->
-                ListCard(
-                    title = playlist.name,
-                    subtitle = pluralStringResource(
-                        R.plurals.library_track_count,
-                        playlist.trackCount,
-                        playlist.trackCount,
-                    ),
-                    artworkUrl = playlist.artworkUrl,
-                    onClick = { onOpen(playlist.id) },
-                )
-            }
-            if (paged.hasMore) {
+        else -> {
+            val sections = playlistSections(paged.items, complete = !paged.hasMore)
+            LazyColumn(
+                contentPadding = PaddingValues(horizontal = Spacing.md, vertical = Spacing.md),
+                verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+            ) {
+                sections.liked?.let { liked ->
+                    item(key = "liked") { LikedCard(liked, onOpen) }
+                }
+                if (sections.created.isNotEmpty()) {
+                    item(key = "h-created") {
+                        SectionHeader(stringResource(R.string.library_section_created), sections.createdCount)
+                    }
+                    itemsIndexed(sections.created, key = { _, it -> it.id }) { _, playlist ->
+                        PlaylistCard(playlist, onOpen)
+                    }
+                }
+                if (sections.saved.isNotEmpty()) {
+                    item(key = "h-saved") {
+                        SectionHeader(stringResource(R.string.library_section_saved), sections.savedCount)
+                    }
+                    itemsIndexed(sections.saved, key = { _, it -> it.id }) { _, playlist ->
+                        ListCard(
+                            title = playlist.name,
+                            subtitle = listOfNotNull(
+                                playlist.creatorName?.let {
+                                    stringResource(R.string.library_by_creator, it)
+                                },
+                                pluralStringResource(
+                                    R.plurals.library_track_count,
+                                    playlist.trackCount,
+                                    playlist.trackCount,
+                                ),
+                            ).joinToString(" · "),
+                            artworkUrl = playlist.artworkUrl,
+                            onClick = { onOpen(playlist.id) },
+                        )
+                    }
+                }
+                if (paged.hasMore) {
                 item {
                     LaunchedEffect(Unit) { onLoadMore() }
                     Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                         LoadingIndicator(modifier = Modifier.padding(Spacing.md))
                     }
                 }
+            }
             }
         }
     }
@@ -649,4 +673,86 @@ private fun LibraryTab.labelRes(): Int = when (this) {
     LibraryTab.Albums -> R.string.library_tab_albums
     LibraryTab.Artists -> R.string.library_tab_artists
     LibraryTab.Recent -> R.string.library_tab_recent
+}
+
+@Composable
+private fun PlaylistCard(
+    playlist: one.tunkshif.swirlmusic.data.model.PlaylistSummary,
+    onOpen: (Long) -> Unit,
+) {
+    ListCard(
+        title = playlist.name,
+        subtitle = pluralStringResource(
+            R.plurals.library_track_count,
+            playlist.trackCount,
+            playlist.trackCount,
+        ),
+        artworkUrl = playlist.artworkUrl,
+        onClick = { onOpen(playlist.id) },
+    )
+}
+
+@Composable
+private fun SectionHeader(title: String, count: Int?) {
+    Text(
+        text = count?.let { stringResource(R.string.library_section_count_fmt, title, it) } ?: title,
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(start = Spacing.lg, top = Spacing.xs),
+    )
+}
+
+@Composable
+private fun LikedCard(
+    playlist: one.tunkshif.swirlmusic.data.model.PlaylistSummary,
+    onOpen: (Long) -> Unit,
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.large)
+            .clickable { onOpen(playlist.id) },
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+    ) {
+        Row(
+            modifier = Modifier.padding(Spacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Spacing.md),
+        ) {
+            Box {
+                Artwork(
+                    url = playlist.artworkUrl,
+                    contentDescription = null,
+                    modifier = Modifier.size(72.dp),
+                )
+                Icon(
+                    painterResource(R.drawable.ic_favorite),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .size(20.dp)
+                        .align(Alignment.BottomEnd),
+                )
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
+                Text(
+                    playlist.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = pluralStringResource(
+                        R.plurals.library_track_count,
+                        playlist.trackCount,
+                        playlist.trackCount,
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f),
+                )
+            }
+        }
+    }
 }

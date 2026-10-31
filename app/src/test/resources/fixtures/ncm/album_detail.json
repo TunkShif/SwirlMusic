@@ -1,0 +1,91 @@
+{
+  "code": 200,
+  "album": {
+    "id": 1571654,
+    "name": "Back To Basics",
+    "picUrl": "https://p1.example.invalid/album.jpg",
+    "publishTime": 1155600000000,
+    "company": "索尼音乐",
+    "subType": "录音室版",
+    "size": 22,
+    "description": "★三座格莱美奖、全球两千五百万张销售后，历时四年精心酿造，全球乐迷屏息以待超级强片！\n★双CD共22首融合爵士、蓝调、灵魂、嘻哈的21世纪新式混种音乐，全面震撼视听感官！\n★首支单曲Ain`t No Other Man惊豔全美排行No.6、英国金榜No.2\n\n..."
+  },
+  "songs": [
+    {
+      "id": 17059113,
+      "name": "Intro (Back to Basics)",
+      "ar": [
+        {
+          "id": 50892,
+          "name": "Christina Aguilera"
+        }
+      ],
+      "al": {
+        "id": 1571654,
+        "name": "Back To Basics",
+        "picUrl": "https://p1.example.invalid/cover.jpg"
+      },
+      "dt": 107066,
+      "cd": "1",
+      "no": 1
+    },
+    {
+      "id": 17059114,
+      "name": "Makes Me Wanna Pray",
+      "ar": [
+        {
+          "id": 50892,
+          "name": "Christina Aguilera"
+        },
+        {
+          "id": 43134,
+          "name": "Steve Winwood"
+        }
+      ],
+      "al": {
+        "id": 1571654,
+        "name": "Back To Basics",
+        "picUrl": "https://p1.example.invalid/cover.jpg"
+      },
+      "dt": 250400,
+      "cd": "1",
+      "no": 2
+    },
+    {
+      "id": 17059126,
+      "name": "Enter the Circus",
+      "ar": [
+        {
+          "id": 50892,
+          "name": "Christina Aguilera"
+        }
+      ],
+      "al": {
+        "id": 1571654,
+        "name": "Back To Basics",
+        "picUrl": "https://p1.example.invalid/cover.jpg"
+      },
+      "dt": 102466,
+      "cd": "2",
+      "no": 1
+    },
+    {
+      "id": 17059127,
+      "name": "Welcome",
+      "ar": [
+        {
+          "id": 50892,
+          "name": "Christina Aguilera"
+        }
+      ],
+      "al": {
+        "id": 1571654,
+        "name": "Back To Basics",
+        "picUrl": "https://p1.example.invalid/cover.jpg"
+      },
+      "dt": 162653,
+      "cd": "2",
+      "no": 2
+    }
+  ]
+}

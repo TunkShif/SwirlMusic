@@ -30,6 +30,12 @@ data class TrackListUiState(
     val tracks: SectionState<List<Track>> = SectionState.Loading,
     /** Playlists show their real count in the subtitle (localized plural); null elsewhere. */
     val trackCount: Int? = null,
+    val description: String? = null,
+    val dateMillis: Long? = null,
+    val dateKind: DateKind? = null,
+    val company: String? = null,
+    val albumType: String? = null,
+    val tags: List<String> = emptyList(),
     /** More ids wait beyond the loaded rows (playlists only). */
     val canLoadMore: Boolean = false,
     val loadingMore: Boolean = false,
@@ -85,7 +91,10 @@ class TrackListViewModel @Inject constructor(
         val cached = repository.cached(key)
         val hadSnapshot = cached != null
         if (cached != null) {
-            emitList(cached.title, cached.artworkUrl, cached.subtitle, cached.firstTracks, cached.trackCount)
+            emitList(cached.title, cached.artworkUrl, cached.subtitle, cached.firstTracks, cached.trackCount,
+                HeaderExtras(cached.description, cached.dateMillis,
+                    if (cached.company == null) DateKind.Created else DateKind.Released,
+                    cached.company, cached.albumType, cached.tags))
             setPending(cached.orderedIds, cached.firstTracks)
         }
         when (val result = repository.fetchPlaylist(id)) {
@@ -96,6 +105,13 @@ class TrackListViewModel @Inject constructor(
                     title = fetched.title,
                     artworkUrl = fetched.artworkUrl,
                     subtitle = fetched.subtitle,
+                    trackCount = fetched.trackCount,
+                    description = fetched.description,
+                    dateMillis = fetched.dateMillis,
+                    dateKind = if (fetched.company == null) DateKind.Created else DateKind.Released,
+                    company = fetched.company,
+                    albumType = fetched.albumType,
+                    tags = fetched.tags,
                 )
                 if (fetched.orderChanged || !hadSnapshot) {
                     // Rebuild the rows in the new order, keeping the loaded count where possible.
@@ -131,6 +147,7 @@ class TrackListViewModel @Inject constructor(
         subtitle: String?,
         tracks: List<Track>,
         trackCount: Int? = null,
+        extras: HeaderExtras = HeaderExtras(),
     ) {
         _state.value = TrackListUiState(
             title = title,
@@ -138,8 +155,23 @@ class TrackListViewModel @Inject constructor(
             subtitle = subtitle,
             trackCount = trackCount,
             tracks = SectionState.Content(tracks),
+            description = extras.description,
+            dateMillis = extras.dateMillis,
+            dateKind = extras.dateKind,
+            company = extras.company,
+            albumType = extras.albumType,
+            tags = extras.tags,
         )
     }
+
+    private data class HeaderExtras(
+        val description: String? = null,
+        val dateMillis: Long? = null,
+        val dateKind: DateKind? = null,
+        val company: String? = null,
+        val albumType: String? = null,
+        val tags: List<String> = emptyList(),
+    )
 
     private fun setPending(orderedIds: List<Long>, loaded: List<Track>) {
         val covered = loaded.map { it.id }.toSet()
@@ -216,7 +248,8 @@ class TrackListViewModel @Inject constructor(
         val hadSnapshot = emitCached(TrackListRepository.albumKey(id))
         when (val result = repository.fetchAlbum(id)) {
             is ApiResult.Success -> result.value.let {
-                emitList(it.title, it.artworkUrl, it.subtitle, it.firstTracks, it.trackCount)
+                emitList(it.title, it.artworkUrl, it.subtitle, it.firstTracks, it.trackCount,
+                    HeaderExtras(it.description, it.dateMillis, it.albumType?.let { DateKind.Released } ?: if (it.dateMillis != null) DateKind.Released else null, it.company, it.albumType, it.tags))
             }
 
             is ApiResult.NetworkError -> if (!hadSnapshot) fail(LoadError.Network)
@@ -228,7 +261,8 @@ class TrackListViewModel @Inject constructor(
         val hadSnapshot = emitCached(TrackListRepository.artistKey(id))
         when (val result = repository.fetchArtist(id)) {
             is ApiResult.Success -> result.value.let {
-                emitList(it.title, it.artworkUrl, it.subtitle, it.firstTracks, it.trackCount)
+                emitList(it.title, it.artworkUrl, it.subtitle, it.firstTracks, it.trackCount,
+                    HeaderExtras(it.description, it.dateMillis, it.albumType?.let { DateKind.Released } ?: if (it.dateMillis != null) DateKind.Released else null, it.company, it.albumType, it.tags))
             }
 
             is ApiResult.NetworkError -> if (!hadSnapshot) fail(LoadError.Network)
@@ -239,7 +273,10 @@ class TrackListViewModel @Inject constructor(
     /** Emit the cached snapshot (albums/artists resolve all ids). True when one existed. */
     private suspend fun emitCached(key: String): Boolean {
         val cached = repository.cached(key, limit = Int.MAX_VALUE) ?: return false
-        emitList(cached.title, cached.artworkUrl, cached.subtitle, cached.firstTracks, cached.trackCount)
+        emitList(cached.title, cached.artworkUrl, cached.subtitle, cached.firstTracks, cached.trackCount,
+                HeaderExtras(cached.description, cached.dateMillis,
+                    if (cached.company == null) DateKind.Created else DateKind.Released,
+                    cached.company, cached.albumType, cached.tags))
         return true
     }
 

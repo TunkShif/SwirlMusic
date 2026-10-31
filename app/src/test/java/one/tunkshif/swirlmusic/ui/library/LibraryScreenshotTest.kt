@@ -66,7 +66,15 @@ class LibraryScreenshotTest {
     }
 
     private fun state(): LibraryUiState = LibraryUiState(
-        playlists = paged(listOf(playlist(1), playlist(2), playlist(3), playlist(4))),
+        playlists = paged(
+            listOf(
+                playlist(1, liked = true),
+                playlist(2),
+                playlist(3),
+                playlist(4, saved = true),
+                playlist(5, saved = true),
+            ),
+        ),
         albums = paged(listOf(album(1), album(2))),
         artists = paged(listOf(artist(1))),
         recent = SectionState.Content(listOf(playedEntry())),

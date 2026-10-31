@@ -2,6 +2,7 @@ package one.tunkshif.swirlmusic.data.api.dto
 
 import com.google.common.truth.Truth.assertThat
 import kotlinx.serialization.json.Json
+import one.tunkshif.swirlmusic.data.api.toDomain
 import org.junit.Test
 
 /**
@@ -21,6 +22,42 @@ class PlaylistDetailParsingTest {
         assertThat(response.playlist.tracks).isNotEmpty()
         assertThat(response.playlist.tracks!!.first().id).isEqualTo(287398)
         assertThat(response.playlist.name).isNotEmpty()
+    }
+
+    @Test
+    fun `playlist detail carries description, createTime and tags`() {
+        val response = json.decodeFromString<PlaylistDetailResponse>(fixture("playlist_detail.json"))
+
+        assertThat(response.playlist.description).isNotEmpty()
+        assertThat(response.playlist.createTime).isGreaterThan(0)
+        assertThat(response.playlist.tags).isNotNull()
+    }
+
+    @Test
+    fun `album detail carries label fields and disc or track numbers`() {
+        val response = json.decodeFromString<AlbumDetailResponse>(fixture("album_detail.json"))
+
+        assertThat(response.album.company).isNotEmpty()
+        assertThat(response.album.subType).isNotEmpty()
+        assertThat(response.album.publishTime).isGreaterThan(0)
+        assertThat(response.album.description).contains("\n")
+        assertThat(response.songs).hasSize(4)
+        assertThat(response.songs.map { it.cd }).containsExactly("1", "1", "2", "2").inOrder()
+        assertThat(response.songs.map { it.no }).containsExactly(1, 2, 1, 2).inOrder()
+    }
+
+    @Test
+    fun `user playlist items carry subscribed, specialType and creator`() {
+        val response = json.decodeFromString<UserPlaylistResponse>(fixture("user_playlist.json"))
+
+        assertThat(response.playlist[0].specialType).isEqualTo(5)
+        assertThat(response.playlist[0].subscribed).isFalse()
+        assertThat(response.playlist[2].subscribed).isTrue()
+        assertThat(response.playlist[2].creator?.nickname).isEqualTo("fixture-user")
+        val summaries = response.playlist.map { it.toDomain() }
+        assertThat(summaries[0].isLiked).isTrue()
+        assertThat(summaries[2].subscribed).isTrue()
+        assertThat(summaries[2].creatorName).isEqualTo("fixture-user")
     }
 
     /**

@@ -15,8 +15,10 @@ data class TrackEntity(
     val artworkUrl: String?,
     val durationMs: Long,
     val fetchedAt: Long,
+    val discNumber: Int? = null,
+    val trackNumber: Int? = null,
 ) {
-    fun toTrack(): Track = Track(id, title, artistLine, artworkUrl, durationMs)
+    fun toTrack(): Track = Track(id, title, artistLine, artworkUrl, durationMs, discNumber, trackNumber)
 
     companion object {
         fun of(track: Track, now: Long) = TrackEntity(
@@ -26,6 +28,8 @@ data class TrackEntity(
             artworkUrl = track.artworkUrl,
             durationMs = track.durationMs,
             fetchedAt = now,
+            discNumber = track.discNumber,
+            trackNumber = track.trackNumber,
         )
     }
 }
@@ -42,6 +46,12 @@ data class SnapshotEntity(
     val version: Long?,
     val fetchedAt: Long,
     val lastOpenedAt: Long,
+    val description: String? = null,
+    val dateMillis: Long? = null,
+    val company: String? = null,
+    val albumType: String? = null,
+    /** Newline-joined; playlists only. */
+    val tags: String? = null,
 )
 
 @Entity(

@@ -22,12 +22,17 @@ internal fun TrackDto.toDomain(): Track {
         artistLine = artists.joinToString(" / ") { it.name },
         artworkUrl = (album?.picUrl ?: album?.coverImgUrl)?.let { sizedArtwork(it, 300) },
         durationMs = dt,
+        discNumber = cd?.trim()?.toIntOrNull()?.takeIf { it > 0 },
+        trackNumber = no.takeIf { it > 0 },
     )
 }
 
 internal fun PlaylistDto.toDomain(): PlaylistSummary = PlaylistSummary(
     id = id,
     name = name,
+    subscribed = subscribed,
+    creatorName = creator?.nickname?.takeIf { it.isNotBlank() },
+    isLiked = specialType == 5,
     artworkUrl = (picUrl ?: coverImgUrl)?.let { sizedArtwork(it, 300) },
     // NetEase spells this `playcount` here and `playCount` elsewhere; accept both.
     playCount = if (playcount > 0) playcount else playCount,

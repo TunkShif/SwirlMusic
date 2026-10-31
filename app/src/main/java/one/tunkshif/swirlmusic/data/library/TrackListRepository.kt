@@ -22,6 +22,11 @@ data class CachedList(
     val trackCount: Int?,
     val orderedIds: List<Long>,
     val firstTracks: List<Track>,
+    val description: String? = null,
+    val dateMillis: Long? = null,
+    val company: String? = null,
+    val albumType: String? = null,
+    val tags: List<String> = emptyList(),
 )
 
 /** A fresh fetch: header, ordered ids, the bundled tracks, and whether the order was rewritten. */
@@ -34,6 +39,11 @@ data class FetchedList(
     val orderedIds: List<Long>,
     val firstTracks: List<Track>,
     val orderChanged: Boolean,
+    val description: String? = null,
+    val dateMillis: Long? = null,
+    val company: String? = null,
+    val albumType: String? = null,
+    val tags: List<String> = emptyList(),
 )
 
 /**
@@ -69,6 +79,11 @@ class TrackListRepository @Inject constructor(
             artworkUrl = snapshot.artworkUrl,
             version = snapshot.version,
             trackCount = snapshot.trackCount,
+            description = snapshot.description,
+            dateMillis = snapshot.dateMillis,
+            company = snapshot.company,
+            albumType = snapshot.albumType,
+            tags = snapshot.tags?.split("\n")?.filter { it.isNotBlank() } ?: emptyList(),
             orderedIds = ids,
             firstTracks = resolved.map { it.toTrack() },
         )
@@ -100,6 +115,9 @@ class TrackListRepository @Inject constructor(
                         version = contents.trackUpdateTime,
                         fetchedAt = now,
                         lastOpenedAt = now,
+                        description = contents.detail.description,
+                        dateMillis = contents.detail.createdAt,
+                        tags = contents.detail.tags.joinToString("\n").takeIf { it.isNotBlank() },
                     )
                     if (orderChanged) {
                         replaceSnapshot(entity, contents.trackIds)
@@ -115,6 +133,9 @@ class TrackListRepository @Inject constructor(
                         subtitle = playlistSubtitle(contents.detail.creatorName, contents.detail.trackCount),
                         trackCount = contents.detail.trackCount,
                         artworkUrl = contents.detail.artworkUrl,
+                        description = contents.detail.description,
+                        dateMillis = contents.detail.createdAt,
+                        tags = contents.detail.tags,
                         version = contents.trackUpdateTime,
                         orderedIds = contents.trackIds,
                         firstTracks = contents.firstTracks,
@@ -134,13 +155,14 @@ class TrackListRepository @Inject constructor(
         return when (val result = api.albumDetail(id)) {
             is ApiResult.Success -> {
                 val album = result.value
-                val subtitle = listOfNotNull(
-                    album.artistLine.takeIf { it.isNotBlank() },
-                    album.publishYear?.toString(),
-                ).joinToString(" · ")
-                store(key, album.name, subtitle, album.artworkUrl, album.tracks.size, null, album.tracks)
+                val subtitle = album.artistLine.takeIf { it.isNotBlank() }
+                store(key, album.name, subtitle, album.artworkUrl, album.tracks.size, null, album.tracks,
+                    description = album.description, dateMillis = album.releasedAt,
+                    company = album.company, albumType = album.albumType)
                 ApiResult.Success(
-                    FetchedList(album.name, subtitle, album.artworkUrl, null, null, album.tracks.map { it.id }, album.tracks, true),
+                    FetchedList(album.name, subtitle, album.artworkUrl, null, album.tracks.size, album.tracks.map { it.id }, album.tracks, true,
+                        description = album.description, dateMillis = album.releasedAt,
+                        company = album.company, albumType = album.albumType),
                 )
             }
 
@@ -176,13 +198,18 @@ class TrackListRepository @Inject constructor(
         trackCount: Int,
         version: Long?,
         tracks: List<Track>,
+        description: String? = null,
+        dateMillis: Long? = null,
+        company: String? = null,
+        albumType: String? = null,
     ) {
         val now = timeSource.nowMillis()
         val generation = gate.generation
         gate.writeIfCurrent(generation) {
             upsertTracks(tracks.map { TrackEntity.of(it, now) })
             replaceSnapshot(
-                SnapshotEntity(key, title, subtitle, artworkUrl, trackCount, version, now, now),
+                SnapshotEntity(key, title, subtitle, artworkUrl, trackCount, version, now, now,
+                    description = description, dateMillis = dateMillis, company = company, albumType = albumType),
                 tracks.map { it.id },
             )
             touch(key, now)

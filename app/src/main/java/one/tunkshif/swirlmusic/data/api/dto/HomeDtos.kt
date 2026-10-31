@@ -25,6 +25,10 @@ data class TrackDto(
     /** `/search` and `/song/detail` spell the same fields differently. */
     val artists: List<ArtistDto>? = null,
     val album: AlbumDto? = null,
+    /** Track number on its disc; 0 = unknown. */
+    val no: Int = 0,
+    /** Disc number as a string ("1", "2", "01", blank); parsed in the mapper. */
+    val cd: String? = null,
 )
 
 @Serializable
@@ -45,6 +49,9 @@ data class AlbumDto(
     val size: Int = 0,
     val publishTime: Long = 0,
     val artists: List<ArtistDto>? = null,
+    val description: String? = null,
+    val company: String? = null,
+    val subType: String? = null,
 )
 
 /** `/recommend/resource` returns the list at the top level, with `playcount` spelled lower case. */
@@ -69,6 +76,12 @@ data class PlaylistDto(
     val creator: CreatorDto? = null,
     /** Bump when the playlist's track set changes; used as the snapshot version. */
     val trackUpdateTime: Long? = null,
+    val createTime: Long = 0,
+    val tags: List<String> = emptyList(),
+    /** False = created by the user, true = saved. `/user/playlist` only. */
+    val subscribed: Boolean = false,
+    /** 5 = the liked-songs list; other values are normal playlists. */
+    val specialType: Int = 0,
     /** Every song id in order, on `/playlist/detail` only — `"tracks": null` elsewhere. */
     val trackIds: List<TrackIdDto>? = null,
     /** The first `n` full tracks on `/playlist/detail` (we send n=50). */

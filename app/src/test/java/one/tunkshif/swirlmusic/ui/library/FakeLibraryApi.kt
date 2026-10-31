@@ -200,12 +200,19 @@ fun track(id: Long) = Track(
     durationMs = 180_000,
 )
 
-fun playlist(id: Long) = PlaylistSummary(
+fun playlist(
+    id: Long,
+    liked: Boolean = false,
+    saved: Boolean = false,
+) = PlaylistSummary(
     id = id,
-    name = "Playlist $id",
+    name = if (liked) "fixture-user喜欢的音乐" else "Playlist $id",
     artworkUrl = null,
     playCount = 1_000L * id,
     trackCount = 10,
+    subscribed = saved,
+    creatorName = if (saved) "curator-$id" else null,
+    isLiked = liked,
 )
 
 fun album(id: Long) = AlbumSummary(

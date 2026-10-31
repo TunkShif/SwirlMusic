@@ -41,6 +41,8 @@ data class PlaylistDetail(
     val playCount: Long,
     val creatorName: String?,
     val description: String?,
+    val createdAt: Long? = null,
+    val tags: List<String> = emptyList(),
 )
 
 data class PlayedEntry(
@@ -55,6 +57,10 @@ data class AlbumDetail(
     val artworkUrl: String?,
     val publishYear: Int?,
     val tracks: List<Track>,
+    val description: String? = null,
+    val releasedAt: Long? = null,
+    val company: String? = null,
+    val albumType: String? = null,
 )
 
 data class ArtistDetail(

@@ -62,6 +62,10 @@ internal fun AlbumDetailResponse.toDomain(): AlbumDetail = AlbumDetail(
     artworkUrl = album.picUrl?.let { sizedArtwork(it, 400) },
     publishYear = album.publishTime.takeIf { it > 0 }?.let { publishYearOf(it) },
     tracks = songs.map { it.toDomain() },
+    description = album.description?.takeIf { it.isNotBlank() },
+    releasedAt = album.publishTime.takeIf { it > 0 },
+    company = album.company?.takeIf { it.isNotBlank() },
+    albumType = album.subType?.takeIf { it.isNotBlank() },
 )
 
 internal fun one.tunkshif.swirlmusic.data.api.dto.SearchResultDto.toResults(

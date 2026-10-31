@@ -27,6 +27,8 @@ fun TrackRow(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
+    /** Replaces the artwork slot (album track numbers). */
+    leading: (@Composable () -> Unit)? = null,
 ) {
     Row(
         modifier = modifier
@@ -36,11 +38,15 @@ fun TrackRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
-        Artwork(
-            url = track.artworkUrl,
-            contentDescription = null,
-            modifier = Modifier.size(48.dp),
-        )
+        if (leading != null) {
+            leading()
+        } else {
+            Artwork(
+                url = track.artworkUrl,
+                contentDescription = null,
+                modifier = Modifier.size(48.dp),
+            )
+        }
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = track.title,
