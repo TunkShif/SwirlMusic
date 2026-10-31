@@ -2,6 +2,7 @@ package one.tunkshif.swirlmusic.player
 
 import android.app.PendingIntent
 import android.content.Intent
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import dagger.hilt.android.EntryPointAccessors
@@ -40,11 +41,20 @@ class PlaybackService : MediaSessionService() {
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = session
 
+    /**
+     * Swiping the app away stops playback: the controller pauses and saves the resume state,
+     * then the service stops all players and ends itself. The default
+     * `MediaSessionService.onTaskRemoved` would keep playback going when `playWhenReady`,
+     * so `super` is deliberately not called. Backgrounding (Home/screen off) still plays.
+     */
+    @UnstableApi
     override fun onTaskRemoved(rootIntent: Intent?) {
-        if (!controller.player.playWhenReady) stopSelf()
+        controller.onTaskRemoved()
+        pauseAllPlayersAndStopSelf()
     }
 
     override fun onDestroy() {
+        controller.onServiceStopped()
         session?.release()
         session = null
         super.onDestroy()

@@ -158,6 +158,19 @@ class PlayerController @Inject constructor(
         publish(error = null)
     }
 
+    /** Swipe-away: pause at once, save where we are, and let the service die. */
+    fun onTaskRemoved() {
+        if (pendingTrack != null) playWhenReadyIntent = false
+        player.pause()
+        saveResumeState(playGeneration, player.currentPosition)
+        publish()
+    }
+
+    /** The service ended on its own; the next playback must start it again. */
+    fun onServiceStopped() {
+        serviceStarted = false
+    }
+
     /** Persist the queue order + resume row; a stale play() generation skips its write. */
     private fun saveResumeState(generation: Int, positionMs: Long) {
         if (generation != playGeneration) return
@@ -293,7 +306,12 @@ class PlayerController @Inject constructor(
             return@launch
         }
         if (player.mediaItemCount == 0) return@launch
-        if (player.isPlaying) player.pause() else player.play()
+        if (player.isPlaying) {
+            player.pause()
+        } else {
+            ensureService()
+            player.play()
+        }
     }
 
     fun next() = scope.launch {
