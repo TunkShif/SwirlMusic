@@ -11,10 +11,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -25,6 +29,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -34,8 +39,10 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import one.tunkshif.swirlmusic.R
 import one.tunkshif.swirlmusic.data.model.Track
+import one.tunkshif.swirlmusic.ui.common.LoadError
 import one.tunkshif.swirlmusic.ui.common.LoadingRows
 import one.tunkshif.swirlmusic.ui.common.SectionError
+import one.tunkshif.swirlmusic.player.PlayerController
 import one.tunkshif.swirlmusic.ui.common.SectionState
 import one.tunkshif.swirlmusic.ui.components.Artwork
 import one.tunkshif.swirlmusic.ui.components.TrackRow
@@ -45,7 +52,7 @@ import one.tunkshif.swirlmusic.ui.theme.Spacing
 fun TrackListRoute(
     source: TrackListSource,
     onBack: () -> Unit,
-    onPlayTracks: (List<Track>, Int) -> Unit,
+    onPlayTracks: (List<Track>, Int, PlayerController.TrackPager?) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: TrackListViewModel = hiltViewModel(),
 ) {
@@ -56,7 +63,10 @@ fun TrackListRoute(
         state = state,
         onBack = onBack,
         onRetry = viewModel::retry,
-        onPlayTracks = onPlayTracks,
+        onLoadMore = viewModel::loadMore,
+        onPlayTracks = { tracks, index ->
+            onPlayTracks(tracks, index, viewModel.playPager())
+        },
         modifier = modifier,
     )
 }
@@ -67,6 +77,7 @@ fun TrackListScreen(
     state: TrackListUiState,
     onBack: () -> Unit,
     onRetry: () -> Unit,
+    onLoadMore: () -> Unit,
     onPlayTracks: (List<Track>, Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -126,15 +137,67 @@ fun TrackListScreen(
                                 modifier = Modifier.padding(start = Spacing.sm),
                             )
                         }
-                        LazyColumn(contentPadding = PaddingValues(top = Spacing.md, bottom = Spacing.xxl)) {
+                        val listState = rememberLazyListState()
+                        LaunchedEffect(listState, list.size) {
+                            snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
+                                .collect { last ->
+                                    if (state.canLoadMore && last != null && last >= list.size - 20) {
+                                        onLoadMore()
+                                    }
+                                }
+                        }
+                        LazyColumn(
+                            state = listState,
+                            contentPadding = PaddingValues(top = Spacing.md, bottom = Spacing.xxl),
+                        ) {
                             itemsIndexed(list, key = { _, track -> track.id }) { index, track ->
                                 TrackRow(
                                     track = track,
                                     onClick = { onPlayTracks(list, index) },
                                 )
                             }
+                            if (state.canLoadMore || state.loadingMore || state.moreError != null) {
+                                item {
+                                    MoreFooter(
+                                        loading = state.loadingMore,
+                                        error = state.moreError,
+                                        onRetry = onLoadMore,
+                                    )
+                                }
+                            }
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun MoreFooter(loading: Boolean, error: LoadError?, onRetry: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(Spacing.md),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        when {
+            loading -> LoadingIndicator(modifier = Modifier.size(32.dp))
+            error != null -> {
+                Text(
+                    text = stringResource(
+                        when (error) {
+                            LoadError.Network -> R.string.error_network
+                            LoadError.Server -> R.string.error_server
+                        },
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                TextButton(onClick = onRetry) {
+                    Text(stringResource(R.string.action_retry))
                 }
             }
         }

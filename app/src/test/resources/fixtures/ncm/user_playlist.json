@@ -1,0 +1,48 @@
+{
+  "code": 200,
+  "playlist": [
+    {
+      "id": 42246344,
+      "name": "fixture-user喜欢的音乐",
+      "coverImgUrl": "https://p1.example.invalid/2mWF_gN0YOmVgXHaW8YyGQ==/109951170960591469.jpg",
+      "trackCount": 4819,
+      "playcount": 3707,
+      "tracks": null,
+      "trackIds": null,
+      "creator": {
+        "userId": 90000001,
+        "nickname": "fixture-user"
+      },
+      "userId": 90000001
+    },
+    {
+      "id": 8372065825,
+      "name": "@TunkShif的十年精选辑",
+      "coverImgUrl": "https://p1.example.invalid/aKUD2I8rBKPTPn0i3FwmNQ==/789449348766595.jpg",
+      "trackCount": 20,
+      "playcount": 17,
+      "tracks": null,
+      "trackIds": null,
+      "creator": {
+        "userId": 90000001,
+        "nickname": "fixture-user"
+      },
+      "userId": 90000001
+    },
+    {
+      "id": 2061488928,
+      "name": "MARK",
+      "coverImgUrl": "https://p1.example.invalid/0KfRz0SNX6rSbBWc39JIBw==/109951165644186954.jpg",
+      "trackCount": 336,
+      "playcount": 716,
+      "tracks": null,
+      "trackIds": null,
+      "creator": {
+        "userId": 90000001,
+        "nickname": "fixture-user"
+      },
+      "userId": 90000001
+    }
+  ],
+  "more": false
+}

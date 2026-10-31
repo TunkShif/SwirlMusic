@@ -16,12 +16,6 @@ data class PlaylistDetailResponse(
 )
 
 @Serializable
-data class PlaylistTracksResponse(
-    val code: Int = 0,
-    val songs: List<TrackDto> = emptyList(),
-)
-
-@Serializable
 data class SongDetailResponse(
     val code: Int = 0,
     val songs: List<TrackDto> = emptyList(),

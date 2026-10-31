@@ -28,6 +28,28 @@ import one.tunkshif.swirlmusic.data.model.PlayableUrl
 import one.tunkshif.swirlmusic.data.model.Track
 import one.tunkshif.swirlmusic.di.MainDispatcher
 
+/** Index ranges for the fast-start queue fill. Empty ranges mean "nothing to do". */
+internal data class QueueSplit(
+    val window: IntRange,
+    val head: IntRange,
+    val tail: IntRange,
+)
+
+/**
+ * Splits `count` items into the play window, the prefix to re-insert at 0, and the tail to
+ * append — with an out-of-range [startIndex] clamped into the list. Pure and unit-tested.
+ */
+internal fun queueSplit(count: Int, startIndex: Int, windowSize: Int): QueueSplit {
+    val last = (count - 1).coerceAtLeast(0)
+    val windowStart = startIndex.coerceIn(0, last)
+    val windowEnd = (windowStart + windowSize - 1).coerceAtMost(last)
+    return QueueSplit(
+        window = windowStart..windowEnd,
+        head = if (windowStart > 0) 0 until windowStart else IntRange.EMPTY,
+        tail = if (windowEnd < last) (windowEnd + 1)..last else IntRange.EMPTY,
+    )
+}
+
 /**
  * The one player in the app.
  *
@@ -81,6 +103,10 @@ class PlayerController @Inject constructor(
                 override fun onPlayerError(error: PlaybackException) {
                     onPlaybackFailed()
                 }
+
+                override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                    scope.launch { refreshNextIfStale() }
+                }
             },
         )
         startTicker()
@@ -88,34 +114,88 @@ class PlayerController @Inject constructor(
 
     // region commands
 
-    fun play(tracks: List<Track>, startIndex: Int) {
+    /**
+     * Supplies the tracks after the ones passed to [play], in list order, one chunk per call.
+     * Null means done; an EMPTY chunk means every id was unavailable — skip it and continue,
+     * never treat it as the end.
+     */
+    fun interface TrackPager { suspend fun next(): List<Track>? }
+
+    private var playGeneration = 0
+    private var playJob: Job? = null
+
+    fun play(tracks: List<Track>, startIndex: Int, rest: TrackPager? = null) {
         if (tracks.isEmpty()) return
-        scope.launch {
-            val resolved = resolver.resolve(tracks.map { it.id })
-            val playableTracks = mutableListOf<Track>()
-            val items = mutableListOf<MediaItem>()
-            var newStart = 0
-
-            tracks.forEachIndexed { index, track ->
-                val url = resolved[track.id]?.takeIf { it.isPlayable } ?: return@forEachIndexed
-                if (index == startIndex) newStart = playableTracks.size
-                playableTracks += track
-                playable[track.id] = requireNotNull(resolved[track.id])
-                items += buildItem(track, requireNotNull(url.url))
-            }
-
+        val generation = ++playGeneration
+        playJob?.cancel()
+        playJob = scope.launch {
+            // Fast start: resolve only the window around the tapped track.
+            val split = queueSplit(tracks.size, startIndex, PLAY_WINDOW)
+            val window = tracks.subList(split.window.first, split.window.last + 1)
+            val items = itemsFor(window)
             if (items.isEmpty()) {
                 publish(error = PlaybackError.Unavailable)
                 return@launch
             }
-
-            queue = playableTracks
+            // The start track must play: if it was dropped, start at the first playable.
+            val windowTracks = items.map { it.first }
+            val newStart = (windowTracks.indexOfFirst { it.id == window.getOrNull(0)?.id })
+                .takeIf { it >= 0 } ?: 0
+            queue = windowTracks
             retriedTracks.clear()
-            player.setMediaItems(items, newStart, 0)
+            player.setMediaItems(items.map { it.second }, newStart, 0)
             player.prepare()
             player.play()
             ensureService()
             publish(error = null)
+
+            // Background fill, in order: tail of the list, then the head (inserted at 0 so
+            // list order holds), then pager chunks. Each step bails if a newer play() won.
+            val tail = tracks.subList(split.tail.first, split.tail.last + 1)
+            appendResolved(tail, generation)
+            if (!isCurrent(generation)) return@launch
+            val head = tracks.subList(split.head.first, split.head.last + 1)
+            if (head.isNotEmpty()) {
+                val headItems = itemsFor(head)
+                if (headItems.isNotEmpty() && isCurrent(generation)) {
+                    player.addMediaItems(0, headItems.map { it.second })
+                    queue = headItems.map { it.first } + queue
+                    publish()
+                }
+            }
+            if (!isCurrent(generation)) return@launch
+            if (rest != null) {
+                while (isActive && isCurrent(generation)) {
+                    val chunk = rest.next() ?: break
+                    // Empty is a dead slice, not the end of the list.
+                    if (chunk.isNotEmpty()) appendResolved(chunk, generation)
+                }
+            }
+        }
+    }
+
+    private fun isCurrent(generation: Int) = generation == playGeneration
+
+    /** Resolve + append a slice of tracks at the queue end, keeping queue/playable in sync. */
+    private suspend fun appendResolved(tracks: List<Track>, generation: Int) {
+        tracks.chunked(RESOLVE_CHUNK).forEach { chunk ->
+            if (!isCurrent(generation)) return
+            val items = itemsFor(chunk)
+            if (items.isNotEmpty()) {
+                queue = queue + items.map { it.first }
+                player.addMediaItems(items.map { it.second })
+                publish()
+            }
+        }
+    }
+
+    /** Resolve a slice and return (track, MediaItem) pairs for the playable ones, in order. */
+    private suspend fun itemsFor(tracks: List<Track>): List<Pair<Track, MediaItem>> {
+        val resolved = resolver.resolve(tracks.map { it.id })
+        return tracks.mapNotNull { track ->
+            val url = resolved[track.id]?.takeIf { it.isPlayable } ?: return@mapNotNull null
+            playable[track.id] = url
+            track to buildItem(track, requireNotNull(url.url))
         }
     }
 
@@ -189,6 +269,27 @@ class PlayerController @Inject constructor(
             player.addMediaItem(insertAt, buildItem(track, requireNotNull(url.url)))
             publish()
         }
+    }
+
+    /**
+     * URLs resolved early in a long queue expire before they play. When a track ends, check
+     * the NEXT item (shuffle-aware) and refresh its URL before it starts. The playback-error
+     * refetch stays as the fallback.
+     */
+    private suspend fun refreshNextIfStale() {
+        val nextIndex = player.nextMediaItemIndex
+        if (nextIndex == C.INDEX_UNSET) return
+        val track = queue.getOrNull(nextIndex) ?: return
+        if (resolver.isFresh(track.id)) return
+        val generation = playGeneration
+        val url = resolver.resolve(listOf(track.id), forceRefresh = true)[track.id]
+            ?.takeIf { it.isPlayable } ?: return
+        if (generation != playGeneration) return
+        // The head insert or a playNext may have shifted indices while resolving: re-locate.
+        val index = if (queue.getOrNull(nextIndex)?.id == track.id) nextIndex else queue.indexOf(track)
+        if (index < 0) return
+        playable[track.id] = url
+        player.replaceMediaItem(index, buildItem(track, requireNotNull(url.url)))
     }
 
     /**
@@ -288,5 +389,7 @@ class PlayerController @Inject constructor(
 
     private companion object {
         const val POSITION_TICK_MILLIS = 500L
+        const val PLAY_WINDOW = 50
+        const val RESOLVE_CHUNK = 50
     }
 }

@@ -4,6 +4,7 @@ import one.tunkshif.swirlmusic.data.model.AlbumSummary
 import one.tunkshif.swirlmusic.data.model.ArtistSummary
 import one.tunkshif.swirlmusic.data.model.Page
 import one.tunkshif.swirlmusic.data.model.PlayedEntry
+import one.tunkshif.swirlmusic.data.model.PlaylistContents
 import one.tunkshif.swirlmusic.data.model.PlaylistDetail
 import one.tunkshif.swirlmusic.data.model.PlaylistSummary
 import one.tunkshif.swirlmusic.data.model.SearchResults
@@ -20,9 +21,7 @@ import one.tunkshif.swirlmusic.data.model.ArtistDetail
 interface NcmLibraryApi {
     suspend fun userPlaylists(uid: Long, limit: Int, offset: Int): ApiResult<Page<PlaylistSummary>>
 
-    suspend fun playlistDetail(id: Long): ApiResult<PlaylistDetail>
-
-    suspend fun playlistTracks(id: Long, limit: Int, offset: Int): ApiResult<List<Track>>
+    suspend fun playlistDetail(id: Long): ApiResult<PlaylistContents>
 
     suspend fun likedIds(uid: Long): ApiResult<List<Long>>
 
@@ -44,6 +43,15 @@ interface NcmLibraryApi {
         limit: Int,
         offset: Int,
     ): ApiResult<SearchResults>
+}
+
+/**
+ * `/song/detail` may reorder or omit ids. Reorder a result by the requested id order;
+ * a missing id is dropped but still counts as consumed.
+ */
+internal fun List<Track>.inIdOrder(ids: List<Long>): List<Track> {
+    val byId = associateBy { it.id }
+    return ids.mapNotNull { byId[it] }
 }
 
 /** Not used yet; kept next to the interface so the mappers stay in one file. */

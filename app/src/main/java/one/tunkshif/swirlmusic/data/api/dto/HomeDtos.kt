@@ -67,6 +67,15 @@ data class PlaylistDto(
     val copywriter: String? = null,
     val description: String? = null,
     val creator: CreatorDto? = null,
+    /** Every song id in order, on `/playlist/detail` only — `"tracks": null` elsewhere. */
+    val trackIds: List<TrackIdDto>? = null,
+    /** The first `n` full tracks on `/playlist/detail` (we send n=50). */
+    val tracks: List<TrackDto>? = null,
+)
+
+@Serializable
+data class TrackIdDto(
+    val id: Long = 0,
 )
 
 @Serializable

@@ -38,6 +38,7 @@ import one.tunkshif.swirlmusic.navigation.TopLevelDestination
 import one.tunkshif.swirlmusic.data.model.Track
 import one.tunkshif.swirlmusic.ui.components.MiniPlayerBar
 import one.tunkshif.swirlmusic.ui.player.MiniPlayerUiState
+import one.tunkshif.swirlmusic.player.PlayerController
 import one.tunkshif.swirlmusic.data.model.UserProfile
 import one.tunkshif.swirlmusic.ui.home.HomeRoute
 import one.tunkshif.swirlmusic.ui.home.HomeViewModel
@@ -73,7 +74,7 @@ fun SwirlApp(
     onSignOut: () -> Unit,
     miniPlayer: MiniPlayerUiState,
     onPlayPause: () -> Unit,
-    onPlayTracks: (List<Track>, Int) -> Unit,
+    onPlayTracks: (List<Track>, Int, PlayerController.TrackPager?) -> Unit,
     modifier: Modifier = Modifier,
     /**
      * Activity-scoped tab ViewModels, obtained in SwirlRoot. They must NOT be created inside a
@@ -89,7 +90,7 @@ fun SwirlApp(
     homeContent: @Composable () -> Unit = {
         HomeRoute(
             nickname = profile?.nickname,
-            onPlayTracks = onPlayTracks,
+            onPlayTracks = { t, i -> onPlayTracks(t, i, null) },
             viewModel = homeViewModel ?: hiltViewModel(),
         )
     },
@@ -99,7 +100,7 @@ fun SwirlApp(
             onOpenPlaylist = openPlaylist,
             onOpenAlbum = openAlbum,
             onOpenArtist = openArtist,
-            onPlayTracks = onPlayTracks,
+            onPlayTracks = { t, i -> onPlayTracks(t, i, null) },
             viewModel = libraryViewModel ?: hiltViewModel(),
         )
     },
@@ -206,7 +207,7 @@ fun SwirlApp(
                         onOpenPlaylist = { id -> backStack.add(PlaylistKey(id)) },
                         onOpenAlbum = { id -> backStack.add(AlbumKey(id)) },
                         onOpenArtist = { id -> backStack.add(ArtistKey(id)) },
-                        onPlayTracks = onPlayTracks,
+                        onPlayTracks = { t, i -> onPlayTracks(t, i, null) },
                     )
                 }
                 entry<ProfileKey> { ProfileScreen(profile = profile, onSignOut = onSignOut) }

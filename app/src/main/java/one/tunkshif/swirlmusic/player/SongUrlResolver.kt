@@ -72,6 +72,12 @@ class SongUrlResolver(
 
     fun cached(trackId: Long): PlayableUrl? = cache[trackId]
 
+    /** True when the cached URL is playable and not inside the expiry margin. */
+    fun isFresh(trackId: Long): Boolean {
+        val cached = cache[trackId] ?: return false
+        return cached.isPlayable && cached.expiresAtMillis - expiryMarginMillis > timeSource.nowMillis()
+    }
+
     private companion object {
         const val MAX_IDS_PER_REQUEST = 50
     }

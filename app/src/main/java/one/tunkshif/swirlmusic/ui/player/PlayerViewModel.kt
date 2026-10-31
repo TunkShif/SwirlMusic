@@ -47,5 +47,6 @@ class PlayerViewModel @Inject constructor(
 
     fun togglePlayPause() = controller.togglePlayPause()
 
-    fun play(tracks: List<Track>, startIndex: Int) = controller.play(tracks, startIndex)
+    fun play(tracks: List<Track>, startIndex: Int, rest: PlayerController.TrackPager? = null) =
+        controller.play(tracks, startIndex, rest)
 }

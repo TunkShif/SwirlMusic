@@ -9,11 +9,13 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.setMain
 import one.tunkshif.swirlmusic.data.api.ApiResult
 import one.tunkshif.swirlmusic.ui.common.LoadError
 import one.tunkshif.swirlmusic.ui.common.SectionState
 import one.tunkshif.swirlmusic.ui.library.FakeLibraryApi
+import one.tunkshif.swirlmusic.ui.library.track
 import org.junit.After
 import org.junit.Test
 
@@ -43,7 +45,88 @@ class TrackListViewModelTest {
         assertThat(state.title).isEqualTo("Late night drive")
         assertThat(state.subtitle).contains("tunkshif")
         assertThat((state.tracks as SectionState.Content).value).hasSize(2)
-        assertThat(api.calls).containsAtLeast("playlistDetail:1", "playlistTracks:1")
+        // One detail call paints the header and the bundled tracks; no chunk call is needed.
+        assertThat(api.calls).contains("playlistDetail:1")
+        assertThat(api.calls.filter { it.startsWith("songs:") }).isEmpty()
+    }
+
+    @Test
+    fun `loadMore fetches id slices of 100 in order, never past the end`() = runTest {
+        useTestMain()
+        api.contentsFirstTracks = (1L..50L).map { track(it) }
+        api.contentsTrackIds = (1L..220L).toList()
+
+        viewModel.load(TrackListSource.Playlist(1))
+        advanceUntilIdle()
+
+        viewModel.loadMore()
+        advanceUntilIdle()
+        assertThat(api.calls).contains("songs:" + (51L..150L).joinToString(","))
+        assertThat((viewModel.state.value.tracks as SectionState.Content).value).hasSize(150)
+        assertThat(viewModel.state.value.canLoadMore).isTrue()
+
+        viewModel.loadMore()
+        advanceUntilIdle()
+        assertThat(api.calls).contains("songs:" + (151L..220L).joinToString(","))
+        assertThat(viewModel.state.value.canLoadMore).isFalse()
+
+        viewModel.loadMore()
+        advanceUntilIdle()
+        assertThat(api.calls.filter { it.startsWith("songs:") }).hasSize(2)
+    }
+
+    @Test
+    fun `a failed chunk keeps rows and retries the same slice`() = runTest {
+        useTestMain()
+        api.contentsFirstTracks = (1L..50L).map { track(it) }
+        api.contentsTrackIds = (1L..200L).toList()
+        viewModel.load(TrackListSource.Playlist(1))
+        advanceUntilIdle()
+
+        api.failSongsWith = ApiResult.NetworkError(java.io.IOException("offline"))
+        viewModel.loadMore()
+        advanceUntilIdle()
+        assertThat(viewModel.state.value.moreError).isEqualTo(LoadError.Network)
+        assertThat((viewModel.state.value.tracks as SectionState.Content).value).hasSize(50)
+        assertThat(viewModel.state.value.canLoadMore).isTrue()
+
+        api.failSongsWith = null
+        viewModel.loadMore()
+        advanceUntilIdle()
+        assertThat(api.calls).contains("songs:" + (51L..150L).joinToString(","))
+        assertThat(viewModel.state.value.moreError).isNull()
+    }
+
+    @Test
+    fun `concurrent loadMore calls make one request`() = runTest {
+        useTestMain()
+        api.contentsFirstTracks = (1L..50L).map { track(it) }
+        api.contentsTrackIds = (1L..300L).toList()
+        viewModel.load(TrackListSource.Playlist(1))
+        advanceUntilIdle()
+
+        viewModel.loadMore()
+        viewModel.loadMore()
+        viewModel.loadMore()
+        advanceUntilIdle()
+        assertThat(api.calls.filter { it.startsWith("songs:") }).hasSize(1)
+    }
+
+    @Test
+    fun `out-of-order and missing songs come back in playlist order`() = runTest {
+        useTestMain()
+        api.contentsFirstTracks = listOf(track(1))
+        api.contentsTrackIds = listOf(1L, 2L, 3L, 4L)
+        api.songsOverride = { ids -> listOf(track(ids[2]), track(ids[0])) } // drop 4, reorder
+
+        viewModel.load(TrackListSource.Playlist(1))
+        advanceUntilIdle()
+        viewModel.loadMore()
+        advanceUntilIdle()
+
+        val tracks = (viewModel.state.value.tracks as SectionState.Content).value
+        assertThat(tracks.map { it.id }).containsExactly(1L, 2L, 4L).inOrder()
+        assertThat(viewModel.state.value.canLoadMore).isFalse()
     }
 
     @Test
@@ -88,6 +171,50 @@ class TrackListViewModelTest {
         assertThat(state.tracks).isInstanceOf(SectionState.Loading::class.java)
 
         advanceUntilIdle()
+    }
+
+    @Test
+    fun `the play pager skips empty slices and stops on failure`() = runTest {
+        useTestMain()
+        api.contentsFirstTracks = (1L..50L).map { track(it) }
+        api.contentsTrackIds = (1L..300L).toList()
+        viewModel.load(TrackListSource.Playlist(1))
+        advanceUntilIdle()
+
+        // The slice 51..150 comes back with nothing playable — the pager must skip it and
+        // serve 151..250 next, not treat empty as the end.
+        api.songsOverride = { ids -> if (ids.first() == 51L) emptyList() else ids.map { track(it) } }
+        val pager = viewModel.playPager()!!
+
+        val skipped = pager.next()
+        assertThat(skipped!!.map { it.id }).containsExactlyElementsIn(151L..250L).inOrder()
+        assertThat(pager.next()!!.map { it.id }).containsExactlyElementsIn(251L..300L).inOrder()
+
+        api.failSongsWith = ApiResult.NetworkError(java.io.IOException("offline"))
+        api.songsOverride = null
+        assertThat(viewModel.playPager()!!.next()).isNull()
+    }
+
+    @Test
+    fun `an in-flight loadMore is cancelled by a reload`() = runTest {
+        useTestMain()
+        api.contentsFirstTracks = (1L..50L).map { track(it) }
+        api.contentsTrackIds = (1L..200L).toList()
+        viewModel.load(TrackListSource.Playlist(1))
+        advanceUntilIdle()
+
+        api.songGate = kotlinx.coroutines.CompletableDeferred()
+        viewModel.loadMore()
+        runCurrent()
+
+        viewModel.retry()
+        api.songGate!!.complete(Unit)
+        advanceUntilIdle()
+
+        // The reload paints the same first tracks; the stale slice must not append.
+        val state = viewModel.state.value
+        assertThat((state.tracks as SectionState.Content).value).hasSize(50)
+        assertThat(state.title).isEqualTo("Late night drive")
     }
 
     @Test

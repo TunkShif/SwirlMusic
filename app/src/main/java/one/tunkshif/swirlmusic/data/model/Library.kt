@@ -20,6 +20,17 @@ data class ArtistSummary(
     val artworkUrl: String?,
 )
 
+/**
+ * One `/playlist/detail` response: the header, the complete ordered id list, and the first
+ * full tracks (the fork sends `n` of them; we ask for 50). Ids beyond `firstTracks` are
+ * filled in lazily by `songsByIds` chunks.
+ */
+data class PlaylistContents(
+    val detail: PlaylistDetail,
+    val trackIds: List<Long>,
+    val firstTracks: List<Track>,
+)
+
 data class PlaylistDetail(
     val id: Long,
     val name: String,

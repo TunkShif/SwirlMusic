@@ -55,7 +55,7 @@ class ShellBehaviorTest {
                         progress = 0.35f,
                     ),
                     onPlayPause = {},
-                    onPlayTracks = { _, _ -> },
+                    onPlayTracks = { _, _, _ -> },
                     homeContent = { TestHome() },
                     libraryContent = { _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
                 )
@@ -79,7 +79,7 @@ class ShellBehaviorTest {
                         progress = 0.35f,
                     ),
                     onPlayPause = {},
-                    onPlayTracks = { _, _ -> },
+                    onPlayTracks = { _, _, _ -> },
                     homeContent = { TestHome() },
                     libraryContent = { _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
                 )
@@ -107,7 +107,7 @@ class ShellBehaviorTest {
                         progress = 0.35f,
                     ),
                     onPlayPause = {},
-                    onPlayTracks = { _, _ -> },
+                    onPlayTracks = { _, _, _ -> },
                     homeContent = { TestHome() },
                     libraryContent = { _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
                 )
@@ -136,7 +136,7 @@ class ShellBehaviorTest {
                         progress = 0.35f,
                     ),
                     onPlayPause = {},
-                    onPlayTracks = { _, _ -> },
+                    onPlayTracks = { _, _, _ -> },
                     homeContent = { TestHome() },
                     libraryContent = { _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
                 )
@@ -165,7 +165,7 @@ class ShellBehaviorTest {
                         progress = 0.35f,
                     ),
                     onPlayPause = {},
-                    onPlayTracks = { _, _ -> },
+                    onPlayTracks = { _, _, _ -> },
                     homeContent = { TestHome() },
                     libraryContent = { _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
                 )

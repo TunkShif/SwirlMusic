@@ -1,6 +1,7 @@
 package one.tunkshif.swirlmusic.ui.library
 
 import one.tunkshif.swirlmusic.data.api.ApiResult
+import one.tunkshif.swirlmusic.data.api.inIdOrder
 import one.tunkshif.swirlmusic.data.api.NcmAuthApi
 import one.tunkshif.swirlmusic.data.api.NcmLibraryApi
 import one.tunkshif.swirlmusic.data.api.dto.AccountDto
@@ -16,6 +17,7 @@ import one.tunkshif.swirlmusic.data.model.ArtistDetail
 import one.tunkshif.swirlmusic.data.model.ArtistSummary
 import one.tunkshif.swirlmusic.data.model.Page
 import one.tunkshif.swirlmusic.data.model.PlayedEntry
+import one.tunkshif.swirlmusic.data.model.PlaylistContents
 import one.tunkshif.swirlmusic.data.model.PlaylistDetail
 import one.tunkshif.swirlmusic.data.model.PlaylistSummary
 import one.tunkshif.swirlmusic.data.model.SearchResults
@@ -69,22 +71,37 @@ class FakeLibraryApi : NcmLibraryApi {
         return ApiResult.Success(Page(playlists, hasMorePlaylists))
     }
 
-    override suspend fun playlistDetail(id: Long): ApiResult<PlaylistDetail> {
+    override suspend fun playlistDetail(id: Long): ApiResult<PlaylistContents> {
         calls += "playlistDetail:$id"
         failWith?.let { return it }
-        return ApiResult.Success(detail)
-    }
-
-    override suspend fun playlistTracks(id: Long, limit: Int, offset: Int): ApiResult<List<Track>> {
-        calls += "playlistTracks:$id"
-        failWith?.let { return it }
-        return ApiResult.Success(detailTracks)
+        return ApiResult.Success(
+            PlaylistContents(
+                detail = detail,
+                trackIds = contentsTrackIds.ifEmpty { detailTracks.map { it.id } },
+                firstTracks = contentsFirstTracks.ifEmpty { detailTracks },
+            ),
+        )
     }
 
     override suspend fun likedIds(uid: Long): ApiResult<List<Long>> = ApiResult.Success(emptyList())
 
-    override suspend fun songsByIds(ids: List<Long>): ApiResult<List<Track>> =
-        ApiResult.Success(ids.map { track(it) })
+    var contentsTrackIds: List<Long> = emptyList()
+    var contentsFirstTracks: List<Track> = emptyList()
+    /** If set, `songsByIds` returns this instead of `track(it)` per id — for order/drop tests. */
+    var songsOverride: ((List<Long>) -> List<Track>)? = null
+    var failSongsWith: ApiResult<Nothing>? = null
+    /** When set, `songsByIds` suspends on it — for in-flight race tests. */
+    var songGate: kotlinx.coroutines.CompletableDeferred<Unit>? = null
+
+    override suspend fun songsByIds(ids: List<Long>): ApiResult<List<Track>> {
+        calls += "songs:${ids.joinToString(",")}"
+        songGate?.await()
+        failSongsWith?.let { return it }
+        // Same contract as the real API: results come back in requested order, missing dropped.
+        return ApiResult.Success(
+            (songsOverride?.invoke(ids) ?: ids.map { track(it) }).inIdOrder(ids),
+        )
+    }
 
     override suspend fun recentlyPlayed(uid: Long, limit: Int): ApiResult<List<PlayedEntry>> {
         calls += "recent"

@@ -24,7 +24,6 @@ import one.tunkshif.swirlmusic.data.api.dto.ArtistSublistResponse
 import one.tunkshif.swirlmusic.data.api.dto.LikeResponse
 import one.tunkshif.swirlmusic.data.api.dto.LikelistResponse
 import one.tunkshif.swirlmusic.data.api.dto.PlaylistDetailResponse
-import one.tunkshif.swirlmusic.data.api.dto.PlaylistTracksResponse
 import one.tunkshif.swirlmusic.data.api.dto.RecommendResourceResponse
 import one.tunkshif.swirlmusic.data.api.dto.SearchResponse
 import one.tunkshif.swirlmusic.data.api.dto.SongDetailResponse
@@ -42,7 +41,7 @@ import one.tunkshif.swirlmusic.data.model.ArtistSummary
 import one.tunkshif.swirlmusic.data.model.ChartSummary
 import one.tunkshif.swirlmusic.data.model.Page
 import one.tunkshif.swirlmusic.data.model.PlayedEntry
-import one.tunkshif.swirlmusic.data.model.PlaylistDetail
+import one.tunkshif.swirlmusic.data.model.PlaylistContents
 import one.tunkshif.swirlmusic.data.model.SearchResults
 import one.tunkshif.swirlmusic.data.model.SearchType
 import one.tunkshif.swirlmusic.data.model.PlayableUrl
@@ -122,20 +121,18 @@ class NcmApi @Inject constructor(
             mapOf("uid" to uid.toString(), "limit" to limit.toString(), "offset" to offset.toString()),
         ).map { Page(it.playlist.map { playlist -> playlist.toDomain() }, it.more) }
 
-    override suspend fun playlistDetail(id: Long): ApiResult<PlaylistDetail> =
-        request("/playlist/detail", PlaylistDetailResponse.serializer(), mapOf("id" to id.toString()))
-            .map { it.playlist.toDetail() }
-
-    override suspend fun playlistTracks(
-        id: Long,
-        limit: Int,
-        offset: Int,
-    ): ApiResult<List<Track>> =
+    override suspend fun playlistDetail(id: Long): ApiResult<PlaylistContents> =
         request(
-            "/playlist/track/all",
-            PlaylistTracksResponse.serializer(),
-            mapOf("id" to id.toString(), "limit" to limit.toString(), "offset" to offset.toString()),
-        ).map { response -> response.songs.map { it.toDomain() } }
+            "/playlist/detail",
+            PlaylistDetailResponse.serializer(),
+            mapOf("id" to id.toString(), "n" to "50", "s" to "0"),
+        ).map { response ->
+            PlaylistContents(
+                detail = response.playlist.toDetail(),
+                trackIds = response.playlist.trackIds.orEmpty().map { it.id },
+                firstTracks = response.playlist.tracks.orEmpty().map { it.toDomain() },
+            )
+        }
 
     override suspend fun likedIds(uid: Long): ApiResult<List<Long>> =
         request("/likelist", LikelistResponse.serializer(), mapOf("uid" to uid.toString()))
@@ -147,7 +144,9 @@ class NcmApi @Inject constructor(
             "/song/detail",
             SongDetailResponse.serializer(),
             mapOf("ids" to ids.joinToString(",")),
-        ).map { response -> response.songs.map { it.toDomain() } }
+        ).map { response ->
+            response.songs.map { it.toDomain() }.inIdOrder(ids)
+        }
     }
 
     override suspend fun recentlyPlayed(uid: Long, limit: Int): ApiResult<List<PlayedEntry>> =
