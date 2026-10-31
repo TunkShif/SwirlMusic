@@ -1,5 +1,8 @@
 package one.tunkshif.swirlmusic.ui.home
 
+import one.tunkshif.swirlmusic.ui.common.LoadError
+import one.tunkshif.swirlmusic.ui.common.SectionState
+
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst

@@ -19,3 +19,15 @@ data object ProfileKey : NavKey
 /** Full-screen destination. The bottom bar and mini player hide while it is shown. */
 @Serializable
 data object PlayingKey : NavKey
+
+@Serializable
+data class PlaylistKey(val id: Long) : NavKey
+
+@Serializable
+data class AlbumKey(val id: Long) : NavKey
+
+@Serializable
+data class ArtistKey(val id: Long) : NavKey
+
+@Serializable
+data object SearchKey : NavKey

@@ -17,13 +17,34 @@ import one.tunkshif.swirlmusic.data.api.dto.QrCreateBody
 import one.tunkshif.swirlmusic.data.api.dto.QrCreateResponse
 import one.tunkshif.swirlmusic.data.api.dto.QrKeyBody
 import one.tunkshif.swirlmusic.data.api.dto.QrKeyResponse
+import one.tunkshif.swirlmusic.data.api.dto.AlbumDetailResponse
+import one.tunkshif.swirlmusic.data.api.dto.AlbumSublistResponse
+import one.tunkshif.swirlmusic.data.api.dto.ArtistDetailResponse
+import one.tunkshif.swirlmusic.data.api.dto.ArtistSublistResponse
+import one.tunkshif.swirlmusic.data.api.dto.LikeResponse
+import one.tunkshif.swirlmusic.data.api.dto.LikelistResponse
+import one.tunkshif.swirlmusic.data.api.dto.PlaylistDetailResponse
+import one.tunkshif.swirlmusic.data.api.dto.PlaylistTracksResponse
 import one.tunkshif.swirlmusic.data.api.dto.RecommendResourceResponse
+import one.tunkshif.swirlmusic.data.api.dto.SearchResponse
+import one.tunkshif.swirlmusic.data.api.dto.SongDetailResponse
+import one.tunkshif.swirlmusic.data.api.dto.UserPlaylistResponse
+import one.tunkshif.swirlmusic.data.api.dto.UserRecordResponse
 import one.tunkshif.swirlmusic.data.api.dto.ScrobbleResponse
 import one.tunkshif.swirlmusic.data.api.dto.SongUrlResponse
 import one.tunkshif.swirlmusic.data.api.dto.RecommendSongsResponse
 import one.tunkshif.swirlmusic.data.api.dto.ToplistResponse
 import one.tunkshif.swirlmusic.data.api.dto.UserAccountResponse
+import one.tunkshif.swirlmusic.data.model.AlbumDetail
+import one.tunkshif.swirlmusic.data.model.AlbumSummary
+import one.tunkshif.swirlmusic.data.model.ArtistDetail
+import one.tunkshif.swirlmusic.data.model.ArtistSummary
 import one.tunkshif.swirlmusic.data.model.ChartSummary
+import one.tunkshif.swirlmusic.data.model.Page
+import one.tunkshif.swirlmusic.data.model.PlayedEntry
+import one.tunkshif.swirlmusic.data.model.PlaylistDetail
+import one.tunkshif.swirlmusic.data.model.SearchResults
+import one.tunkshif.swirlmusic.data.model.SearchType
 import one.tunkshif.swirlmusic.data.model.PlayableUrl
 import one.tunkshif.swirlmusic.data.model.PlaylistSummary
 import one.tunkshif.swirlmusic.data.model.Track
@@ -41,7 +62,7 @@ class NcmApi @Inject constructor(
     private val config: ApiConfig,
     private val timeSource: TimeSource,
     @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
-) : NcmAuthApi, NcmHomeApi, NcmPlaybackApi {
+) : NcmAuthApi, NcmHomeApi, NcmPlaybackApi, NcmLibraryApi {
 
     suspend fun loginStatus(): ApiResult<AccountStatusBody> =
         request("/login/status", LoginStatusResponse.serializer()).map { it.data }
@@ -89,6 +110,103 @@ class NcmApi @Inject constructor(
             ScrobbleResponse.serializer(),
             mapOf("id" to trackId.toString(), "time" to playedSeconds.toString()),
         ).map { }
+
+    override suspend fun userPlaylists(
+        uid: Long,
+        limit: Int,
+        offset: Int,
+    ): ApiResult<Page<PlaylistSummary>> =
+        request(
+            "/user/playlist",
+            UserPlaylistResponse.serializer(),
+            mapOf("uid" to uid.toString(), "limit" to limit.toString(), "offset" to offset.toString()),
+        ).map { Page(it.playlist.map { playlist -> playlist.toDomain() }, it.more) }
+
+    override suspend fun playlistDetail(id: Long): ApiResult<PlaylistDetail> =
+        request("/playlist/detail", PlaylistDetailResponse.serializer(), mapOf("id" to id.toString()))
+            .map { it.playlist.toDetail() }
+
+    override suspend fun playlistTracks(
+        id: Long,
+        limit: Int,
+        offset: Int,
+    ): ApiResult<List<Track>> =
+        request(
+            "/playlist/track/all",
+            PlaylistTracksResponse.serializer(),
+            mapOf("id" to id.toString(), "limit" to limit.toString(), "offset" to offset.toString()),
+        ).map { response -> response.songs.map { it.toDomain() } }
+
+    override suspend fun likedIds(uid: Long): ApiResult<List<Long>> =
+        request("/likelist", LikelistResponse.serializer(), mapOf("uid" to uid.toString()))
+            .map { it.ids }
+
+    override suspend fun songsByIds(ids: List<Long>): ApiResult<List<Track>> {
+        if (ids.isEmpty()) return ApiResult.Success(emptyList())
+        return request(
+            "/song/detail",
+            SongDetailResponse.serializer(),
+            mapOf("ids" to ids.joinToString(",")),
+        ).map { response -> response.songs.map { it.toDomain() } }
+    }
+
+    override suspend fun recentlyPlayed(uid: Long, limit: Int): ApiResult<List<PlayedEntry>> =
+        request(
+            "/user/record",
+            UserRecordResponse.serializer(),
+            mapOf("uid" to uid.toString(), "type" to "0"),
+        ).map { response -> response.allData.mapNotNull { it.toEntry() }.take(limit) }
+
+    override suspend fun followedAlbums(limit: Int, offset: Int): ApiResult<Page<AlbumSummary>> =
+        request(
+            "/album/sublist",
+            AlbumSublistResponse.serializer(),
+            mapOf("limit" to limit.toString(), "offset" to offset.toString()),
+        ).map { response ->
+            val items = (response.subList + response.sublist + response.data)
+                .mapNotNull { it.toSummary() }
+            Page(items, response.hasMore)
+        }
+
+    override suspend fun albumDetail(id: Long): ApiResult<AlbumDetail> =
+        request("/album", AlbumDetailResponse.serializer(), mapOf("id" to id.toString()))
+            .map { it.toDomain() }
+
+    override suspend fun followedArtists(limit: Int, offset: Int): ApiResult<Page<ArtistSummary>> =
+        request(
+            "/artist/sublist",
+            ArtistSublistResponse.serializer(),
+            mapOf("limit" to limit.toString(), "offset" to offset.toString()),
+        ).map { response -> Page(response.data.map { it.toSummary() }, response.hasMore) }
+
+    override suspend fun artistDetail(id: Long): ApiResult<ArtistDetail> =
+        request("/artists", ArtistDetailResponse.serializer(), mapOf("id" to id.toString()))
+            .map { response ->
+                ArtistDetail(
+                    id = response.artist.id,
+                    name = response.artist.name,
+                    artworkUrl = (response.artist.picUrl ?: response.artist.img1v1Url)
+                        ?.let { sizedArtwork(it, 400) },
+                    tracks = response.hotSongs.map { it.toDomain() },
+                )
+            }
+
+    override suspend fun search(
+        keywords: String,
+        type: SearchType,
+        limit: Int,
+        offset: Int,
+    ): ApiResult<SearchResults> =
+        request(
+            "/search",
+            SearchResponse.serializer(),
+            mapOf(
+                "keywords" to keywords,
+                "type" to type.apiValue.toString(),
+                "limit" to limit.toString(),
+                "offset" to offset.toString(),
+            ),
+        ).map { response -> response.result.toResults(type, offset) }
 
     private suspend fun <T> request(
         path: String,

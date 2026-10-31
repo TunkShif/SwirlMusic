@@ -15,9 +15,13 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import one.tunkshif.swirlmusic.R
+import one.tunkshif.swirlmusic.navigation.AlbumKey
+import one.tunkshif.swirlmusic.navigation.ArtistKey
 import one.tunkshif.swirlmusic.navigation.HomeKey
 import one.tunkshif.swirlmusic.navigation.LibraryKey
 import one.tunkshif.swirlmusic.navigation.PlayingKey
+import one.tunkshif.swirlmusic.navigation.PlaylistKey
+import one.tunkshif.swirlmusic.navigation.SearchKey
 import one.tunkshif.swirlmusic.navigation.ProfileKey
 import one.tunkshif.swirlmusic.navigation.TopLevelDestination
 import one.tunkshif.swirlmusic.data.model.Track
@@ -25,7 +29,10 @@ import one.tunkshif.swirlmusic.ui.components.MiniPlayerBar
 import one.tunkshif.swirlmusic.ui.player.MiniPlayerUiState
 import one.tunkshif.swirlmusic.data.model.UserProfile
 import one.tunkshif.swirlmusic.ui.home.HomeRoute
-import one.tunkshif.swirlmusic.ui.library.LibraryScreen
+import one.tunkshif.swirlmusic.ui.library.LibraryRoute
+import one.tunkshif.swirlmusic.ui.search.SearchRoute
+import one.tunkshif.swirlmusic.ui.tracks.TrackListRoute
+import one.tunkshif.swirlmusic.ui.tracks.TrackListSource
 import one.tunkshif.swirlmusic.ui.playing.PlayingScreen
 import one.tunkshif.swirlmusic.ui.profile.ProfileScreen
 
@@ -51,10 +58,19 @@ fun SwirlApp(
     homeContent: @Composable () -> Unit = {
         HomeRoute(nickname = profile?.nickname, onPlayTracks = onPlayTracks)
     },
+    libraryContent: @Composable (openPlaylist: (Long) -> Unit, openAlbum: (Long) -> Unit, openArtist: (Long) -> Unit, openSearch: () -> Unit) -> Unit = { openPlaylist, openAlbum, openArtist, openSearch ->
+        LibraryRoute(
+            onOpenSearch = openSearch,
+            onOpenPlaylist = openPlaylist,
+            onOpenAlbum = openAlbum,
+            onOpenArtist = openArtist,
+            onPlayTracks = onPlayTracks,
+        )
+    },
 ) {
     val backStack = rememberNavBackStack(HomeKey)
     val currentKey = backStack.lastOrNull()
-    val showChrome = currentKey != PlayingKey
+    val showChrome = TopLevelDestination.entries.any { it.key == currentKey }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -96,7 +112,44 @@ fun SwirlApp(
             modifier = Modifier.padding(innerPadding),
             entryProvider = entryProvider {
                 entry<HomeKey> { homeContent() }
-                entry<LibraryKey> { LibraryScreen() }
+                entry<LibraryKey> {
+                    libraryContent(
+                        { id -> backStack.add(PlaylistKey(id)) },
+                        { id -> backStack.add(AlbumKey(id)) },
+                        { id -> backStack.add(ArtistKey(id)) },
+                        { backStack.add(SearchKey) },
+                    )
+                }
+                entry<PlaylistKey> { key ->
+                    TrackListRoute(
+                        source = TrackListSource.Playlist(key.id),
+                        onBack = { backStack.removeLastOrNull() },
+                        onPlayTracks = onPlayTracks,
+                    )
+                }
+                entry<AlbumKey> { key ->
+                    TrackListRoute(
+                        source = TrackListSource.Album(key.id),
+                        onBack = { backStack.removeLastOrNull() },
+                        onPlayTracks = onPlayTracks,
+                    )
+                }
+                entry<ArtistKey> { key ->
+                    TrackListRoute(
+                        source = TrackListSource.Artist(key.id),
+                        onBack = { backStack.removeLastOrNull() },
+                        onPlayTracks = onPlayTracks,
+                    )
+                }
+                entry<SearchKey> {
+                    SearchRoute(
+                        onBack = { backStack.removeLastOrNull() },
+                        onOpenPlaylist = { id -> backStack.add(PlaylistKey(id)) },
+                        onOpenAlbum = { id -> backStack.add(AlbumKey(id)) },
+                        onOpenArtist = { id -> backStack.add(ArtistKey(id)) },
+                        onPlayTracks = onPlayTracks,
+                    )
+                }
                 entry<ProfileKey> { ProfileScreen(profile = profile, onSignOut = onSignOut) }
                 entry<PlayingKey> { PlayingScreen(onBack = { backStack.removeLastOrNull() }) }
             },

@@ -46,8 +46,38 @@
 
     <!-- Library -->
     <string name="library_title">Library</string>
-    <string name="library_empty_title">Your library is empty</string>
-    <string name="library_empty_body">Playlists, albums, artists, and recently played tracks will appear here.</string>
+    <string name="library_search_hint">Search songs, albums, artists</string>
+    <string name="library_tab_playlists">Playlists</string>
+    <string name="library_tab_albums">Albums</string>
+    <string name="library_tab_artists">Artists</string>
+    <string name="library_tab_recent">Recent</string>
+    <string name="library_empty_playlists">No playlists yet</string>
+    <string name="library_empty_albums">No saved albums</string>
+    <string name="library_empty_artists">No followed artists</string>
+    <string name="library_empty_recent">Nothing played yet</string>
+    <string name="library_play_count">%1$s plays</string>
+
+    <!-- Track list -->
+    <string name="track_list_title">Tracks</string>
+    <string name="track_list_play_all">Play all</string>
+    <string name="track_list_empty">This list is empty</string>
+
+    <!-- Search -->
+    <string name="search_placeholder">Search</string>
+    <string name="search_prompt">Type a keyword and press search</string>
+    <string name="search_recent">Recent searches</string>
+    <string name="search_clear_history">Clear</string>
+    <string name="search_no_results">No results for “%1$s”</string>
+    <string name="search_tab_songs">Songs</string>
+    <string name="search_tab_albums">Albums</string>
+    <string name="search_tab_artists">Artists</string>
+    <string name="search_tab_playlists">Playlists</string>
+
+    <!-- Shared -->
+    <string name="error_network">Could not load. Check your connection.</string>
+    <string name="error_server">Could not load.</string>
+    <string name="action_retry">Retry</string>
+    <string name="action_back">Back</string>
 
     <!-- Profile -->
     <string name="profile_title">Profile</string>

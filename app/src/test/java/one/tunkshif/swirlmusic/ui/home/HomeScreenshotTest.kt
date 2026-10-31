@@ -1,5 +1,8 @@
 package one.tunkshif.swirlmusic.ui.home
 
+import one.tunkshif.swirlmusic.ui.common.LoadError
+import one.tunkshif.swirlmusic.ui.common.SectionState
+
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.ColorPainter

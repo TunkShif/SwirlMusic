@@ -1,0 +1,67 @@
+package one.tunkshif.swirlmusic.data.model
+
+/** One page of a paginated list. */
+data class Page<T>(
+    val items: List<T>,
+    val hasMore: Boolean,
+)
+
+data class AlbumSummary(
+    val id: Long,
+    val name: String,
+    val artistLine: String,
+    val artworkUrl: String?,
+    val trackCount: Int,
+)
+
+data class ArtistSummary(
+    val id: Long,
+    val name: String,
+    val artworkUrl: String?,
+)
+
+data class PlaylistDetail(
+    val id: Long,
+    val name: String,
+    val artworkUrl: String?,
+    val trackCount: Int,
+    val playCount: Long,
+    val creatorName: String?,
+    val description: String?,
+)
+
+data class PlayedEntry(
+    val track: Track,
+    val playCount: Int,
+)
+
+data class AlbumDetail(
+    val id: Long,
+    val name: String,
+    val artistLine: String,
+    val artworkUrl: String?,
+    val publishYear: Int?,
+    val tracks: List<Track>,
+)
+
+data class ArtistDetail(
+    val id: Long,
+    val name: String,
+    val artworkUrl: String?,
+    val tracks: List<Track>,
+)
+
+enum class SearchType(val apiValue: Int) {
+    Songs(1),
+    Albums(10),
+    Artists(100),
+    Playlists(1000),
+}
+
+data class SearchResults(
+    val songs: List<Track> = emptyList(),
+    val albums: List<AlbumSummary> = emptyList(),
+    val artists: List<ArtistSummary> = emptyList(),
+    val playlists: List<PlaylistSummary> = emptyList(),
+    val hasMore: Boolean = false,
+)

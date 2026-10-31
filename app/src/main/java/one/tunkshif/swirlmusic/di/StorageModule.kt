@@ -11,6 +11,8 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
+import one.tunkshif.swirlmusic.data.local.SearchHistory
+import one.tunkshif.swirlmusic.data.local.SearchHistoryStore
 import one.tunkshif.swirlmusic.data.session.DataStoreSessionStorage
 import one.tunkshif.swirlmusic.data.session.KeystoreSessionCipher
 import one.tunkshif.swirlmusic.data.session.SessionCipher
@@ -36,4 +38,8 @@ object StorageModule {
     @Provides
     @Singleton
     fun sessionCipher(): SessionCipher = KeystoreSessionCipher()
+
+    @Provides
+    @Singleton
+    fun searchHistory(store: SearchHistoryStore): SearchHistory = store
 }

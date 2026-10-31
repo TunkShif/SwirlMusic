@@ -57,6 +57,7 @@ class ShellBehaviorTest {
                     onPlayPause = {},
                     onPlayTracks = { _, _ -> },
                     homeContent = { TestHome() },
+                    libraryContent = { _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
                 )
             }
         }
@@ -80,12 +81,13 @@ class ShellBehaviorTest {
                     onPlayPause = {},
                     onPlayTracks = { _, _ -> },
                     homeContent = { TestHome() },
+                    libraryContent = { _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
                 )
             }
         }
 
         compose.onAllNodesWithText(label(TopLevelDestination.Library)).onFirst().performClick()
-        compose.onNodeWithText(context.getString(R.string.library_empty_body)).assertExists()
+        compose.onNodeWithText("Library stub").assertExists()
 
         compose.onAllNodesWithText(label(TopLevelDestination.Profile)).onFirst().performClick()
         compose.onNodeWithText(profile.nickname).assertExists()
@@ -107,6 +109,7 @@ class ShellBehaviorTest {
                     onPlayPause = {},
                     onPlayTracks = { _, _ -> },
                     homeContent = { TestHome() },
+                    libraryContent = { _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
                 )
             }
         }
@@ -135,6 +138,7 @@ class ShellBehaviorTest {
                     onPlayPause = {},
                     onPlayTracks = { _, _ -> },
                     homeContent = { TestHome() },
+                    libraryContent = { _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
                 )
             }
         }
@@ -143,7 +147,7 @@ class ShellBehaviorTest {
         compose.onNodeWithTag(MINI_PLAYER_TAG).performClick()
         compose.onNodeWithContentDescription(context.getString(R.string.playing_back)).performClick()
 
-        compose.onNodeWithText(context.getString(R.string.library_empty_body)).assertExists()
+        compose.onNodeWithText("Library stub").assertExists()
     }
 
     @Test
@@ -163,6 +167,7 @@ class ShellBehaviorTest {
                     onPlayPause = {},
                     onPlayTracks = { _, _ -> },
                     homeContent = { TestHome() },
+                    libraryContent = { _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
                 )
             }
         }
@@ -170,7 +175,7 @@ class ShellBehaviorTest {
         compose.onAllNodesWithText(label(TopLevelDestination.Library)).onFirst().performClick()
         restorationTester.emulateSavedInstanceStateRestore()
 
-        compose.onNodeWithText(context.getString(R.string.library_empty_body)).assertExists()
+        compose.onNodeWithText("Library stub").assertExists()
     }
 
     private fun label(destination: TopLevelDestination) = context.getString(destination.labelRes)

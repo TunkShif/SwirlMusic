@@ -90,6 +90,7 @@ class ShellScreenshotTest {
                     onPlayPause = {},
                     onPlayTracks = { _, _ -> },
                     homeContent = { TestHome() },
+                    libraryContent = { _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
                 )
             }
         }
@@ -116,6 +117,7 @@ class ShellScreenshotTest {
                     onPlayPause = {},
                     onPlayTracks = { _, _ -> },
                     homeContent = { TestHome() },
+                    libraryContent = { _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
                 )
             }
         }

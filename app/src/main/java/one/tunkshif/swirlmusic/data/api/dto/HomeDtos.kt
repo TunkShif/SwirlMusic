@@ -22,12 +22,18 @@ data class TrackDto(
     val al: AlbumDto? = null,
     val dt: Long = 0,
     val fee: Int = 0,
+    /** `/search` and `/song/detail` spell the same fields differently. */
+    val artists: List<ArtistDto>? = null,
+    val album: AlbumDto? = null,
 )
 
 @Serializable
 data class ArtistDto(
     val id: Long = 0,
     val name: String = "",
+    val picUrl: String? = null,
+    val img1v1Url: String? = null,
+    val albumSize: Int = 0,
 )
 
 @Serializable
@@ -35,6 +41,10 @@ data class AlbumDto(
     val id: Long = 0,
     val name: String = "",
     val picUrl: String? = null,
+    val coverImgUrl: String? = null,
+    val size: Int = 0,
+    val publishTime: Long = 0,
+    val artists: List<ArtistDto>? = null,
 )
 
 /** `/recommend/resource` returns the list at the top level, with `playcount` spelled lower case. */
@@ -49,10 +59,20 @@ data class PlaylistDto(
     val id: Long = 0,
     val name: String = "",
     val picUrl: String? = null,
+    /** Playlists from `/user/playlist` carry `coverImgUrl`, not `picUrl`. */
+    val coverImgUrl: String? = null,
     val playcount: Long = 0,
     val playCount: Long = 0,
     val trackCount: Int = 0,
     val copywriter: String? = null,
+    val description: String? = null,
+    val creator: CreatorDto? = null,
+)
+
+@Serializable
+data class CreatorDto(
+    val userId: Long = 0,
+    val nickname: String = "",
 )
 
 /** `/toplist` and `/toplist/detail` share the `list` shape. */

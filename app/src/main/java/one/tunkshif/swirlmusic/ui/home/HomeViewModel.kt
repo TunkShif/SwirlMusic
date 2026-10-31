@@ -18,19 +18,8 @@ import one.tunkshif.swirlmusic.data.model.ChartSummary
 import one.tunkshif.swirlmusic.data.model.PlaylistSummary
 import one.tunkshif.swirlmusic.data.model.Track
 import one.tunkshif.swirlmusic.data.session.SessionRepository
-
-enum class LoadError { Network, Server }
-
-/**
- * One section, loaded on its own. A failing section must not blank the whole screen.
- */
-sealed interface SectionState<out T> {
-    data object Loading : SectionState<Nothing>
-
-    data class Content<T>(val value: T) : SectionState<T>
-
-    data class Failed(val error: LoadError) : SectionState<Nothing>
-}
+import one.tunkshif.swirlmusic.ui.common.LoadError
+import one.tunkshif.swirlmusic.ui.common.SectionState
 
 data class HomeUiState(
     val isRefreshing: Boolean = false,

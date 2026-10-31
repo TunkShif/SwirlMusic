@@ -12,18 +12,23 @@ internal const val CHART_PREVIEW_COUNT = 3
 
 private const val CHART_LINE_PREVIEW = 3
 
-internal fun TrackDto.toDomain(): Track = Track(
-    id = id,
-    title = name,
-    artistLine = ar.joinToString(" / ") { it.name },
-    artworkUrl = al?.picUrl?.let { sizedArtwork(it, 300) },
-    durationMs = dt,
-)
+internal fun TrackDto.toDomain(): Track {
+    // `/recommend/songs` uses `ar` and `al`; `/search` and `/song/detail` use `artists` and `album`.
+    val artists = ar.ifEmpty { artists.orEmpty() }
+    val album = al ?: album
+    return Track(
+        id = id,
+        title = name,
+        artistLine = artists.joinToString(" / ") { it.name },
+        artworkUrl = (album?.picUrl ?: album?.coverImgUrl)?.let { sizedArtwork(it, 300) },
+        durationMs = dt,
+    )
+}
 
 internal fun PlaylistDto.toDomain(): PlaylistSummary = PlaylistSummary(
     id = id,
     name = name,
-    artworkUrl = picUrl?.let { sizedArtwork(it, 300) },
+    artworkUrl = (picUrl ?: coverImgUrl)?.let { sizedArtwork(it, 300) },
     // NetEase spells this `playcount` here and `playCount` elsewhere; accept both.
     playCount = if (playcount > 0) playcount else playCount,
     trackCount = trackCount,
