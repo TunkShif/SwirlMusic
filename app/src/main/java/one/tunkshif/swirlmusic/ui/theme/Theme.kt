@@ -78,6 +78,7 @@ fun SwirlMusicTheme(
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,
+        shapes = SwirlShapes,
         content = content,
     )
 }

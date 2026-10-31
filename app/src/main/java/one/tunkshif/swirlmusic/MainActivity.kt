@@ -5,12 +5,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import dagger.hilt.android.AndroidEntryPoint
-import one.tunkshif.swirlmusic.ui.placeholder.PlaceholderRoute
+import one.tunkshif.swirlmusic.ui.shell.SwirlApp
 import one.tunkshif.swirlmusic.ui.theme.SwirlMusicTheme
 
-/**
- * Phase 0 has one screen: the foundation check. The real shell replaces it in Phase 1.
- */
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
@@ -19,7 +16,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             SwirlMusicTheme {
-                PlaceholderRoute()
+                SwirlApp()
             }
         }
     }
