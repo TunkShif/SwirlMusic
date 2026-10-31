@@ -405,14 +405,9 @@ private fun CollapsingTrackListHeader(
         val gap = Spacing.md.roundToPx()
 
         val byId = measurables.associateBy { it.layoutId }
-        fun place(id: String) = byId[id]?.measure(constraints.copy(minWidth = 0, minHeight = 0))
-
-        val back = place("back")
-        val bigText = place("bigText")
-        val barTitle = place("barTitle")
-        val desc = place("desc")
-        val playAll = place("playAll")
-        val playCollapsed = place("playCollapsed")
+        fun place(id: String, maxW: Int) = byId[id]?.measure(
+            constraints.copy(minWidth = 0, minHeight = 0, maxWidth = maxW.coerceAtLeast(0)),
+        )
 
         val artExpSize = 112.dp.roundToPx()
         val artColSize = 40.dp.roundToPx()
@@ -420,6 +415,15 @@ private fun CollapsingTrackListHeader(
         val artExpY = barH + 8.dp.roundToPx()
         val artColX = padH + 48.dp.roundToPx() + 8.dp.roundToPx()
         val artColY = (barH - artColSize) / 2
+
+        val back = byId["back"]?.measure(constraints.copy(minWidth = 0, minHeight = 0))
+        val bigText = place("bigText", constraints.maxWidth - (artExpX + artExpSize + gap) - padH)
+        val barTitleX = artColX + artColSize + 12.dp.roundToPx()
+        val collapsedPlayX = constraints.maxWidth - padH - artColSize
+        val barTitle = place("barTitle", collapsedPlayX - 12.dp.roundToPx() - barTitleX)
+        val desc = place("desc", constraints.maxWidth - 2 * padH)
+        val playAll = place("playAll", constraints.maxWidth - 2 * padH)
+        val playCollapsed = byId["playCollapsed"]?.measure(constraints.copy(minWidth = 0, minHeight = 0))
         val rowH = maxOf(artExpSize, bigText?.height ?: 0)
         val descTop = artExpY + rowH + gap
         val playAllTop = descTop + (desc?.height ?: 0) + if (desc != null) gap else 0
@@ -445,29 +449,33 @@ private fun CollapsingTrackListHeader(
         )
 
         layout(constraints.maxWidth, height) {
-            back?.place(padH, (barH - back.height) / 2)
-
             art?.placeWithLayer(g.artworkX.roundToInt(), g.artworkY.roundToInt()) {
                 clip = true
                 shape = RoundedCornerShape(g.artworkCorner.dp)
             }
 
-            bigText?.place(
-                artExpX + artExpSize + gap,
-                artExpY + offset.roundToInt(),
-            )
+            if (g.bigTitleAlpha > 0f) {
+                bigText?.place(
+                    artExpX + artExpSize + gap,
+                    artExpY + offset.roundToInt(),
+                )
+            }
             barTitle?.place(
-                (artColX + artColSize + 12.dp.roundToPx()),
+                barTitleX,
                 (barH - barTitle.height) / 2,
             )
-            desc?.place(padH, descTop + offset.roundToInt())
-            playAll?.place(padH, playAllTop + offset.roundToInt())
+            if (g.contentAlpha > 0f) {
+                desc?.place(padH, descTop + offset.roundToInt())
+                playAll?.place(padH, playAllTop + offset.roundToInt())
+            }
             if (g.playButtonEnabled) {
                 playCollapsed?.place(
-                    constraints.maxWidth - padH - artColSize,
+                    collapsedPlayX,
                     (barH - playCollapsed.height) / 2,
                 )
             }
+            // Back is placed last so it always wins hit-testing in the bar row.
+            back?.place(padH, (barH - back.height) / 2)
         }
     }
 }

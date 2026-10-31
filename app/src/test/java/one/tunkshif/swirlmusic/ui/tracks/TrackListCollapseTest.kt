@@ -8,6 +8,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
@@ -47,15 +48,19 @@ class TrackListCollapseTest {
     }
 
     private var played: Int? = null
+    private var backed = false
 
-    private fun setContent(appBarState: TopAppBarState = TopAppBarState(0f, 0f, 0f)) {
+    private fun setContent(
+        appBarState: TopAppBarState = TopAppBarState(0f, 0f, 0f),
+        uiState: TrackListUiState = state(),
+    ) {
         compose.setContent {
             CompositionLocalProvider(LocalArtworkPainter provides ColorPainter(Color(0xFF9AA0C8))) {
                 SwirlMusicTheme(dynamicColor = false) {
                     TrackListScreen(
-                        state = state(),
+                        state = uiState,
                         appBarState = appBarState,
-                        onBack = {},
+                        onBack = { backed = true },
                         onRetry = {},
                         onLoadMore = {},
                         onPlayTracks = { _, index -> played = index },
@@ -87,6 +92,64 @@ class TrackListCollapseTest {
 
         compose.onNodeWithContentDescription(res(R.string.track_list_play_all)).assertIsDisplayed().performClick()
         assertThat(played).isEqualTo(0)
+    }
+
+    private fun collapse(appBarState: TopAppBarState) {
+        appBarState.heightOffsetLimit = -1000f
+        appBarState.heightOffset = -1000f
+    }
+
+    @Test
+    fun `collapsed back button navigates back and does not play`() {
+        val appBarState = TopAppBarState(-1f, 0f, 0f)
+        setContent(appBarState)
+        collapse(appBarState)
+
+        compose.onNodeWithContentDescription(res(R.string.action_back)).performClick()
+        assertThat(backed).isTrue()
+        assertThat(played).isNull()
+    }
+
+    @Test
+    fun `expanded back button navigates back`() {
+        setContent()
+        compose.onNodeWithContentDescription(res(R.string.action_back)).performClick()
+        assertThat(backed).isTrue()
+    }
+
+    @Test
+    fun `collapsed hides the play-all text and the description preview`() {
+        val appBarState = TopAppBarState(-1f, 0f, 0f)
+        setContent(appBarState)
+        collapse(appBarState)
+
+        // Unplaced children keep their semantics node but lose all bounds.
+        compose.onNodeWithText(res(R.string.track_list_play_all)).assertIsNotDisplayed()
+        compose.onNodeWithText("A description that previews.").assertIsNotDisplayed()
+    }
+
+    @Test
+    fun `long title and description stay inside the padded width`() {
+        val longState = state().copy(
+            title = "Tragic Kingdom (Deluxe Anniversary Edition Remastered)",
+            description = "一场漫长的噩梦终于迎来了终结，所有人都将在这场无尽的狂欢中走向自己的归宿，" +
+                "没有人能够逃离这片被诅咒的土地，直到最后一颗星辰熄灭。",
+        )
+        setContent(uiState = longState)
+        val rootRight = compose.onRoot().fetchSemanticsNode().boundsInRoot.right
+        val pad = 24f * compose.density.density
+        compose.onNodeWithText(longState.description!!).assertIsDisplayed().let {
+            assertThat(it.fetchSemanticsNode().boundsInRoot.right).isAtMost(rootRight - pad + 1)
+        }
+        // The title renders twice (expanded + collapsed slot); both must stay inside.
+        compose.onAllNodesWithText(longState.title).fetchSemanticsNodes().forEach {
+            assertThat(it.boundsInRoot.right).isAtMost(rootRight - pad + 1)
+        }
+        compose.onNodeWithText(res(R.string.track_list_more)).assertIsDisplayed().let {
+            val b = it.fetchSemanticsNode().boundsInRoot
+            assertThat(b.right).isAtMost(rootRight)
+            assertThat(b.left).isAtLeast(0f)
+        }
     }
 
     @Test

@@ -103,6 +103,18 @@ class TrackListScreenshotTest {
     }
 
     @Test
+    fun long_text_light() {
+        capture(
+            "long-text-light",
+            playlistState().copy(
+                title = "Tragic Kingdom (Deluxe Anniversary Edition Remastered)",
+                description = "一场漫长的噩梦终于迎来了终结，所有人都将在这场无尽的狂欢中走向自己的归宿，" +
+                    "没有人能够逃离这片被诅咒的土地，直到最后一颗星辰熄灭。",
+            ),
+        )
+    }
+
+    @Test
     fun details_sheet_light() {
         compose.setContent {
             CompositionLocalProvider(LocalArtworkPainter provides ColorPainter(Color(0xFF9AA0C8))) {
