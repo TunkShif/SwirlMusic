@@ -1,6 +1,7 @@
 package one.tunkshif.swirlmusic.ui.library
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -89,7 +90,37 @@ fun LibraryScreen(
     onPlayTracks: (List<Track>, Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier.fillMaxSize()) {
+    Surface(
+        modifier = modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background,
+    ) {
+        LibraryContent(
+            state = state,
+            onSelectTab = onSelectTab,
+            onRetry = onRetry,
+            onLoadMore = onLoadMore,
+            onOpenSearch = onOpenSearch,
+            onOpenPlaylist = onOpenPlaylist,
+            onOpenAlbum = onOpenAlbum,
+            onOpenArtist = onOpenArtist,
+            onPlayTracks = onPlayTracks,
+        )
+    }
+}
+
+@Composable
+private fun LibraryContent(
+    state: LibraryUiState,
+    onSelectTab: (LibraryTab) -> Unit,
+    onRetry: (LibraryTab) -> Unit,
+    onLoadMore: (LibraryTab) -> Unit,
+    onOpenSearch: () -> Unit,
+    onOpenPlaylist: (Long) -> Unit,
+    onOpenAlbum: (Long) -> Unit,
+    onOpenArtist: (Long) -> Unit,
+    onPlayTracks: (List<Track>, Int) -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxSize()) {
         Text(
             text = stringResource(R.string.library_title),
             style = MaterialTheme.typography.headlineMedium,

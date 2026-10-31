@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import coil3.compose.AsyncImage
@@ -26,11 +27,12 @@ fun Artwork(
     url: String?,
     contentDescription: String?,
     modifier: Modifier = Modifier,
+    shape: Shape = MaterialTheme.shapes.medium,
 ) {
     val override = LocalArtworkPainter.current
     Box(
         modifier = modifier
-            .clip(MaterialTheme.shapes.medium)
+            .clip(shape)
             .background(MaterialTheme.colorScheme.surfaceVariant),
     ) {
         when {

@@ -2,15 +2,21 @@ package one.tunkshif.swirlmusic.ui.shell
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
@@ -32,6 +38,7 @@ import one.tunkshif.swirlmusic.ui.home.HomeRoute
 import one.tunkshif.swirlmusic.ui.library.LibraryRoute
 import one.tunkshif.swirlmusic.ui.search.SearchRoute
 import one.tunkshif.swirlmusic.ui.tracks.TrackListRoute
+import one.tunkshif.swirlmusic.ui.theme.Spacing
 import one.tunkshif.swirlmusic.ui.tracks.TrackListSource
 import one.tunkshif.swirlmusic.ui.playing.PlayingScreen
 import one.tunkshif.swirlmusic.ui.profile.ProfileScreen
@@ -76,30 +83,43 @@ fun SwirlApp(
         modifier = modifier.fillMaxSize(),
         bottomBar = {
             if (showChrome) {
-                Column {
-                    MiniPlayerBar(
-                        state = miniPlayer,
-                        onPlayPause = onPlayPause,
-                        onOpen = { backStack.add(PlayingKey) },
-                    )
-                    NavigationBar {
-                        TopLevelDestination.entries.forEach { destination ->
-                            NavigationBarItem(
-                                selected = currentKey == destination.key,
-                                onClick = {
-                                    if (currentKey != destination.key) {
-                                        backStack.clear()
-                                        backStack.add(destination.key)
-                                    }
-                                },
-                                icon = {
-                                    Icon(
-                                        imageVector = destination.icon,
-                                        contentDescription = null,
-                                    )
-                                },
-                                label = { Text(stringResource(destination.labelRes)) },
-                            )
+                // One floating dock: the player and the navigation sit on the same rounded surface,
+                // the way the reference does it, instead of a bar glued to the screen edge.
+                Surface(
+                    modifier = Modifier
+                        .navigationBarsPadding()
+                        .padding(horizontal = Spacing.sm, vertical = Spacing.sm)
+                        .fillMaxWidth(),
+                    shape = MaterialTheme.shapes.extraLarge,
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    tonalElevation = 3.dp,
+                    shadowElevation = 8.dp,
+                ) {
+                    Column {
+                        MiniPlayerBar(
+                            state = miniPlayer,
+                            onPlayPause = onPlayPause,
+                            onOpen = { backStack.add(PlayingKey) },
+                        )
+                        NavigationBar(containerColor = Color.Transparent) {
+                            TopLevelDestination.entries.forEach { destination ->
+                                NavigationBarItem(
+                                    selected = currentKey == destination.key,
+                                    onClick = {
+                                        if (currentKey != destination.key) {
+                                            backStack.clear()
+                                            backStack.add(destination.key)
+                                        }
+                                    },
+                                    icon = {
+                                        Icon(
+                                            imageVector = destination.icon,
+                                            contentDescription = null,
+                                        )
+                                    },
+                                    label = { Text(stringResource(destination.labelRes)) },
+                                )
+                            }
                         }
                     }
                 }

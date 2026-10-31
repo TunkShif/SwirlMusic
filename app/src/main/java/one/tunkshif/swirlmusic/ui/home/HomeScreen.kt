@@ -1,12 +1,15 @@
 package one.tunkshif.swirlmusic.ui.home
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -17,9 +20,15 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.Surface
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
@@ -27,6 +36,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -63,7 +75,6 @@ fun HomeRoute(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     nickname: String?,
@@ -74,10 +85,30 @@ fun HomeScreen(
     now: LocalTime = LocalTime.now(),
     onPlayTracks: (List<Track>, Int) -> Unit = { _, _ -> },
 ) {
+    // A Surface, not a Box: it also supplies the default content colour, without which section
+    // titles fall back to black on a dark scheme.
+    Surface(
+        modifier = modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background,
+    ) {
+        HomeContent(nickname, state, onRefresh, onRetry, now, onPlayTracks)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun HomeContent(
+    nickname: String?,
+    state: HomeUiState,
+    onRefresh: () -> Unit,
+    onRetry: () -> Unit,
+    now: LocalTime,
+    onPlayTracks: (List<Track>, Int) -> Unit,
+) {
     PullToRefreshBox(
         isRefreshing = state.isRefreshing,
         onRefresh = onRefresh,
-        modifier = modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize(),
     ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -85,6 +116,7 @@ fun HomeScreen(
             verticalArrangement = Arrangement.spacedBy(Spacing.lg),
         ) {
             item { Greeting(nickname = nickname, dayPart = dayPartFor(now.hour)) }
+            item { HeroSection(state.daily, onPlayTracks) }
             item { SectionHeader(R.string.home_daily_title) }
             item { DailySection(state.daily, onRetry, onPlayTracks) }
             item { SectionHeader(R.string.home_playlists_title) }
@@ -97,21 +129,94 @@ fun HomeScreen(
 
 @Composable
 private fun Greeting(nickname: String?, dayPart: DayPart) {
-    val text = if (nickname.isNullOrBlank()) {
-        stringResource(dayPart.plainGreeting())
-    } else {
-        stringResource(dayPart.namedGreeting(), nickname)
+    Column(
+        modifier = Modifier.padding(start = Spacing.xl, end = Spacing.xl, top = Spacing.lg),
+    ) {
+        Text(
+            text = stringResource(dayPart.plainGreeting()),
+            style = MaterialTheme.typography.displayMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        if (!nickname.isNullOrBlank()) {
+            Text(
+                text = nickname,
+                style = MaterialTheme.typography.displayMedium,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
     }
+}
 
-    Text(
-        text = text,
-        style = MaterialTheme.typography.headlineMedium,
-        modifier = Modifier.padding(
-            start = Spacing.xl,
-            end = Spacing.xl,
-            top = Spacing.lg,
-        ),
-    )
+/**
+ * The one big card on the screen: today's first pick, full bleed, with the play action on it.
+ * The reference leads with a hero like this instead of another row of small cards.
+ */
+@Composable
+private fun HeroSection(
+    state: SectionState<List<Track>>,
+    onPlayTracks: (List<Track>, Int) -> Unit,
+) {
+    val track = (state as? SectionState.Content)?.value?.firstOrNull() ?: return
+    val tracks = (state as SectionState.Content).value
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = Spacing.xl)
+            .height(212.dp)
+            .clip(MaterialTheme.shapes.large),
+    ) {
+        Artwork(
+            url = track.artworkUrl,
+            contentDescription = null,
+            shape = RectangleShape,
+            modifier = Modifier.matchParentSize(),
+        )
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .background(
+                    Brush.verticalGradient(
+                        listOf(Color.Transparent, Color.Black.copy(alpha = 0.78f)),
+                    ),
+                ),
+        )
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(Spacing.lg),
+            verticalArrangement = Arrangement.spacedBy(Spacing.xxs),
+        ) {
+            Text(
+                text = stringResource(R.string.home_hero_kicker),
+                style = MaterialTheme.typography.labelLarge,
+                color = Color.White.copy(alpha = 0.8f),
+            )
+            Text(
+                text = track.title,
+                style = MaterialTheme.typography.titleLarge,
+                color = Color.White,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = track.artistLine,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.White.copy(alpha = 0.8f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        FilledTonalButton(
+            onClick = { onPlayTracks(tracks, 0) },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(Spacing.lg),
+            shape = CircleShape,
+        ) {
+            Icon(Icons.Default.PlayArrow, contentDescription = null)
+        }
+    }
 }
 
 @Composable
@@ -392,13 +497,6 @@ private fun ChartSkeleton() {
             }
         }
     }
-}
-
-private fun DayPart.namedGreeting(): Int = when (this) {
-    DayPart.Morning -> R.string.home_greeting_morning
-    DayPart.Afternoon -> R.string.home_greeting_afternoon
-    DayPart.Evening -> R.string.home_greeting_evening
-    DayPart.Night -> R.string.home_greeting_night
 }
 
 private fun DayPart.plainGreeting(): Int = when (this) {

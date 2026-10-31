@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -36,16 +37,37 @@ fun SwirlRoot(
     val playerViewModel: PlayerViewModel = hiltViewModel()
     val miniPlayer by playerViewModel.state.collectAsStateWithLifecycle()
 
-    when (val session = state) {
-        SessionState.Unknown -> SplashScreen(modifier)
-        SessionState.SignedOut -> LoginRoute(modifier = modifier)
-        is SessionState.SignedIn -> SwirlApp(
-            profile = session.profile,
+    // One root surface: without it the window background stays light and a dark scheme draws
+    // pale text on white.
+    Surface(
+        modifier = modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background,
+    ) {
+        SessionBranch(
+            state = state,
+            miniPlayer = miniPlayer,
+            playerViewModel = playerViewModel,
             onSignOut = viewModel::signOut,
+        )
+    }
+}
+
+@Composable
+private fun SessionBranch(
+    state: SessionState,
+    miniPlayer: one.tunkshif.swirlmusic.ui.player.MiniPlayerUiState,
+    playerViewModel: PlayerViewModel,
+    onSignOut: () -> Unit,
+) {
+    when (state) {
+        SessionState.Unknown -> SplashScreen()
+        SessionState.SignedOut -> LoginRoute()
+        is SessionState.SignedIn -> SwirlApp(
+            profile = state.profile,
+            onSignOut = onSignOut,
             miniPlayer = miniPlayer,
             onPlayPause = playerViewModel::togglePlayPause,
             onPlayTracks = playerViewModel::play,
-            modifier = modifier,
         )
     }
 }

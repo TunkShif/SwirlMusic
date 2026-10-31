@@ -46,7 +46,7 @@ fun ProfileScreen(
 
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = MaterialTheme.shapes.large,
+            shape = MaterialTheme.shapes.extraLarge,
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
         ) {
             Column(
@@ -55,7 +55,7 @@ fun ProfileScreen(
                 verticalArrangement = Arrangement.spacedBy(Spacing.md),
             ) {
                 Surface(
-                    modifier = Modifier.size(72.dp),
+                    modifier = Modifier.size(84.dp),
                     shape = MaterialTheme.shapes.extraLarge,
                     color = MaterialTheme.colorScheme.primaryContainer,
                 ) {

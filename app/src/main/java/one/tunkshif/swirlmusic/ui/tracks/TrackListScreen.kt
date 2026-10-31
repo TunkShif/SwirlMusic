@@ -117,6 +117,7 @@ fun TrackListScreen(
                         val list = tracks.value
                         Button(
                             onClick = { onPlayTracks(list, 0) },
+                            shape = MaterialTheme.shapes.extraLarge,
                             modifier = Modifier.padding(horizontal = Spacing.xl),
                         ) {
                             Icon(Icons.Default.PlayArrow, contentDescription = null)
@@ -152,12 +153,12 @@ private fun Header(state: TrackListUiState) {
         Artwork(
             url = state.artworkUrl,
             contentDescription = null,
-            modifier = Modifier.size(96.dp),
+            modifier = Modifier.size(112.dp),
         )
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = state.title,
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.headlineSmall,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )

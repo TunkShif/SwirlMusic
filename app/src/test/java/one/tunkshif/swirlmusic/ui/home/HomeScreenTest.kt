@@ -32,9 +32,10 @@ class HomeScreenTest {
     fun `content shows the greeting and all three sections`() {
         setContent(HomeTestData.content)
 
-        compose.onNodeWithText("Good evening, tunkshif").assertExists()
+        compose.onNodeWithText("Good evening").assertExists()
+        compose.onNodeWithText("tunkshif").assertExists()
         compose.onNodeWithText(text(R.string.home_daily_title)).assertExists()
-        compose.onNodeWithText("Nightcall").assertExists()
+        compose.onAllNodesWithText("Nightcall").onFirst().assertExists()
         compose.onNodeWithText(text(R.string.home_playlists_title)).assertExists()
         compose.onNodeWithText("Late night drive").assertExists()
         compose.onNodeWithText(text(R.string.home_charts_title)).performScrollTo().assertExists()

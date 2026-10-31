@@ -5,13 +5,13 @@ import androidx.compose.material3.Shapes
 import androidx.compose.ui.unit.dp
 
 /**
- * Material 3 shapes, nudged rounder than the defaults: album art, track rows, and the mini player
- * carry most of this app's surface area, and they read better with a softer corner.
+ * Rounded, generously. Artwork and cards take `medium`, the player dock and sheets take `large`
+ * or `extraLarge`, buttons are pills.
  */
 val SwirlShapes = Shapes(
     extraSmall = RoundedCornerShape(6.dp),
-    small = RoundedCornerShape(10.dp),
-    medium = RoundedCornerShape(14.dp),
-    large = RoundedCornerShape(20.dp),
-    extraLarge = RoundedCornerShape(28.dp),
+    small = RoundedCornerShape(8.dp),
+    medium = RoundedCornerShape(16.dp),
+    large = RoundedCornerShape(24.dp),
+    extraLarge = RoundedCornerShape(32.dp),
 )

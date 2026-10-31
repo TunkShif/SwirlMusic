@@ -27,10 +27,7 @@
     <string name="login_save_failed">Could not save the code</string>
 
     <!-- Home -->
-    <string name="home_greeting_morning">Good morning, %1$s</string>
-    <string name="home_greeting_afternoon">Good afternoon, %1$s</string>
-    <string name="home_greeting_evening">Good evening, %1$s</string>
-    <string name="home_greeting_night">Good night, %1$s</string>
+    <string name="home_hero_kicker">Today\'s pick</string>
     <string name="home_greeting_morning_plain">Good morning</string>
     <string name="home_greeting_afternoon_plain">Good afternoon</string>
     <string name="home_greeting_evening_plain">Good evening</string>
