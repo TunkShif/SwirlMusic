@@ -1,7 +1,9 @@
 package one.tunkshif.swirlmusic.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.MaterialExpressiveTheme
+import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
@@ -22,6 +24,10 @@ private val BrandDarkColorScheme = darkColorScheme(
     onTertiary = DarkOnTertiary,
     tertiaryContainer = DarkTertiaryContainer,
     onTertiaryContainer = DarkOnTertiaryContainer,
+    error = DarkError,
+    onError = DarkOnError,
+    errorContainer = DarkErrorContainer,
+    onErrorContainer = DarkOnErrorContainer,
     background = DarkBackground,
     onBackground = DarkOnBackground,
     surface = DarkSurface,
@@ -29,6 +35,14 @@ private val BrandDarkColorScheme = darkColorScheme(
     surfaceVariant = DarkSurfaceVariant,
     onSurfaceVariant = DarkOnSurfaceVariant,
     outline = DarkOutline,
+    outlineVariant = DarkOutlineVariant,
+    inverseSurface = DarkInverseSurface,
+    inverseOnSurface = DarkInverseOnSurface,
+    inversePrimary = DarkInversePrimary,
+    scrim = DarkScrim,
+    surfaceTint = DarkSurfaceTint,
+    surfaceBright = DarkSurfaceBright,
+    surfaceDim = DarkSurfaceDim,
     surfaceContainerLowest = DarkSurfaceContainerLowest,
     surfaceContainerLow = DarkSurfaceContainerLow,
     surfaceContainer = DarkSurfaceContainer,
@@ -49,6 +63,10 @@ private val BrandLightColorScheme = lightColorScheme(
     onTertiary = LightOnTertiary,
     tertiaryContainer = LightTertiaryContainer,
     onTertiaryContainer = LightOnTertiaryContainer,
+    error = LightError,
+    onError = LightOnError,
+    errorContainer = LightErrorContainer,
+    onErrorContainer = LightOnErrorContainer,
     background = LightBackground,
     onBackground = LightOnBackground,
     surface = LightSurface,
@@ -56,6 +74,14 @@ private val BrandLightColorScheme = lightColorScheme(
     surfaceVariant = LightSurfaceVariant,
     onSurfaceVariant = LightOnSurfaceVariant,
     outline = LightOutline,
+    outlineVariant = LightOutlineVariant,
+    inverseSurface = LightInverseSurface,
+    inverseOnSurface = LightInverseOnSurface,
+    inversePrimary = LightInversePrimary,
+    scrim = LightScrim,
+    surfaceTint = LightSurfaceTint,
+    surfaceBright = LightSurfaceBright,
+    surfaceDim = LightSurfaceDim,
     surfaceContainerLowest = LightSurfaceContainerLowest,
     surfaceContainerLow = LightSurfaceContainerLow,
     surfaceContainer = LightSurfaceContainer,
@@ -64,11 +90,12 @@ private val BrandLightColorScheme = lightColorScheme(
 )
 
 /**
- * Material 3 with the system wallpaper palette, falling back to the brand palette.
+ * Material 3 Expressive with the system wallpaper palette, falling back to the brand palette.
  *
  * Screenshot tests pass `dynamicColor = false` and pin `darkTheme`, otherwise the golden follows
  * whatever wallpaper the test machine has.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SwirlMusicTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
@@ -85,8 +112,9 @@ fun SwirlMusicTheme(
         else -> BrandLightColorScheme
     }
 
-    MaterialTheme(
+    MaterialExpressiveTheme(
         colorScheme = colorScheme,
+        motionScheme = MotionScheme.expressive(),
         typography = Typography,
         shapes = SwirlShapes,
         content = content,

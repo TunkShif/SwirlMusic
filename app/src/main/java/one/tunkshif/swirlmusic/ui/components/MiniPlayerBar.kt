@@ -6,15 +6,17 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -34,8 +36,8 @@ import one.tunkshif.swirlmusic.ui.theme.SwirlMusicTheme
 const val MINI_PLAYER_TAG = "mini_player"
 
 /**
- * The mini player above the bottom bar. Tap opens the playing screen; the transport button starts
- * or pauses.
+ * The mini player: its own coloured pill floating above the navigation bar. Tap opens the
+ * playing screen; the transport button starts or pauses, ringed by a progress indicator.
  */
 @Composable
 fun MiniPlayerBar(
@@ -44,47 +46,68 @@ fun MiniPlayerBar(
     onOpen: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .testTag(MINI_PLAYER_TAG),
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
     ) {
-        Column {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(onClick = onOpen)
-                    .padding(horizontal = Spacing.md, vertical = Spacing.xs),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(Spacing.md),
-            ) {
-                Artwork(
-                    url = state.artworkUrl,
-                    contentDescription = null,
-                    modifier = Modifier.size(44.dp),
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag(MINI_PLAYER_TAG)
+                .clickable(onClick = onOpen)
+                .padding(Spacing.sm),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Spacing.md),
+        ) {
+            Artwork(
+                url = state.artworkUrl,
+                contentDescription = null,
+                shape = CircleShape,
+                modifier = Modifier.size(48.dp),
+            )
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = state.title ?: stringResource(R.string.mini_player_idle_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
+                Text(
+                    text = if (state.isTrial) {
+                        stringResource(R.string.mini_player_preview)
+                    } else {
+                        state.subtitle ?: stringResource(R.string.mini_player_idle_subtitle)
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
 
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = state.title ?: stringResource(R.string.mini_player_idle_title),
-                        style = MaterialTheme.typography.titleMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = if (state.isTrial) {
-                            stringResource(R.string.mini_player_preview)
-                        } else {
-                            state.subtitle ?: stringResource(R.string.mini_player_idle_subtitle)
-                        },
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-
-                IconButton(onClick = onPlayPause) {
+            Box(
+                modifier = Modifier.size(48.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator(
+                    progress = { state.progress },
+                    modifier = Modifier.size(48.dp),
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    trackColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f),
+                    strokeWidth = 3.dp,
+                )
+                FilledIconButton(
+                    onClick = onPlayPause,
+                    modifier = Modifier.size(40.dp),
+                    shape = CircleShape,
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                    ),
+                ) {
                     if (state.isPlaying) {
                         Icon(
                             painter = painterResource(R.drawable.ic_pause),
@@ -98,15 +121,6 @@ fun MiniPlayerBar(
                     }
                 }
             }
-
-            LinearProgressIndicator(
-                progress = { state.progress },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = Spacing.md)
-                    .height(3.dp),
-                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-            )
         }
     }
 }
@@ -115,15 +129,17 @@ fun MiniPlayerBar(
 @Composable
 private fun MiniPlayerBarPreview() {
     SwirlMusicTheme(dynamicColor = false) {
-        MiniPlayerBar(
-            state = MiniPlayerUiState(
-                title = "Nightcall",
-                subtitle = "Kavinsky",
-                isPlaying = true,
-                progress = 0.35f,
-            ),
-            onPlayPause = {},
-            onOpen = {},
-        )
+        Surface(modifier = Modifier.padding(Spacing.md)) {
+            MiniPlayerBar(
+                state = MiniPlayerUiState(
+                    title = "Nightcall",
+                    subtitle = "Kavinsky",
+                    isPlaying = true,
+                    progress = 0.35f,
+                ),
+                onPlayPause = {},
+                onOpen = {},
+            )
+        }
     }
 }

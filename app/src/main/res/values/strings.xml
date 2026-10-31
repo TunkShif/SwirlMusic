@@ -7,14 +7,20 @@
     <string name="nav_profile">Profile</string>
 
     <!-- Welcome and sign-in -->
+    <string name="welcome_kicker">Welcome to</string>
     <string name="welcome_title">Swirl Music</string>
     <string name="welcome_body">Sign in with the NetEase app. You scan a QR code, so no password is typed here.</string>
+    <string name="welcome_lets_go">Let\'s go</string>
     <string name="welcome_action">Sign in with QR</string>
     <string name="login_loading">Preparing your code…</string>
+    <string name="login_qr_heading">Scan to sign in</string>
     <string name="login_waiting_title">Waiting for scan</string>
     <string name="login_scanned_title">Confirm on your phone</string>
     <string name="login_qr_description">Sign-in QR code</string>
-    <string name="login_hint">On this phone: open the NetEase app, scan, then choose the saved image.</string>
+    <string name="login_step_number">%1$d</string>
+    <string name="login_step_save">Save the code to your gallery</string>
+    <string name="login_step_scan">Open the NetEase app and tap Scan</string>
+    <string name="login_step_pick">Pick the saved image, then confirm</string>
     <string name="login_expired_title">Code expired</string>
     <string name="login_expired_body">Get a fresh code and try again.</string>
     <string name="login_failed_title">Sign-in failed</string>
@@ -28,6 +34,7 @@
 
     <!-- Home -->
     <string name="home_hero_kicker">Today\'s pick</string>
+    <string name="home_hero_play">Play today\'s pick</string>
     <string name="home_greeting_morning_plain">Good morning</string>
     <string name="home_greeting_afternoon_plain">Good afternoon</string>
     <string name="home_greeting_evening_plain">Good evening</string>

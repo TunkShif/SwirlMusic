@@ -7,8 +7,11 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.hasAnyDescendant
+import androidx.compose.ui.test.hasScrollToIndexAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToIndex
 import com.google.common.truth.Truth.assertThat
 import one.tunkshif.swirlmusic.R
 import one.tunkshif.swirlmusic.ui.theme.SwirlMusicTheme
@@ -38,7 +41,12 @@ class HomeScreenTest {
         compose.onAllNodesWithText("Nightcall").onFirst().assertExists()
         compose.onNodeWithText(text(R.string.home_playlists_title)).assertExists()
         compose.onNodeWithText("Late night drive").assertExists()
-        compose.onNodeWithText(text(R.string.home_charts_title)).performScrollTo().assertExists()
+        // Item 6 of the eight-item list is the Charts header; index scroll avoids the
+        // semantics churn that makes performScrollToNode lose the list mid-scroll.
+        compose.onNode(
+            hasScrollToIndexAction() and hasAnyDescendant(hasText("Good evening")),
+        ).performScrollToIndex(6)
+        compose.onNodeWithText(text(R.string.home_charts_title)).assertExists()
     }
 
     @Test

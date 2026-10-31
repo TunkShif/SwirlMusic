@@ -1,5 +1,6 @@
 package one.tunkshif.swirlmusic.ui.shell
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -83,24 +84,26 @@ fun SwirlApp(
         modifier = modifier.fillMaxSize(),
         bottomBar = {
             if (showChrome) {
-                // One floating dock: the player and the navigation sit on the same rounded surface,
-                // the way the reference does it, instead of a bar glued to the screen edge.
-                Surface(
+                // Two floating pieces: the mini player is its own coloured pill above the
+                // rounded navigation bar, the way the reference does it.
+                Column(
                     modifier = Modifier
                         .navigationBarsPadding()
-                        .padding(horizontal = Spacing.sm, vertical = Spacing.sm)
+                        .padding(horizontal = Spacing.md)
                         .fillMaxWidth(),
-                    shape = MaterialTheme.shapes.extraLarge,
-                    color = MaterialTheme.colorScheme.surfaceContainer,
-                    tonalElevation = 3.dp,
-                    shadowElevation = 8.dp,
+                    verticalArrangement = Arrangement.spacedBy(Spacing.sm),
                 ) {
-                    Column {
-                        MiniPlayerBar(
-                            state = miniPlayer,
-                            onPlayPause = onPlayPause,
-                            onOpen = { backStack.add(PlayingKey) },
-                        )
+                    MiniPlayerBar(
+                        state = miniPlayer,
+                        onPlayPause = onPlayPause,
+                        onOpen = { backStack.add(PlayingKey) },
+                    )
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.extraLarge,
+                        color = MaterialTheme.colorScheme.surfaceContainer,
+                        tonalElevation = 3.dp,
+                    ) {
                         NavigationBar(containerColor = Color.Transparent) {
                             TopLevelDestination.entries.forEach { destination ->
                                 NavigationBarItem(

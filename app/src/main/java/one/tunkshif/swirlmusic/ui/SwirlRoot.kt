@@ -3,7 +3,8 @@ package one.tunkshif.swirlmusic.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ContainedLoadingIndicator
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -72,6 +73,7 @@ private fun SessionBranch(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun SplashScreen(modifier: Modifier = Modifier) {
     Column(
@@ -79,10 +81,10 @@ private fun SplashScreen(modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.spacedBy(Spacing.lg, Alignment.CenterVertically),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        CircularProgressIndicator()
+        ContainedLoadingIndicator()
         Text(
             text = stringResource(R.string.app_name),
-            style = MaterialTheme.typography.titleLarge,
+            style = MaterialTheme.typography.headlineSmall,
         )
     }
 }

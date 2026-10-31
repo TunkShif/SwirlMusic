@@ -2,17 +2,17 @@ package one.tunkshif.swirlmusic.ui.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -23,12 +23,13 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.Text
-import androidx.compose.material3.Surface
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
@@ -36,12 +37,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.time.LocalTime
@@ -53,6 +54,7 @@ import one.tunkshif.swirlmusic.ui.common.LoadError
 import one.tunkshif.swirlmusic.ui.common.SectionState
 import one.tunkshif.swirlmusic.ui.components.Artwork
 import one.tunkshif.swirlmusic.ui.format.formatCount
+import one.tunkshif.swirlmusic.ui.theme.HeroTitleStyle
 import one.tunkshif.swirlmusic.ui.theme.Spacing
 
 @Composable
@@ -132,15 +134,22 @@ private fun Greeting(nickname: String?, dayPart: DayPart) {
     Column(
         modifier = Modifier.padding(start = Spacing.xl, end = Spacing.xl, top = Spacing.lg),
     ) {
+        // One line, whatever the day part: auto-size shrinks long greetings like
+        // "Good afternoon" instead of letting them wrap.
         Text(
             text = stringResource(dayPart.plainGreeting()),
-            style = MaterialTheme.typography.displayMedium,
+            style = HeroTitleStyle,
             color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            autoSize = TextAutoSize.StepBased(
+                minFontSize = 26.sp,
+                maxFontSize = HeroTitleStyle.fontSize,
+            ),
         )
         if (!nickname.isNullOrBlank()) {
             Text(
                 text = nickname,
-                style = MaterialTheme.typography.displayMedium,
+                style = MaterialTheme.typography.displaySmall,
                 color = MaterialTheme.colorScheme.primary,
             )
         }
@@ -148,73 +157,105 @@ private fun Greeting(nickname: String?, dayPart: DayPart) {
 }
 
 /**
- * The one big card on the screen: today's first pick, full bleed, with the play action on it.
- * The reference leads with a hero like this instead of another row of small cards.
+ * Today's pick: a text-and-play row the way the reference does "Your Mix", with a small
+ * collage of the first three daily artworks underneath instead of one big gradient card.
  */
 @Composable
 private fun HeroSection(
     state: SectionState<List<Track>>,
     onPlayTracks: (List<Track>, Int) -> Unit,
 ) {
-    val track = (state as? SectionState.Content)?.value?.firstOrNull() ?: return
-    val tracks = (state as SectionState.Content).value
+    val tracks = (state as? SectionState.Content)?.value ?: return
+    val track = tracks.firstOrNull() ?: return
 
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = Spacing.xl),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.home_hero_kicker),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Text(
+                    text = track.title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = track.artistLine,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            FilledIconButton(
+                onClick = { onPlayTracks(tracks, 0) },
+                modifier = Modifier.size(96.dp),
+                shape = CircleShape,
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                ),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.PlayArrow,
+                    contentDescription = stringResource(R.string.home_hero_play),
+                    modifier = Modifier.size(40.dp),
+                )
+            }
+        }
+        HeroCollage(tracks = tracks.take(3))
+    }
+}
+
+@Composable
+private fun HeroCollage(tracks: List<Track>) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = Spacing.xl)
-            .height(212.dp)
-            .clip(MaterialTheme.shapes.large),
+            .height(200.dp),
+        contentAlignment = Alignment.Center,
     ) {
-        Artwork(
-            url = track.artworkUrl,
-            contentDescription = null,
-            shape = RectangleShape,
-            modifier = Modifier.matchParentSize(),
-        )
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .background(
-                    Brush.verticalGradient(
-                        listOf(Color.Transparent, Color.Black.copy(alpha = 0.78f)),
-                    ),
-                ),
-        )
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(Spacing.lg),
-            verticalArrangement = Arrangement.spacedBy(Spacing.xxs),
-        ) {
-            Text(
-                text = stringResource(R.string.home_hero_kicker),
-                style = MaterialTheme.typography.labelLarge,
-                color = Color.White.copy(alpha = 0.8f),
-            )
-            Text(
-                text = track.title,
-                style = MaterialTheme.typography.titleLarge,
-                color = Color.White,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text = track.artistLine,
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.White.copy(alpha = 0.8f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+        tracks.getOrNull(1)?.let { side ->
+            Artwork(
+                url = side.artworkUrl,
+                contentDescription = null,
+                shape = CircleShape,
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .offset(x = Spacing.xl, y = (-24).dp)
+                    .size(96.dp),
             )
         }
-        FilledTonalButton(
-            onClick = { onPlayTracks(tracks, 0) },
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(Spacing.lg),
-            shape = CircleShape,
-        ) {
-            Icon(Icons.Default.PlayArrow, contentDescription = null)
+        tracks.getOrNull(2)?.let { side ->
+            Artwork(
+                url = side.artworkUrl,
+                contentDescription = null,
+                shape = CircleShape,
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .offset(x = -Spacing.xl, y = 24.dp)
+                    .size(96.dp),
+            )
+        }
+        tracks.firstOrNull()?.let { center ->
+            Artwork(
+                url = center.artworkUrl,
+                contentDescription = null,
+                shape = RoundedCornerShape(percent = 50),
+                modifier = Modifier
+                    .graphicsLayer { rotationZ = -35f }
+                    .size(width = 210.dp, height = 120.dp),
+            )
         }
     }
 }
@@ -224,6 +265,7 @@ private fun SectionHeader(titleRes: Int) {
     Text(
         text = stringResource(titleRes),
         style = MaterialTheme.typography.titleLarge,
+        fontWeight = FontWeight.SemiBold,
         modifier = Modifier.padding(horizontal = Spacing.xl),
     )
 }
@@ -326,13 +368,14 @@ private fun TrackCard(
 ) {
     Column(
         modifier = Modifier
-            .width(132.dp)
+            .width(140.dp)
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
     ) {
         Artwork(
             url = artworkUrl,
             contentDescription = null,
-            modifier = Modifier.size(132.dp),
+            shape = MaterialTheme.shapes.large,
+            modifier = Modifier.size(140.dp),
         )
         Text(
             text = title,
@@ -353,13 +396,21 @@ private fun TrackCard(
 
 @Composable
 private fun ChartRow(chart: ChartSummary) {
-    Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
-        Artwork(
-            url = chart.artworkUrl,
-            contentDescription = null,
-            modifier = Modifier.size(72.dp),
-        )
-        Column(modifier = Modifier.align(Alignment.CenterVertically)) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surfaceContainer,
+    ) {
+        Row(
+            modifier = Modifier.padding(Spacing.md),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.md),
+        ) {
+            Artwork(
+                url = chart.artworkUrl,
+                contentDescription = null,
+                modifier = Modifier.size(72.dp),
+            )
+            Column(modifier = Modifier.align(Alignment.CenterVertically)) {
             Text(
                 text = chart.name,
                 style = MaterialTheme.typography.titleMedium,
@@ -381,6 +432,7 @@ private fun ChartRow(chart: ChartSummary) {
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+            }
             }
         }
     }
@@ -434,7 +486,7 @@ private fun CardRowSkeleton() {
                     modifier = Modifier
                         .size(132.dp)
                         .clip(MaterialTheme.shapes.medium)
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                        .background(MaterialTheme.colorScheme.surfaceContainerHigh),
                 )
                 Box(
                     modifier = Modifier
@@ -442,7 +494,7 @@ private fun CardRowSkeleton() {
                         .fillMaxWidth(0.8f)
                         .height(14.dp)
                         .clip(MaterialTheme.shapes.extraSmall)
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                        .background(MaterialTheme.colorScheme.surfaceContainerHigh),
                 )
                 Box(
                     modifier = Modifier
@@ -450,7 +502,7 @@ private fun CardRowSkeleton() {
                         .fillMaxWidth(0.5f)
                         .height(12.dp)
                         .clip(MaterialTheme.shapes.extraSmall)
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                        .background(MaterialTheme.colorScheme.surfaceContainerHigh),
                 )
             }
         }
@@ -471,7 +523,7 @@ private fun ChartSkeleton() {
                     modifier = Modifier
                         .size(72.dp)
                         .clip(MaterialTheme.shapes.medium)
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                        .background(MaterialTheme.colorScheme.surfaceContainerHigh),
                 )
                 Column(
                     modifier = Modifier
@@ -484,14 +536,14 @@ private fun ChartSkeleton() {
                             .fillMaxWidth(0.4f)
                             .height(16.dp)
                             .clip(MaterialTheme.shapes.extraSmall)
-                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                            .background(MaterialTheme.colorScheme.surfaceContainerHigh),
                     )
                     Box(
                         modifier = Modifier
                             .fillMaxWidth(0.7f)
                             .height(12.dp)
                             .clip(MaterialTheme.shapes.extraSmall)
-                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                            .background(MaterialTheme.colorScheme.surfaceContainerHigh),
                     )
                 }
             }
