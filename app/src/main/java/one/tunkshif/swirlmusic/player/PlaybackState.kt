@@ -27,8 +27,14 @@ data class PlaybackState(
     val shuffle: Boolean = false,
     val isTrial: Boolean = false,
     val error: PlaybackError? = null,
+    /** A tapped track waiting for its URL — the mini player shows it before audio starts. */
+    val pending: Track? = null,
+    /** What the play/pause button means while resolving: the intent, not the player state. */
+    val playIntent: Boolean = false,
 ) {
-    val current: Track? get() = queue.getOrNull(currentIndex)
+    val current: Track? get() = pending ?: queue.getOrNull(currentIndex)
+
+    val isLoading: Boolean get() = pending != null || isBuffering
 
     val hasNext: Boolean
         get() = when (repeatMode) {

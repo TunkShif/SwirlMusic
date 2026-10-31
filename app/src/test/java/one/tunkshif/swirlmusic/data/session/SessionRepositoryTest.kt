@@ -12,6 +12,8 @@ import one.tunkshif.swirlmusic.data.api.dto.QrCheckResponse
 import one.tunkshif.swirlmusic.data.api.dto.QrCreateBody
 import one.tunkshif.swirlmusic.data.api.dto.QrKeyBody
 import one.tunkshif.swirlmusic.data.api.dto.UserAccountResponse
+import kotlinx.coroutines.test.runTest
+import one.tunkshif.swirlmusic.data.cache.AccountScopedCache
 import org.junit.Test
 
 class SessionRepositoryTest {
@@ -19,7 +21,13 @@ class SessionRepositoryTest {
     private val storage = FakeStorage()
     private val cache = SessionCache()
     private val api = FakeAuthApi()
-    private val repository = SessionRepository(api, SessionStore(storage, PlainCipher()), cache)
+    private val accountCache = RecordingCache()
+    private val repository = SessionRepository(api, SessionStore(storage, PlainCipher()), cache, accountCache)
+
+    private class RecordingCache : AccountScopedCache {
+        var cleared = 0
+        override suspend fun clear() { cleared++ }
+    }
 
     @Test
     fun `with nothing stored the app is signed out`() = runTest {
@@ -62,6 +70,7 @@ class SessionRepositoryTest {
 
         assertThat(repository.state.value).isEqualTo(SessionState.SignedOut)
         assertThat(storage.value).isNull()
+        assertThat(accountCache.cleared).isEqualTo(1)
     }
 
     @Test
@@ -98,6 +107,7 @@ class SessionRepositoryTest {
         assertThat(storage.value).isNull()
         assertThat(cache.cookie).isNull()
         assertThat(api.logoutCalls).isEqualTo(1)
+        assertThat(accountCache.cleared).isEqualTo(1)
     }
 
     @Test

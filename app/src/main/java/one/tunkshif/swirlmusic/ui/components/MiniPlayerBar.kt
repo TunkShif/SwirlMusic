@@ -92,13 +92,22 @@ fun MiniPlayerBar(
                 modifier = Modifier.size(48.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                CircularProgressIndicator(
-                    progress = { state.progress },
-                    modifier = Modifier.size(48.dp),
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    trackColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f),
-                    strokeWidth = 3.dp,
-                )
+                if (state.isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(48.dp),
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        trackColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f),
+                        strokeWidth = 3.dp,
+                    )
+                } else {
+                    CircularProgressIndicator(
+                        progress = { state.progress },
+                        modifier = Modifier.size(48.dp),
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        trackColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f),
+                        strokeWidth = 3.dp,
+                    )
+                }
                 FilledIconButton(
                     onClick = onPlayPause,
                     modifier = Modifier.size(40.dp),

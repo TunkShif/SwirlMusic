@@ -44,6 +44,7 @@ class HomeViewModelTest {
         FakeAuthApi(),
         SessionStore(storage, PlainCipher()),
         SessionCache(),
+        one.tunkshif.swirlmusic.data.cache.AccountScopedCache {},
     )
 
     @After

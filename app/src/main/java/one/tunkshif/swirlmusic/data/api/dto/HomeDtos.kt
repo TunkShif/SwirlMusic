@@ -67,6 +67,8 @@ data class PlaylistDto(
     val copywriter: String? = null,
     val description: String? = null,
     val creator: CreatorDto? = null,
+    /** Bump when the playlist's track set changes; used as the snapshot version. */
+    val trackUpdateTime: Long? = null,
     /** Every song id in order, on `/playlist/detail` only — `"tracks": null` elsewhere. */
     val trackIds: List<TrackIdDto>? = null,
     /** The first `n` full tracks on `/playlist/detail` (we send n=50). */

@@ -1,5 +1,6 @@
 package one.tunkshif.swirlmusic.ui.tracks
 
+import androidx.room.Room
 import com.google.common.truth.Truth.assertThat
 import java.io.IOException
 import kotlinx.coroutines.Dispatchers
@@ -16,14 +17,29 @@ import one.tunkshif.swirlmusic.ui.common.LoadError
 import one.tunkshif.swirlmusic.ui.common.SectionState
 import one.tunkshif.swirlmusic.ui.library.FakeLibraryApi
 import one.tunkshif.swirlmusic.ui.library.track
+import one.tunkshif.swirlmusic.data.api.TimeSource
+import one.tunkshif.swirlmusic.data.cache.SwirlDatabase
+import one.tunkshif.swirlmusic.data.library.TrackListRepository
 import org.junit.After
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
+import org.robolectric.annotation.Config
 
 @OptIn(ExperimentalCoroutinesApi::class)
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [36])
 class TrackListViewModelTest {
 
+    private val db = Room.inMemoryDatabaseBuilder(
+        RuntimeEnvironment.getApplication(),
+        SwirlDatabase::class.java,
+    ).allowMainThreadQueries().build()
+
     private val api = FakeLibraryApi()
-    private val viewModel = TrackListViewModel(api)
+    private val repository = TrackListRepository(api, db.trackListDao(), object : TimeSource { override fun nowMillis() = 1_000L }, kotlinx.coroutines.test.UnconfinedTestDispatcher())
+    private val viewModel = TrackListViewModel(repository)
 
     @After
     fun tearDown() {

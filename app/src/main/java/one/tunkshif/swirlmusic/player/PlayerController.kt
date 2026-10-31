@@ -123,17 +123,25 @@ class PlayerController @Inject constructor(
 
     private var playGeneration = 0
     private var playJob: Job? = null
+    private var pendingTrack: Track? = null
+    private var playWhenReadyIntent = false
 
     fun play(tracks: List<Track>, startIndex: Int, rest: TrackPager? = null) {
         if (tracks.isEmpty()) return
         val generation = ++playGeneration
         playJob?.cancel()
+        // Show the tapped track at once; the old song stops immediately.
+        pendingTrack = tracks.getOrNull(startIndex.coerceIn(0, tracks.lastIndex))
+        playWhenReadyIntent = true
+        if (player.isPlaying) player.pause()
+        publish(error = null)
         playJob = scope.launch {
             // Fast start: resolve only the window around the tapped track.
             val split = queueSplit(tracks.size, startIndex, PLAY_WINDOW)
             val window = tracks.subList(split.window.first, split.window.last + 1)
             val items = itemsFor(window)
             if (items.isEmpty()) {
+                pendingTrack = null
                 publish(error = PlaybackError.Unavailable)
                 return@launch
             }
@@ -143,9 +151,10 @@ class PlayerController @Inject constructor(
                 .takeIf { it >= 0 } ?: 0
             queue = windowTracks
             retriedTracks.clear()
+            pendingTrack = null
             player.setMediaItems(items.map { it.second }, newStart, 0)
             player.prepare()
-            player.play()
+            player.playWhenReady = playWhenReadyIntent
             ensureService()
             publish(error = null)
 
@@ -203,6 +212,11 @@ class PlayerController @Inject constructor(
     // should not have to care which thread they are on.
 
     fun togglePlayPause() = scope.launch {
+        if (pendingTrack != null) {
+            playWhenReadyIntent = !playWhenReadyIntent
+            publish()
+            return@launch
+        }
         if (player.mediaItemCount == 0) return@launch
         if (player.isPlaying) player.pause() else player.play()
     }
@@ -384,6 +398,8 @@ class PlayerController @Inject constructor(
             shuffle = player.shuffleModeEnabled,
             isTrial = current?.let { playable[it.id]?.isTrial } == true,
             error = error,
+            pending = pendingTrack,
+            playIntent = playWhenReadyIntent,
         )
     }
 

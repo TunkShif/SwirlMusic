@@ -10,7 +10,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import one.tunkshif.swirlmusic.data.api.ApiResult
-import one.tunkshif.swirlmusic.data.api.NcmLibraryApi
+import one.tunkshif.swirlmusic.data.library.TrackListRepository
 import one.tunkshif.swirlmusic.data.model.Track
 import one.tunkshif.swirlmusic.player.PlayerController
 import one.tunkshif.swirlmusic.ui.common.LoadError
@@ -37,7 +37,7 @@ data class TrackListUiState(
 
 @HiltViewModel
 class TrackListViewModel @Inject constructor(
-    private val api: NcmLibraryApi,
+    private val repository: TrackListRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(TrackListUiState())
@@ -78,31 +78,64 @@ class TrackListViewModel @Inject constructor(
     }
 
     private suspend fun loadPlaylist(id: Long) {
-        when (val result = api.playlistDetail(id)) {
+        val key = TrackListRepository.playlistKey(id)
+        // Stale-while-revalidate: paint the snapshot now, refresh over the network after.
+        val cached = repository.cached(key)
+        val hadSnapshot = cached != null
+        if (cached != null) {
+            emitList(cached.title, cached.artworkUrl, cached.subtitle, cached.firstTracks)
+            setPending(cached.orderedIds, cached.firstTracks)
+        }
+        when (val result = repository.fetchPlaylist(id)) {
             is ApiResult.Success -> {
-                val contents = result.value
-                val playlist = contents.detail
-                _state.value = TrackListUiState(
-                    title = playlist.name,
-                    artworkUrl = playlist.artworkUrl,
-                    subtitle = listOfNotNull(
-                        playlist.creatorName,
-                        playlist.trackCount.toString() + " tracks",
-                    ).joinToString(" · "),
-                    tracks = SectionState.Content(contents.firstTracks),
+                val fetched = result.value
+                val current = _state.value
+                _state.value = current.copy(
+                    title = fetched.title,
+                    artworkUrl = fetched.artworkUrl,
+                    subtitle = fetched.subtitle,
                 )
-                // Everything beyond the bundled tracks is paged in by id slice.
-                val covered = contents.firstTracks.map { it.id }.toSet()
-                pendingIds = contents.trackIds.filter { it !in covered }
-                _state.value = _state.value.copy(canLoadMore = pendingIds.isNotEmpty())
-                if (contents.firstTracks.isEmpty() && contents.trackIds.isNotEmpty()) {
+                if (fetched.orderChanged || !hadSnapshot) {
+                    // Rebuild the rows in the new order, keeping the loaded count where possible.
+                    val keep = if (hadSnapshot) {
+                        (current.tracks as? SectionState.Content)?.value?.size ?: 0
+                    } else {
+                        0
+                    }
+                    val count = keep.coerceAtLeast(fetched.firstTracks.size)
+                        .coerceAtMost(fetched.orderedIds.size)
+                    val rows = when (val resolved = repository.tracksByIds(fetched.orderedIds.take(count))) {
+                        is ApiResult.Success -> resolved.value
+                        else -> fetched.firstTracks
+                    }
+                    _state.value = _state.value.copy(tracks = SectionState.Content(rows))
+                    setPending(fetched.orderedIds, rows)
+                }
+                if ((_state.value.tracks as? SectionState.Content)?.value.isNullOrEmpty() &&
+                    fetched.orderedIds.isNotEmpty()
+                ) {
                     loadMore()
                 }
             }
 
-            is ApiResult.NetworkError -> fail(LoadError.Network)
-            is ApiResult.HttpError, is ApiResult.Unauthorized -> fail(LoadError.Server)
+            is ApiResult.NetworkError -> if (!hadSnapshot) fail(LoadError.Network)
+            is ApiResult.HttpError, is ApiResult.Unauthorized -> if (!hadSnapshot) fail(LoadError.Server)
         }
+    }
+
+    private fun emitList(title: String, artworkUrl: String?, subtitle: String?, tracks: List<Track>) {
+        _state.value = TrackListUiState(
+            title = title,
+            artworkUrl = artworkUrl,
+            subtitle = subtitle,
+            tracks = SectionState.Content(tracks),
+        )
+    }
+
+    private fun setPending(orderedIds: List<Long>, loaded: List<Track>) {
+        val covered = loaded.map { it.id }.toSet()
+        pendingIds = orderedIds.filter { it !in covered }
+        _state.value = _state.value.copy(canLoadMore = pendingIds.isNotEmpty())
     }
 
     /**
@@ -121,7 +154,7 @@ class TrackListViewModel @Inject constructor(
         _state.value = _state.value.copy(loadingMore = true, moreError = null)
         moreJob = viewModelScope.launch {
             val slice = pendingIds.take(PAGE_SIZE)
-            when (val result = api.songsByIds(slice)) {
+            when (val result = repository.tracksByIds(slice)) {
                 is ApiResult.Success -> {
                     // A retry/reload may have replaced the list while this call was in flight.
                     if (generation != loadGeneration) return@launch
@@ -161,7 +194,7 @@ class TrackListViewModel @Inject constructor(
             while (offset < snapshot.size) {
                 val slice = snapshot.drop(offset).take(PAGE_SIZE)
                 offset += slice.size
-                when (val result = api.songsByIds(slice)) {
+                when (val result = repository.tracksByIds(slice)) {
                     is ApiResult.Success -> if (result.value.isNotEmpty()) return@TrackPager result.value
                     else -> return@TrackPager null
                 }
@@ -171,34 +204,34 @@ class TrackListViewModel @Inject constructor(
     }
 
     private suspend fun loadAlbum(id: Long) {
-        when (val detail = api.albumDetail(id)) {
-            is ApiResult.Success -> _state.value = TrackListUiState(
-                title = detail.value.name,
-                artworkUrl = detail.value.artworkUrl,
-                subtitle = listOfNotNull(
-                    detail.value.artistLine.takeIf { it.isNotBlank() },
-                    detail.value.publishYear?.toString(),
-                ).joinToString(" · "),
-                tracks = SectionState.Content(detail.value.tracks),
-            )
+        val hadSnapshot = emitCached(TrackListRepository.albumKey(id))
+        when (val result = repository.fetchAlbum(id)) {
+            is ApiResult.Success -> result.value.let {
+                emitList(it.title, it.artworkUrl, it.subtitle, it.firstTracks)
+            }
 
-            is ApiResult.NetworkError -> fail(LoadError.Network)
-            is ApiResult.HttpError, is ApiResult.Unauthorized -> fail(LoadError.Server)
+            is ApiResult.NetworkError -> if (!hadSnapshot) fail(LoadError.Network)
+            is ApiResult.HttpError, is ApiResult.Unauthorized -> if (!hadSnapshot) fail(LoadError.Server)
         }
     }
 
     private suspend fun loadArtist(id: Long) {
-        when (val detail = api.artistDetail(id)) {
-            is ApiResult.Success -> _state.value = TrackListUiState(
-                title = detail.value.name,
-                artworkUrl = detail.value.artworkUrl,
-                subtitle = null,
-                tracks = SectionState.Content(detail.value.tracks),
-            )
+        val hadSnapshot = emitCached(TrackListRepository.artistKey(id))
+        when (val result = repository.fetchArtist(id)) {
+            is ApiResult.Success -> result.value.let {
+                emitList(it.title, it.artworkUrl, it.subtitle, it.firstTracks)
+            }
 
-            is ApiResult.NetworkError -> fail(LoadError.Network)
-            is ApiResult.HttpError, is ApiResult.Unauthorized -> fail(LoadError.Server)
+            is ApiResult.NetworkError -> if (!hadSnapshot) fail(LoadError.Network)
+            is ApiResult.HttpError, is ApiResult.Unauthorized -> if (!hadSnapshot) fail(LoadError.Server)
         }
+    }
+
+    /** Emit the cached snapshot (albums/artists resolve all ids). True when one existed. */
+    private suspend fun emitCached(key: String): Boolean {
+        val cached = repository.cached(key, limit = Int.MAX_VALUE) ?: return false
+        emitList(cached.title, cached.artworkUrl, cached.subtitle, cached.firstTracks)
+        return true
     }
 
     private fun applyTracks(result: ApiResult<List<Track>>) {

@@ -5,6 +5,7 @@ import javax.inject.Singleton
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import one.tunkshif.swirlmusic.data.cache.AccountScopedCache
 import one.tunkshif.swirlmusic.data.api.ApiResult
 import one.tunkshif.swirlmusic.data.api.NcmAuthApi
 import one.tunkshif.swirlmusic.data.api.dto.ProfileDto
@@ -29,6 +30,7 @@ class SessionRepository @Inject constructor(
     private val api: NcmAuthApi,
     private val store: SessionStore,
     private val cache: SessionCache,
+    private val accountCache: AccountScopedCache,
 ) {
 
     private val _state = MutableStateFlow<SessionState>(SessionState.Unknown)
@@ -86,6 +88,7 @@ class SessionRepository @Inject constructor(
 
     private suspend fun clearSession() {
         store.clear()
+        accountCache.clear()
         cache.update(null)
         _state.value = SessionState.SignedOut
     }

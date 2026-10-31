@@ -98,6 +98,29 @@ class ShellScreenshotTest {
         compose.onRoot().captureRoboImage("src/test/screenshots/shell/playing-light.png")
     }
 
+    @Test
+    fun mini_player_loading() {
+        compose.setContent {
+            SwirlMusicTheme(dynamicColor = false) {
+                SwirlApp(
+                    profile = profile,
+                    onSignOut = {},
+                    miniPlayer = MiniPlayerUiState(
+                        title = "Nightcall",
+                        subtitle = "Kavinsky",
+                        isPlaying = true,
+                        isLoading = true,
+                    ),
+                    onPlayPause = {},
+                    onPlayTracks = { _, _, _ -> },
+                    homeContent = { TestHome() },
+                    libraryContent = { _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
+                )
+            }
+        }
+        compose.onRoot().captureRoboImage("src/test/screenshots/shell/mini-player-loading.png")
+    }
+
     private fun capture(
         name: String,
         dark: Boolean,

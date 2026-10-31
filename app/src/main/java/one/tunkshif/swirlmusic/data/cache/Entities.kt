@@ -1,0 +1,64 @@
+package one.tunkshif.swirlmusic.data.cache
+
+import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.Index
+import androidx.room.PrimaryKey
+import one.tunkshif.swirlmusic.data.model.Track
+
+/** Metadata for one track; playability and stream URLs are never cached. */
+@Entity(tableName = "track")
+data class TrackEntity(
+    @PrimaryKey val id: Long,
+    val title: String,
+    val artistLine: String,
+    val artworkUrl: String?,
+    val durationMs: Long,
+    val fetchedAt: Long,
+) {
+    fun toTrack(): Track = Track(id, title, artistLine, artworkUrl, durationMs)
+
+    companion object {
+        fun of(track: Track, now: Long) = TrackEntity(
+            id = track.id,
+            title = track.title,
+            artistLine = track.artistLine,
+            artworkUrl = track.artworkUrl,
+            durationMs = track.durationMs,
+            fetchedAt = now,
+        )
+    }
+}
+
+/** One cached detail list: `playlist:<id>`, `album:<id>` or `artist:<id>`. */
+@Entity(tableName = "snapshot")
+data class SnapshotEntity(
+    @PrimaryKey val sourceKey: String,
+    val title: String,
+    val subtitle: String?,
+    val artworkUrl: String?,
+    val trackCount: Int,
+    /** `trackUpdateTime` for playlists; null for albums and artists. */
+    val version: Long?,
+    val fetchedAt: Long,
+    val lastOpenedAt: Long,
+)
+
+@Entity(
+    tableName = "snapshot_track",
+    primaryKeys = ["sourceKey", "position"],
+    indices = [Index("trackId"), Index("sourceKey")],
+    foreignKeys = [
+        ForeignKey(
+            entity = SnapshotEntity::class,
+            parentColumns = ["sourceKey"],
+            childColumns = ["sourceKey"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+)
+data class SnapshotTrackEntity(
+    val sourceKey: String,
+    val position: Int,
+    val trackId: Long,
+)

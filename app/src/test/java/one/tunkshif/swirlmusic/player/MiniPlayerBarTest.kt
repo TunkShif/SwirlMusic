@@ -51,6 +51,22 @@ class MiniPlayerBarTest {
     }
 
     @Test
+    fun `a resolving track shows its title and keeps the pause action`() {
+        setContent(
+            MiniPlayerUiState(
+                title = "Nightcall",
+                subtitle = "Kavinsky",
+                isPlaying = true,
+                isLoading = true,
+            ),
+        )
+
+        // Tapping showed the track at once; the ring is indeterminate until audio starts.
+        compose.onNodeWithText("Nightcall").assertExists()
+        compose.onNodeWithContentDescription(text(R.string.mini_player_pause)).assertExists()
+    }
+
+    @Test
     fun `a trial replaces the artist line with the preview note`() {
         setContent(
             MiniPlayerUiState(

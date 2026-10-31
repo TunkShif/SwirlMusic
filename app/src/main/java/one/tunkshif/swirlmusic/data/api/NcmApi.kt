@@ -131,6 +131,7 @@ class NcmApi @Inject constructor(
                 detail = response.playlist.toDetail(),
                 trackIds = response.playlist.trackIds.orEmpty().map { it.id },
                 firstTracks = response.playlist.tracks.orEmpty().map { it.toDomain() },
+                trackUpdateTime = response.playlist.trackUpdateTime,
             )
         }
 

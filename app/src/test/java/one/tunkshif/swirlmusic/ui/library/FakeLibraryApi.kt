@@ -73,12 +73,14 @@ class FakeLibraryApi : NcmLibraryApi {
 
     override suspend fun playlistDetail(id: Long): ApiResult<PlaylistContents> {
         calls += "playlistDetail:$id"
+        detailGate?.await()
         failWith?.let { return it }
         return ApiResult.Success(
             PlaylistContents(
                 detail = detail,
                 trackIds = contentsTrackIds.ifEmpty { detailTracks.map { it.id } },
                 firstTracks = contentsFirstTracks.ifEmpty { detailTracks },
+                trackUpdateTime = contentsTrackUpdateTime,
             ),
         )
     }
@@ -87,6 +89,9 @@ class FakeLibraryApi : NcmLibraryApi {
 
     var contentsTrackIds: List<Long> = emptyList()
     var contentsFirstTracks: List<Track> = emptyList()
+    var contentsTrackUpdateTime: Long? = null
+    /** When set, `playlistDetail` suspends on it — for warm-load ordering tests. */
+    var detailGate: kotlinx.coroutines.CompletableDeferred<Unit>? = null
     /** If set, `songsByIds` returns this instead of `track(it)` per id — for order/drop tests. */
     var songsOverride: ((List<Long>) -> List<Track>)? = null
     var failSongsWith: ApiResult<Nothing>? = null
@@ -179,6 +184,7 @@ fun signedInSession(): SessionRepository {
             },
         ),
         SessionCache(),
+        one.tunkshif.swirlmusic.data.cache.AccountScopedCache {},
     )
     runBlocking { repository.signIn("MUSIC_U=test") }
     return repository

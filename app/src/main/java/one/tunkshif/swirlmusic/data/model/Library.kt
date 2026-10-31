@@ -29,6 +29,8 @@ data class PlaylistContents(
     val detail: PlaylistDetail,
     val trackIds: List<Long>,
     val firstTracks: List<Track>,
+    /** `trackUpdateTime` from the detail payload; null when the server omits it. */
+    val trackUpdateTime: Long? = null,
 )
 
 data class PlaylistDetail(

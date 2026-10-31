@@ -17,6 +17,10 @@ val localProperties = Properties().apply {
 
 fun localProperty(key: String): String = localProperties.getProperty(key).orEmpty()
 
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 android {
     namespace = "one.tunkshif.swirlmusic"
     compileSdk {
@@ -97,7 +101,10 @@ dependencies {
 
     implementation(libs.hilt.android)
     implementation(libs.androidx.hilt.navigation.compose)
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
     ksp(libs.hilt.compiler)
+    ksp(libs.androidx.room.compiler)
 
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)

@@ -112,7 +112,7 @@ class LoginViewModelTest {
     private lateinit var session: SessionRepository
 
     private fun viewModel(): LoginViewModel {
-        session = SessionRepository(api, SessionStore(storage, PlainCipher()), SessionCache())
+        session = SessionRepository(api, SessionStore(storage, PlainCipher()), SessionCache(), one.tunkshif.swirlmusic.data.cache.AccountScopedCache {})
         val engine = QrLoginEngine(
             api,
             LoginTuning(pollIntervalMillis = 1, timeoutMillis = 3, maxNetworkRetries = 1),

@@ -19,6 +19,8 @@ data class MiniPlayerUiState(
     val isPlaying: Boolean = false,
     val progress: Float = 0f,
     val isTrial: Boolean = false,
+    /** A tapped track is resolving; show the loading ring instead of progress. */
+    val isLoading: Boolean = false,
 ) {
     val hasTrack: Boolean get() = !title.isNullOrBlank()
 }
@@ -34,9 +36,10 @@ class PlayerViewModel @Inject constructor(
                 title = playback.current?.title,
                 subtitle = playback.current?.artistLine,
                 artworkUrl = playback.current?.artworkUrl,
-                isPlaying = playback.isPlaying,
+                isPlaying = if (playback.pending != null) playback.playIntent else playback.isPlaying,
                 progress = playback.progress,
                 isTrial = playback.isTrial,
+                isLoading = playback.isLoading,
             )
         }
         .stateIn(
