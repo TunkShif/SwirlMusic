@@ -41,12 +41,24 @@ class QrImageExporterTest {
     @Test
     fun a_missing_content_is_rejected_before_writing() {
         runBlocking {
+            // The device may hold codes from earlier runs, so compare counts, not existence.
+            val before = countSavedImages("swirl-login-")
+
             val result = exporter.save("   ")
 
             assertThat(result.isFailure).isTrue()
-            assertThat(findSavedImage("swirl-login-")).isNull()
+            assertThat(countSavedImages("swirl-login-")).isEqualTo(before)
         }
     }
+
+    private fun countSavedImages(namePart: String): Int =
+        context.contentResolver.query(
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            arrayOf(MediaStore.Images.Media._ID),
+            "${MediaStore.Images.Media.DISPLAY_NAME} LIKE ?",
+            arrayOf("$namePart%"),
+            null,
+        )?.use { it.count } ?: 0
 
     private fun findSavedImage(namePart: String): android.net.Uri? {
         val projection = arrayOf(MediaStore.Images.Media._ID, MediaStore.Images.Media.DISPLAY_NAME)

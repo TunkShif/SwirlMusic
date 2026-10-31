@@ -18,10 +18,13 @@ import one.tunkshif.swirlmusic.data.api.dto.QrCreateResponse
 import one.tunkshif.swirlmusic.data.api.dto.QrKeyBody
 import one.tunkshif.swirlmusic.data.api.dto.QrKeyResponse
 import one.tunkshif.swirlmusic.data.api.dto.RecommendResourceResponse
+import one.tunkshif.swirlmusic.data.api.dto.ScrobbleResponse
+import one.tunkshif.swirlmusic.data.api.dto.SongUrlResponse
 import one.tunkshif.swirlmusic.data.api.dto.RecommendSongsResponse
 import one.tunkshif.swirlmusic.data.api.dto.ToplistResponse
 import one.tunkshif.swirlmusic.data.api.dto.UserAccountResponse
 import one.tunkshif.swirlmusic.data.model.ChartSummary
+import one.tunkshif.swirlmusic.data.model.PlayableUrl
 import one.tunkshif.swirlmusic.data.model.PlaylistSummary
 import one.tunkshif.swirlmusic.data.model.Track
 import one.tunkshif.swirlmusic.di.IoDispatcher
@@ -36,8 +39,9 @@ class NcmApi @Inject constructor(
     private val client: OkHttpClient,
     private val json: Json,
     private val config: ApiConfig,
+    private val timeSource: TimeSource,
     @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
-) : NcmAuthApi, NcmHomeApi {
+) : NcmAuthApi, NcmHomeApi, NcmPlaybackApi {
 
     suspend fun loginStatus(): ApiResult<AccountStatusBody> =
         request("/login/status", LoginStatusResponse.serializer()).map { it.data }
@@ -69,6 +73,22 @@ class NcmApi @Inject constructor(
     override suspend fun charts(): ApiResult<List<ChartSummary>> =
         request("/toplist/detail", ToplistResponse.serializer())
             .map { response -> response.list.take(CHART_PREVIEW_COUNT).map { it.toDomain() } }
+
+    override suspend fun songUrls(ids: List<Long>, level: String): ApiResult<List<PlayableUrl>> {
+        if (ids.isEmpty()) return ApiResult.Success(emptyList())
+        return request(
+            "/song/url/v1",
+            SongUrlResponse.serializer(),
+            mapOf("id" to ids.joinToString(","), "level" to level),
+        ).map { response -> response.data.map { it.toDomain(timeSource.nowMillis()) } }
+    }
+
+    override suspend fun scrobble(trackId: Long, playedSeconds: Int): ApiResult<Unit> =
+        request(
+            "/scrobble/v1",
+            ScrobbleResponse.serializer(),
+            mapOf("id" to trackId.toString(), "time" to playedSeconds.toString()),
+        ).map { }
 
     private suspend fun <T> request(
         path: String,

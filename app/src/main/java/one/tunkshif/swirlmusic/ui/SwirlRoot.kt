@@ -16,6 +16,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import one.tunkshif.swirlmusic.R
 import one.tunkshif.swirlmusic.data.session.SessionState
 import one.tunkshif.swirlmusic.ui.login.LoginRoute
+import one.tunkshif.swirlmusic.ui.player.PlayerViewModel
 import one.tunkshif.swirlmusic.ui.shell.SwirlApp
 import one.tunkshif.swirlmusic.ui.theme.Spacing
 
@@ -32,6 +33,8 @@ fun SwirlRoot(
     viewModel: AppViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val playerViewModel: PlayerViewModel = hiltViewModel()
+    val miniPlayer by playerViewModel.state.collectAsStateWithLifecycle()
 
     when (val session = state) {
         SessionState.Unknown -> SplashScreen(modifier)
@@ -39,6 +42,9 @@ fun SwirlRoot(
         is SessionState.SignedIn -> SwirlApp(
             profile = session.profile,
             onSignOut = viewModel::signOut,
+            miniPlayer = miniPlayer,
+            onPlayPause = playerViewModel::togglePlayPause,
+            onPlayTracks = playerViewModel::play,
             modifier = modifier,
         )
     }

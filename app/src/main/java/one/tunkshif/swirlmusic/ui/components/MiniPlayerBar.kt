@@ -19,32 +19,35 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import one.tunkshif.swirlmusic.R
+import one.tunkshif.swirlmusic.ui.player.MiniPlayerUiState
 import one.tunkshif.swirlmusic.ui.theme.Spacing
 import one.tunkshif.swirlmusic.ui.theme.SwirlMusicTheme
 
+/** Stable tag for tests: the bar is reachable from every tab. */
+const val MINI_PLAYER_TAG = "mini_player"
+
 /**
- * The mini player that floats above the bottom bar on every tab.
- *
- * Phase 1 shows a fixed idle state: artwork slot, title, subtitle, transport, progress line.
- * Phase 4 binds it to the real player.
+ * The mini player above the bottom bar. Tap opens the playing screen; the transport button starts
+ * or pauses.
  */
 @Composable
 fun MiniPlayerBar(
-    title: String,
-    subtitle: String,
-    isPlaying: Boolean,
-    progress: Float,
+    state: MiniPlayerUiState,
     onPlayPause: () -> Unit,
     onOpen: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Surface(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .testTag(MINI_PLAYER_TAG),
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
         Column {
@@ -56,22 +59,25 @@ fun MiniPlayerBar(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(Spacing.md),
             ) {
-                // Artwork slot. Phase 4 puts Coil here.
-                Surface(
+                Artwork(
+                    url = state.artworkUrl,
+                    contentDescription = null,
                     modifier = Modifier.size(40.dp),
-                    shape = MaterialTheme.shapes.small,
-                    color = MaterialTheme.colorScheme.secondaryContainer,
-                ) {}
+                )
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = title,
+                        text = state.title ?: stringResource(R.string.mini_player_idle_title),
                         style = MaterialTheme.typography.titleMedium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        text = subtitle,
+                        text = if (state.isTrial) {
+                            stringResource(R.string.mini_player_preview)
+                        } else {
+                            state.subtitle ?: stringResource(R.string.mini_player_idle_subtitle)
+                        },
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -80,17 +86,22 @@ fun MiniPlayerBar(
                 }
 
                 IconButton(onClick = onPlayPause) {
-                    Icon(
-                        imageVector = Icons.Default.PlayArrow,
-                        contentDescription = stringResource(
-                            if (isPlaying) R.string.mini_player_pause else R.string.mini_player_play,
-                        ),
-                    )
+                    if (state.isPlaying) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_pause),
+                            contentDescription = stringResource(R.string.mini_player_pause),
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = stringResource(R.string.mini_player_play),
+                        )
+                    }
                 }
             }
 
             LinearProgressIndicator(
-                progress = { progress },
+                progress = { state.progress },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(2.dp),
@@ -104,10 +115,12 @@ fun MiniPlayerBar(
 private fun MiniPlayerBarPreview() {
     SwirlMusicTheme(dynamicColor = false) {
         MiniPlayerBar(
-            title = stringResource(R.string.mini_player_idle_title),
-            subtitle = stringResource(R.string.mini_player_idle_subtitle),
-            isPlaying = false,
-            progress = 0f,
+            state = MiniPlayerUiState(
+                title = "Nightcall",
+                subtitle = "Kavinsky",
+                isPlaying = true,
+                progress = 0.35f,
+            ),
             onPlayPause = {},
             onOpen = {},
         )

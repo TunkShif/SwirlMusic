@@ -67,4 +67,5 @@
     <string name="mini_player_idle_subtitle">Pick a track to start</string>
     <string name="mini_player_play">Play</string>
     <string name="mini_player_pause">Pause</string>
+    <string name="mini_player_preview">Preview · 45 seconds</string>
 </resources>

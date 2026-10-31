@@ -18,6 +18,13 @@ object DispatcherModule {
     @IoDispatcher
     fun ioDispatcher(): CoroutineDispatcher = Dispatchers.IO
 
+    /**
+     * ExoPlayer may only be touched on the thread it was created on, which is the main thread.
+     */
+    @Provides
+    @MainDispatcher
+    fun mainDispatcher(): CoroutineDispatcher = Dispatchers.Main.immediate
+
     @Provides
     @Singleton
     @ApplicationScope

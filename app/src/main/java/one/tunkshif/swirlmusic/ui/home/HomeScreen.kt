@@ -1,6 +1,7 @@
 package one.tunkshif.swirlmusic.ui.home
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -42,6 +44,7 @@ import one.tunkshif.swirlmusic.ui.theme.Spacing
 @Composable
 fun HomeRoute(
     nickname: String?,
+    onPlayTracks: (List<Track>, Int) -> Unit,
     modifier: Modifier = Modifier,
     now: LocalTime = LocalTime.now(),
     viewModel: HomeViewModel = hiltViewModel(),
@@ -52,6 +55,7 @@ fun HomeRoute(
         state = state,
         onRefresh = viewModel::refresh,
         onRetry = viewModel::retry,
+        onPlayTracks = onPlayTracks,
         modifier = modifier,
         now = now,
     )
@@ -66,6 +70,7 @@ fun HomeScreen(
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
     now: LocalTime = LocalTime.now(),
+    onPlayTracks: (List<Track>, Int) -> Unit = { _, _ -> },
 ) {
     PullToRefreshBox(
         isRefreshing = state.isRefreshing,
@@ -79,7 +84,7 @@ fun HomeScreen(
         ) {
             item { Greeting(nickname = nickname, dayPart = dayPartFor(now.hour)) }
             item { SectionHeader(R.string.home_daily_title) }
-            item { DailySection(state.daily, onRetry) }
+            item { DailySection(state.daily, onRetry, onPlayTracks) }
             item { SectionHeader(R.string.home_playlists_title) }
             item { PlaylistSection(state.playlists, onRetry) }
             item { SectionHeader(R.string.home_charts_title) }
@@ -117,7 +122,11 @@ private fun SectionHeader(titleRes: Int) {
 }
 
 @Composable
-private fun DailySection(state: SectionState<List<Track>>, onRetry: () -> Unit) {
+private fun DailySection(
+    state: SectionState<List<Track>>,
+    onRetry: () -> Unit,
+    onPlayTracks: (List<Track>, Int) -> Unit,
+) {
     when (state) {
         is SectionState.Loading -> CardRowSkeleton()
 
@@ -127,15 +136,17 @@ private fun DailySection(state: SectionState<List<Track>>, onRetry: () -> Unit) 
             if (state.value.isEmpty()) {
                 SectionEmpty()
             } else {
+                val tracks = state.value
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = Spacing.xl),
                     horizontalArrangement = Arrangement.spacedBy(Spacing.md),
                 ) {
-                    items(state.value, key = { it.id }) { track ->
+                    itemsIndexed(tracks, key = { _, track -> track.id }) { index, track ->
                         TrackCard(
                             title = track.title,
                             subtitle = track.artistLine,
                             artworkUrl = track.artworkUrl,
+                            onClick = { onPlayTracks(tracks, index) },
                         )
                     }
                 }
@@ -200,8 +211,17 @@ private fun ChartSection(state: SectionState<List<ChartSummary>>, onRetry: () ->
 }
 
 @Composable
-private fun TrackCard(title: String, subtitle: String, artworkUrl: String?) {
-    Column(modifier = Modifier.width(132.dp)) {
+private fun TrackCard(
+    title: String,
+    subtitle: String,
+    artworkUrl: String?,
+    onClick: (() -> Unit)? = null,
+) {
+    Column(
+        modifier = Modifier
+            .width(132.dp)
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
+    ) {
         Artwork(
             url = artworkUrl,
             contentDescription = null,

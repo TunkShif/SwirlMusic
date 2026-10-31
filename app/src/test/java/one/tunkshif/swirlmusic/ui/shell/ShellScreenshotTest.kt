@@ -3,13 +3,16 @@ package one.tunkshif.swirlmusic.ui.shell
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import com.github.takahirom.roborazzi.captureRoboImage
 import one.tunkshif.swirlmusic.data.model.UserProfile
 import one.tunkshif.swirlmusic.navigation.TopLevelDestination
+import one.tunkshif.swirlmusic.ui.components.MINI_PLAYER_TAG
 import one.tunkshif.swirlmusic.ui.home.HomeScreen
+import one.tunkshif.swirlmusic.ui.player.MiniPlayerUiState
 import one.tunkshif.swirlmusic.ui.home.HomeTestData
 import one.tunkshif.swirlmusic.ui.theme.SwirlMusicTheme
 import androidx.compose.runtime.CompositionLocalProvider
@@ -74,10 +77,23 @@ class ShellScreenshotTest {
     @Test
     fun playing_light() {
         compose.setContent {
-            SwirlMusicTheme(dynamicColor = false) { SwirlApp(profile = profile, onSignOut = {}, homeContent = { TestHome() }) }
+            SwirlMusicTheme(dynamicColor = false) {
+                SwirlApp(
+                    profile = profile,
+                    onSignOut = {},
+                    miniPlayer = MiniPlayerUiState(
+                        title = "Nightcall",
+                        subtitle = "Kavinsky",
+                        isPlaying = true,
+                        progress = 0.35f,
+                    ),
+                    onPlayPause = {},
+                    onPlayTracks = { _, _ -> },
+                    homeContent = { TestHome() },
+                )
+            }
         }
-        compose.onNodeWithText(context.getString(one.tunkshif.swirlmusic.R.string.mini_player_idle_title))
-            .performClick()
+        compose.onNodeWithTag(MINI_PLAYER_TAG).performClick()
         compose.onRoot().captureRoboImage("src/test/screenshots/shell/playing-light.png")
     }
 
@@ -87,7 +103,21 @@ class ShellScreenshotTest {
         tab: TopLevelDestination? = null,
     ) {
         compose.setContent {
-            SwirlMusicTheme(darkTheme = dark, dynamicColor = false) { SwirlApp(profile = profile, onSignOut = {}, homeContent = { TestHome() }) }
+            SwirlMusicTheme(darkTheme = dark, dynamicColor = false) {
+                SwirlApp(
+                    profile = profile,
+                    onSignOut = {},
+                    miniPlayer = MiniPlayerUiState(
+                        title = "Nightcall",
+                        subtitle = "Kavinsky",
+                        isPlaying = true,
+                        progress = 0.35f,
+                    ),
+                    onPlayPause = {},
+                    onPlayTracks = { _, _ -> },
+                    homeContent = { TestHome() },
+                )
+            }
         }
         if (tab != null) {
             compose.onAllNodesWithText(context.getString(tab.labelRes)).onFirst().performClick()

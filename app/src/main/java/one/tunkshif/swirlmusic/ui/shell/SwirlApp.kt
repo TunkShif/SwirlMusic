@@ -20,7 +20,9 @@ import one.tunkshif.swirlmusic.navigation.LibraryKey
 import one.tunkshif.swirlmusic.navigation.PlayingKey
 import one.tunkshif.swirlmusic.navigation.ProfileKey
 import one.tunkshif.swirlmusic.navigation.TopLevelDestination
+import one.tunkshif.swirlmusic.data.model.Track
 import one.tunkshif.swirlmusic.ui.components.MiniPlayerBar
+import one.tunkshif.swirlmusic.ui.player.MiniPlayerUiState
 import one.tunkshif.swirlmusic.data.model.UserProfile
 import one.tunkshif.swirlmusic.ui.home.HomeRoute
 import one.tunkshif.swirlmusic.ui.library.LibraryScreen
@@ -38,12 +40,17 @@ import one.tunkshif.swirlmusic.ui.profile.ProfileScreen
 fun SwirlApp(
     profile: UserProfile?,
     onSignOut: () -> Unit,
+    miniPlayer: MiniPlayerUiState,
+    onPlayPause: () -> Unit,
+    onPlayTracks: (List<Track>, Int) -> Unit,
     modifier: Modifier = Modifier,
     /**
      * The home destination. A parameter, not a hard reference, so shell tests can render the shell
      * without Hilt or a network. Production uses the default.
      */
-    homeContent: @Composable () -> Unit = { HomeRoute(nickname = profile?.nickname) },
+    homeContent: @Composable () -> Unit = {
+        HomeRoute(nickname = profile?.nickname, onPlayTracks = onPlayTracks)
+    },
 ) {
     val backStack = rememberNavBackStack(HomeKey)
     val currentKey = backStack.lastOrNull()
@@ -55,11 +62,8 @@ fun SwirlApp(
             if (showChrome) {
                 Column {
                     MiniPlayerBar(
-                        title = stringResource(R.string.mini_player_idle_title),
-                        subtitle = stringResource(R.string.mini_player_idle_subtitle),
-                        isPlaying = false,
-                        progress = 0f,
-                        onPlayPause = {},
+                        state = miniPlayer,
+                        onPlayPause = onPlayPause,
                         onOpen = { backStack.add(PlayingKey) },
                     )
                     NavigationBar {

@@ -5,13 +5,16 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.google.common.truth.Truth.assertThat
 import one.tunkshif.swirlmusic.R
 import one.tunkshif.swirlmusic.data.model.UserProfile
 import one.tunkshif.swirlmusic.navigation.TopLevelDestination
+import one.tunkshif.swirlmusic.ui.components.MINI_PLAYER_TAG
 import one.tunkshif.swirlmusic.ui.home.HomeScreen
+import one.tunkshif.swirlmusic.ui.player.MiniPlayerUiState
 import one.tunkshif.swirlmusic.ui.home.HomeTestData
 import one.tunkshif.swirlmusic.ui.theme.SwirlMusicTheme
 import androidx.compose.runtime.CompositionLocalProvider
@@ -41,7 +44,21 @@ class ShellBehaviorTest {
     @Test
     fun `starts on home and shows an empty state`() {
         compose.setContent {
-            SwirlMusicTheme(dynamicColor = false) { SwirlApp(profile = profile, onSignOut = {}, homeContent = { TestHome() }) }
+            SwirlMusicTheme(dynamicColor = false) {
+                SwirlApp(
+                    profile = profile,
+                    onSignOut = {},
+                    miniPlayer = MiniPlayerUiState(
+                        title = "Nightcall",
+                        subtitle = "Kavinsky",
+                        isPlaying = true,
+                        progress = 0.35f,
+                    ),
+                    onPlayPause = {},
+                    onPlayTracks = { _, _ -> },
+                    homeContent = { TestHome() },
+                )
+            }
         }
 
         compose.onNodeWithText(context.getString(R.string.home_daily_title)).assertExists()
@@ -50,7 +67,21 @@ class ShellBehaviorTest {
     @Test
     fun `tapping a tab replaces the screen`() {
         compose.setContent {
-            SwirlMusicTheme(dynamicColor = false) { SwirlApp(profile = profile, onSignOut = {}, homeContent = { TestHome() }) }
+            SwirlMusicTheme(dynamicColor = false) {
+                SwirlApp(
+                    profile = profile,
+                    onSignOut = {},
+                    miniPlayer = MiniPlayerUiState(
+                        title = "Nightcall",
+                        subtitle = "Kavinsky",
+                        isPlaying = true,
+                        progress = 0.35f,
+                    ),
+                    onPlayPause = {},
+                    onPlayTracks = { _, _ -> },
+                    homeContent = { TestHome() },
+                )
+            }
         }
 
         compose.onAllNodesWithText(label(TopLevelDestination.Library)).onFirst().performClick()
@@ -63,10 +94,24 @@ class ShellBehaviorTest {
     @Test
     fun `the mini player opens the playing screen and hides the chrome`() {
         compose.setContent {
-            SwirlMusicTheme(dynamicColor = false) { SwirlApp(profile = profile, onSignOut = {}, homeContent = { TestHome() }) }
+            SwirlMusicTheme(dynamicColor = false) {
+                SwirlApp(
+                    profile = profile,
+                    onSignOut = {},
+                    miniPlayer = MiniPlayerUiState(
+                        title = "Nightcall",
+                        subtitle = "Kavinsky",
+                        isPlaying = true,
+                        progress = 0.35f,
+                    ),
+                    onPlayPause = {},
+                    onPlayTracks = { _, _ -> },
+                    homeContent = { TestHome() },
+                )
+            }
         }
 
-        compose.onNodeWithText(context.getString(R.string.mini_player_idle_title)).performClick()
+        compose.onNodeWithTag(MINI_PLAYER_TAG).performClick()
 
         compose.onNodeWithText(context.getString(R.string.playing_empty_body)).assertExists()
         // The bottom bar is gone, so no navigation label is on screen.
@@ -77,11 +122,25 @@ class ShellBehaviorTest {
     @Test
     fun `back from the playing screen returns to the tab`() {
         compose.setContent {
-            SwirlMusicTheme(dynamicColor = false) { SwirlApp(profile = profile, onSignOut = {}, homeContent = { TestHome() }) }
+            SwirlMusicTheme(dynamicColor = false) {
+                SwirlApp(
+                    profile = profile,
+                    onSignOut = {},
+                    miniPlayer = MiniPlayerUiState(
+                        title = "Nightcall",
+                        subtitle = "Kavinsky",
+                        isPlaying = true,
+                        progress = 0.35f,
+                    ),
+                    onPlayPause = {},
+                    onPlayTracks = { _, _ -> },
+                    homeContent = { TestHome() },
+                )
+            }
         }
 
         compose.onAllNodesWithText(label(TopLevelDestination.Library)).onFirst().performClick()
-        compose.onNodeWithText(context.getString(R.string.mini_player_idle_title)).performClick()
+        compose.onNodeWithTag(MINI_PLAYER_TAG).performClick()
         compose.onNodeWithContentDescription(context.getString(R.string.playing_back)).performClick()
 
         compose.onNodeWithText(context.getString(R.string.library_empty_body)).assertExists()
@@ -91,7 +150,21 @@ class ShellBehaviorTest {
     fun `the selected tab survives recreation, as after a rotation`() {
         val restorationTester = StateRestorationTester(compose)
         restorationTester.setContent {
-            SwirlMusicTheme(dynamicColor = false) { SwirlApp(profile = profile, onSignOut = {}, homeContent = { TestHome() }) }
+            SwirlMusicTheme(dynamicColor = false) {
+                SwirlApp(
+                    profile = profile,
+                    onSignOut = {},
+                    miniPlayer = MiniPlayerUiState(
+                        title = "Nightcall",
+                        subtitle = "Kavinsky",
+                        isPlaying = true,
+                        progress = 0.35f,
+                    ),
+                    onPlayPause = {},
+                    onPlayTracks = { _, _ -> },
+                    homeContent = { TestHome() },
+                )
+            }
         }
 
         compose.onAllNodesWithText(label(TopLevelDestination.Library)).onFirst().performClick()

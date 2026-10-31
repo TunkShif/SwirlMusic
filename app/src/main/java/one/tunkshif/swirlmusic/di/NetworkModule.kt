@@ -12,6 +12,7 @@ import one.tunkshif.swirlmusic.BuildConfig
 import one.tunkshif.swirlmusic.data.api.ApiConfig
 import one.tunkshif.swirlmusic.data.api.NcmAuthApi
 import one.tunkshif.swirlmusic.data.api.NcmHomeApi
+import one.tunkshif.swirlmusic.data.api.NcmPlaybackApi
 import one.tunkshif.swirlmusic.data.api.NcmApi
 import one.tunkshif.swirlmusic.data.api.SwirlApiInterceptor
 import one.tunkshif.swirlmusic.data.api.SystemTimeSource
@@ -73,6 +74,10 @@ object NetworkModule {
 
     @Provides
     @Singleton
+    fun playbackApi(api: NcmApi): NcmPlaybackApi = api
+
+    @Provides
+    @Singleton
     fun loginTuning(): LoginTuning = LoginTuning()
 
     @Provides
@@ -81,6 +86,7 @@ object NetworkModule {
         client: OkHttpClient,
         json: Json,
         config: ApiConfig,
+        timeSource: TimeSource,
         @IoDispatcher dispatcher: CoroutineDispatcher,
-    ): NcmApi = NcmApi(client, json, config, dispatcher)
+    ): NcmApi = NcmApi(client, json, config, timeSource, dispatcher)
 }
