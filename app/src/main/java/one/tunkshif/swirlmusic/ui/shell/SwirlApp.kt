@@ -18,8 +18,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
+import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
+import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import one.tunkshif.swirlmusic.R
 import one.tunkshif.swirlmusic.navigation.AlbumKey
@@ -36,7 +40,9 @@ import one.tunkshif.swirlmusic.ui.components.MiniPlayerBar
 import one.tunkshif.swirlmusic.ui.player.MiniPlayerUiState
 import one.tunkshif.swirlmusic.data.model.UserProfile
 import one.tunkshif.swirlmusic.ui.home.HomeRoute
+import one.tunkshif.swirlmusic.ui.home.HomeViewModel
 import one.tunkshif.swirlmusic.ui.library.LibraryRoute
+import one.tunkshif.swirlmusic.ui.library.LibraryViewModel
 import one.tunkshif.swirlmusic.ui.search.SearchRoute
 import one.tunkshif.swirlmusic.ui.tracks.TrackListRoute
 import one.tunkshif.swirlmusic.ui.theme.Spacing
@@ -44,12 +50,22 @@ import one.tunkshif.swirlmusic.ui.tracks.TrackListSource
 import one.tunkshif.swirlmusic.ui.playing.PlayingScreen
 import one.tunkshif.swirlmusic.ui.profile.ProfileScreen
 
+/** Every screen shows the dock except the full-screen player. */
+internal fun showsDock(key: NavKey?): Boolean = key !is PlayingKey
+
+/**
+ * The tab that owns the current stack: the stack's root. A playlist opened from Library keeps
+ * Library highlighted; an empty stack selects nothing.
+ */
+internal fun selectedTab(backStack: List<NavKey>): TopLevelDestination? =
+    TopLevelDestination.entries.firstOrNull { it.key == backStack.firstOrNull() }
+
 /**
  * The app shell: navigation, bottom bar, and mini player.
  *
  * One back stack, owned by [rememberNavBackStack], so it survives rotation and process death.
- * Tapping a tab replaces the stack with that tab's root. Per-tab history arrives when a tab gets
- * its first child destination, which is Phase 3.
+ * Tapping a tab resets the stack to that tab's root — including tapping the selected tab while
+ * on a detail screen, which pops back to the root.
  */
 @Composable
 fun SwirlApp(
@@ -60,11 +76,22 @@ fun SwirlApp(
     onPlayTracks: (List<Track>, Int) -> Unit,
     modifier: Modifier = Modifier,
     /**
+     * Activity-scoped tab ViewModels, obtained in SwirlRoot. They must NOT be created inside a
+     * NavEntry: a tab switch clears the back stack, so entry-scoped stores would drop them,
+     * refetching and losing scroll on every tab change.
+     */
+    homeViewModel: HomeViewModel? = null,
+    libraryViewModel: LibraryViewModel? = null,
+    /**
      * The home destination. A parameter, not a hard reference, so shell tests can render the shell
      * without Hilt or a network. Production uses the default.
      */
     homeContent: @Composable () -> Unit = {
-        HomeRoute(nickname = profile?.nickname, onPlayTracks = onPlayTracks)
+        HomeRoute(
+            nickname = profile?.nickname,
+            onPlayTracks = onPlayTracks,
+            viewModel = homeViewModel ?: hiltViewModel(),
+        )
     },
     libraryContent: @Composable (openPlaylist: (Long) -> Unit, openAlbum: (Long) -> Unit, openArtist: (Long) -> Unit, openSearch: () -> Unit) -> Unit = { openPlaylist, openAlbum, openArtist, openSearch ->
         LibraryRoute(
@@ -73,12 +100,14 @@ fun SwirlApp(
             onOpenAlbum = openAlbum,
             onOpenArtist = openArtist,
             onPlayTracks = onPlayTracks,
+            viewModel = libraryViewModel ?: hiltViewModel(),
         )
     },
 ) {
     val backStack = rememberNavBackStack(HomeKey)
     val currentKey = backStack.lastOrNull()
-    val showChrome = TopLevelDestination.entries.any { it.key == currentKey }
+    val selectedDestination = selectedTab(backStack)
+    val showChrome = showsDock(currentKey)
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -107,9 +136,9 @@ fun SwirlApp(
                         NavigationBar(containerColor = Color.Transparent) {
                             TopLevelDestination.entries.forEach { destination ->
                                 NavigationBarItem(
-                                    selected = currentKey == destination.key,
+                                    selected = selectedDestination == destination,
                                     onClick = {
-                                        if (currentKey != destination.key) {
+                                        if (backStack != listOf(destination.key)) {
                                             backStack.clear()
                                             backStack.add(destination.key)
                                         }
@@ -132,6 +161,13 @@ fun SwirlApp(
         NavDisplay(
             backStack = backStack,
             onBack = { backStack.removeLastOrNull() },
+            // Per-entry saved state and ViewModel stores, so a detail screen never shows the
+            // previous list's ViewModel. Tab ViewModels are hoisted to SwirlRoot on purpose —
+            // a tab switch clears the stack and must not refetch or lose scroll.
+            entryDecorators = listOf(
+                rememberSaveableStateHolderNavEntryDecorator(),
+                rememberViewModelStoreNavEntryDecorator(),
+            ),
             modifier = Modifier.padding(innerPadding),
             entryProvider = entryProvider {
                 entry<HomeKey> { homeContent() }

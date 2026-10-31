@@ -60,6 +60,11 @@
     <string name="library_empty_artists">No followed artists</string>
     <string name="library_empty_recent">Nothing played yet</string>
     <string name="library_play_count">%1$s plays</string>
+    <plurals name="library_track_count">
+        <item quantity="one">%1$d track</item>
+        <item quantity="other">%1$d tracks</item>
+    </plurals>
+    <string name="library_play_all">Play all</string>
 
     <!-- Track list -->
     <string name="track_list_title">Tracks</string>
@@ -89,6 +94,11 @@
     <string name="profile_unknown_user">NetEase account</string>
     <string name="profile_load_failed">The profile could not be loaded. Sign out and back in if this persists.</string>
     <string name="profile_sign_out">Sign out</string>
+    <string name="profile_vip">VIP</string>
+    <string name="profile_version">Version</string>
+    <string name="profile_sign_out_confirm_title">Sign out?</string>
+    <string name="profile_sign_out_confirm_body">Your library and playback history stay on this device, but you will need to sign in again to play.</string>
+    <string name="action_cancel">Cancel</string>
 
     <!-- Playing -->
     <string name="playing_title">Now playing</string>

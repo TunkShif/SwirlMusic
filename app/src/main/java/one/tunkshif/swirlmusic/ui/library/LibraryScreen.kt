@@ -1,24 +1,40 @@
 package one.tunkshif.swirlmusic.ui.library
 
-import androidx.compose.foundation.clickable
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -26,7 +42,16 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -34,13 +59,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import one.tunkshif.swirlmusic.R
 import one.tunkshif.swirlmusic.data.model.PlayedEntry
 import one.tunkshif.swirlmusic.data.model.Track
-import one.tunkshif.swirlmusic.ui.common.LoadingCards
-import one.tunkshif.swirlmusic.ui.common.LoadingRows
 import one.tunkshif.swirlmusic.ui.common.PagedList
 import one.tunkshif.swirlmusic.ui.common.SectionError
 import one.tunkshif.swirlmusic.ui.common.SectionState
-import one.tunkshif.swirlmusic.ui.components.MediaCard
-import one.tunkshif.swirlmusic.ui.components.TrackRow
+import one.tunkshif.swirlmusic.ui.components.Artwork
 import one.tunkshif.swirlmusic.ui.format.formatCount
 import one.tunkshif.swirlmusic.ui.theme.Spacing
 
@@ -121,49 +143,47 @@ private fun LibraryContent(
     onPlayTracks: (List<Track>, Int) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
-        Text(
-            text = stringResource(R.string.library_title),
-            style = MaterialTheme.typography.headlineMedium,
-            modifier = Modifier.padding(start = Spacing.xl, end = Spacing.xl, top = Spacing.lg),
-        )
-
-        SearchEntry(
-            onClick = onOpenSearch,
-            modifier = Modifier.padding(horizontal = Spacing.xl, vertical = Spacing.md),
-        )
-
-        val tabs = LibraryTab.entries
-        SingleChoiceSegmentedButtonRow(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = Spacing.xl),
+                .padding(start = Spacing.xl, end = Spacing.xl, top = Spacing.lg),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            tabs.forEachIndexed { index, tab ->
-                SegmentedButton(
-                    selected = state.tab == tab,
-                    onClick = { onSelectTab(tab) },
-                    shape = SegmentedButtonDefaults.itemShape(index = index, count = tabs.size),
-                    label = { Text(stringResource(tab.labelRes())) },
+            Text(
+                text = stringResource(R.string.library_title),
+                style = MaterialTheme.typography.displaySmall,
+                modifier = Modifier.weight(1f),
+            )
+            FilledTonalIconButton(
+                onClick = onOpenSearch,
+                modifier = Modifier.size(56.dp),
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_search),
+                    contentDescription = stringResource(R.string.library_search_hint),
                 )
             }
         }
 
-        Box(modifier = Modifier.weight(1f)) {
+        TabPills(
+            selected = state.tab,
+            onSelect = onSelectTab,
+            modifier = Modifier.padding(vertical = Spacing.md),
+        )
+
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+            shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+        ) {
             when (state.tab) {
-                LibraryTab.Playlists -> CardGrid(
+                LibraryTab.Playlists -> PlaylistList(
                     paged = state.playlists,
-                    cards = state.playlists.items.map {
-                        LibraryCard(
-                            id = it.id,
-                            title = it.name,
-                            subtitle = null,
-                            artworkUrl = it.artworkUrl,
-                        )
-                    },
                     onOpen = onOpenPlaylist,
                     onRetry = { onRetry(LibraryTab.Playlists) },
                     onLoadMore = { onLoadMore(LibraryTab.Playlists) },
-                    emptyRes = R.string.library_empty_playlists,
                 )
 
                 LibraryTab.Albums -> CardGrid(
@@ -175,6 +195,7 @@ private fun LibraryContent(
                     onRetry = { onRetry(LibraryTab.Albums) },
                     onLoadMore = { onLoadMore(LibraryTab.Albums) },
                     emptyRes = R.string.library_empty_albums,
+                    circularArtwork = false,
                 )
 
                 LibraryTab.Artists -> CardGrid(
@@ -186,6 +207,7 @@ private fun LibraryContent(
                     onRetry = { onRetry(LibraryTab.Artists) },
                     onLoadMore = { onLoadMore(LibraryTab.Artists) },
                     emptyRes = R.string.library_empty_artists,
+                    circularArtwork = true,
                 )
 
                 LibraryTab.Recent -> RecentList(
@@ -198,24 +220,173 @@ private fun LibraryContent(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun SearchEntry(onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Surface(
+private fun TabPills(
+    selected: LibraryTab,
+    onSelect: (LibraryTab) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = MaterialTheme.shapes.extraLarge,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            .selectableGroup()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = Spacing.xl),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
     ) {
-        Text(
-            text = stringResource(R.string.library_search_hint),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.md),
-        )
+        LibraryTab.entries.forEach { tab ->
+            val isSelected = selected == tab
+            val container by animateColorAsState(
+                targetValue = if (isSelected) {
+                    MaterialTheme.colorScheme.primaryContainer
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainerHigh
+                },
+                animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
+                label = "tabContainer",
+            )
+            val content = if (isSelected) {
+                MaterialTheme.colorScheme.onPrimaryContainer
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Surface(
+                    onClick = { onSelect(tab) },
+                    shape = CircleShape,
+                    color = container,
+                    contentColor = content,
+                    modifier = Modifier.semantics {
+                        role = Role.Tab
+                        this.selected = isSelected
+                    },
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .heightIn(min = 48.dp)
+                            .padding(horizontal = Spacing.lg),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = stringResource(tab.labelRes()),
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                    }
+                }
+                Box(
+                    modifier = Modifier
+                        .padding(top = Spacing.xs)
+                        .width(16.dp)
+                        .height(3.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (isSelected) MaterialTheme.colorScheme.primary
+                            else Color.Transparent,
+                        ),
+                )
+            }
+        }
     }
 }
 
+/** One row in a list tab: card with artwork, title, subtitle, and a trailing slot. */
+@Composable
+private fun ListCard(
+    title: String,
+    subtitle: String?,
+    artworkUrl: String?,
+    onClick: () -> Unit,
+    trailing: (@Composable () -> Unit)? = null,
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surfaceContainer,
+    ) {
+        Row(
+            modifier = Modifier.padding(Spacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Spacing.md),
+        ) {
+            Artwork(
+                url = artworkUrl,
+                contentDescription = null,
+                shape = MaterialTheme.shapes.medium,
+                modifier = Modifier.size(56.dp),
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (subtitle != null) {
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+            trailing?.invoke()
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun PlaylistList(
+    paged: PagedList<one.tunkshif.swirlmusic.data.model.PlaylistSummary>,
+    onOpen: (Long) -> Unit,
+    onRetry: () -> Unit,
+    onLoadMore: () -> Unit,
+) {
+    when {
+        paged.isFirstLoad -> ListSkeleton()
+
+        paged.state is SectionState.Failed -> CenteredState {
+            SectionError(error = (paged.state as SectionState.Failed).error, onRetry = onRetry)
+        }
+
+        paged.items.isEmpty() -> CenteredState {
+            EmptyText(R.string.library_empty_playlists)
+        }
+
+        else -> LazyColumn(
+            contentPadding = PaddingValues(horizontal = Spacing.md, vertical = Spacing.md),
+            verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+        ) {
+            itemsIndexed(paged.items, key = { _, item -> item.id }) { _, playlist ->
+                ListCard(
+                    title = playlist.name,
+                    subtitle = pluralStringResource(
+                        R.plurals.library_track_count,
+                        playlist.trackCount,
+                        playlist.trackCount,
+                    ),
+                    artworkUrl = playlist.artworkUrl,
+                    onClick = { onOpen(playlist.id) },
+                )
+            }
+            if (paged.hasMore) {
+                item {
+                    LaunchedEffect(Unit) { onLoadMore() }
+                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        LoadingIndicator(modifier = Modifier.padding(Spacing.md))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun <T> CardGrid(
     paged: PagedList<T>,
@@ -224,42 +395,31 @@ private fun <T> CardGrid(
     onRetry: () -> Unit,
     onLoadMore: () -> Unit,
     emptyRes: Int,
+    circularArtwork: Boolean,
 ) {
     when {
-        paged.isFirstLoad -> LoadingCards()
+        paged.isFirstLoad -> GridSkeleton(circular = circularArtwork)
 
-        paged.state is SectionState.Failed -> SectionError(
-            error = (paged.state as SectionState.Failed).error,
-            onRetry = onRetry,
-        )
+        paged.state is SectionState.Failed -> CenteredState {
+            SectionError(error = (paged.state as SectionState.Failed).error, onRetry = onRetry)
+        }
 
-        cards.isEmpty() -> Text(
-            text = stringResource(emptyRes),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(Spacing.xl),
-        )
+        cards.isEmpty() -> CenteredState { EmptyText(emptyRes) }
 
         else -> LazyVerticalGrid(
-            columns = GridCells.Adaptive(minSize = 108.dp),
-            contentPadding = PaddingValues(Spacing.xl),
-            horizontalArrangement = Arrangement.spacedBy(Spacing.md),
-            verticalArrangement = Arrangement.spacedBy(Spacing.md),
+            columns = GridCells.Adaptive(minSize = 152.dp),
+            contentPadding = PaddingValues(horizontal = Spacing.md, vertical = Spacing.md),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+            verticalArrangement = Arrangement.spacedBy(Spacing.sm),
         ) {
             items(cards, key = { it.id }) { card ->
-                MediaCard(
-                    title = card.title,
-                    subtitle = card.subtitle,
-                    artworkUrl = card.artworkUrl,
-                    width = 108.dp,
-                    onClick = { onOpen(card.id) },
-                )
+                GridCard(card = card, circularArtwork = circularArtwork, onClick = { onOpen(card.id) })
             }
             if (paged.hasMore) {
                 item {
                     LaunchedEffect(Unit) { onLoadMore() }
                     Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(modifier = Modifier.padding(Spacing.md))
+                        LoadingIndicator(modifier = Modifier.padding(Spacing.md))
                     }
                 }
             }
@@ -268,31 +428,99 @@ private fun <T> CardGrid(
 }
 
 @Composable
+private fun GridCard(
+    card: LibraryCard,
+    circularArtwork: Boolean,
+    onClick: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surfaceContainer,
+    ) {
+        Column(
+            modifier = Modifier.padding(Spacing.md),
+            horizontalAlignment = if (circularArtwork) Alignment.CenterHorizontally else Alignment.Start,
+        ) {
+            Artwork(
+                url = card.artworkUrl,
+                contentDescription = null,
+                shape = if (circularArtwork) CircleShape else MaterialTheme.shapes.large,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1f),
+            )
+            Text(
+                text = card.title,
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = if (circularArtwork) TextAlign.Center else null,
+                modifier = Modifier.padding(top = Spacing.sm),
+            )
+            if (card.subtitle != null) {
+                Text(
+                    text = card.subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = if (circularArtwork) TextAlign.Center else null,
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
 private fun RecentList(
     state: SectionState<List<PlayedEntry>>,
     onRetry: () -> Unit,
     onPlayTracks: (List<Track>, Int) -> Unit,
 ) {
     when (state) {
-        is SectionState.Loading -> LoadingRows()
+        is SectionState.Loading -> ListSkeleton()
 
-        is SectionState.Failed -> SectionError(error = state.error, onRetry = onRetry)
+        is SectionState.Failed -> CenteredState {
+            SectionError(error = state.error, onRetry = onRetry)
+        }
 
         is SectionState.Content -> {
             if (state.value.isEmpty()) {
-                Text(
-                    text = stringResource(R.string.library_empty_recent),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(Spacing.xl),
-                )
+                CenteredState { EmptyText(R.string.library_empty_recent) }
             } else {
                 val entries = state.value
                 val tracks = entries.map { it.track }
-                LazyColumn(contentPadding = PaddingValues(bottom = Spacing.xxl)) {
+                LazyColumn(
+                    contentPadding = PaddingValues(horizontal = Spacing.md, vertical = Spacing.md),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+                ) {
+                    item {
+                        Button(
+                            onClick = { onPlayTracks(tracks, 0) },
+                            colors = ButtonDefaults.filledTonalButtonColors(),
+                            shape = CircleShape,
+                            modifier = Modifier.padding(bottom = Spacing.xs),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PlayArrow,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Text(
+                                text = stringResource(R.string.library_play_all),
+                                modifier = Modifier.padding(start = Spacing.sm),
+                            )
+                        }
+                    }
                     itemsIndexed(tracks, key = { _, track -> track.id }) { index, track ->
-                        TrackRow(
-                            track = track,
+                        ListCard(
+                            title = track.title,
+                            subtitle = track.artistLine,
+                            artworkUrl = track.artworkUrl,
                             onClick = { onPlayTracks(tracks, index) },
                             trailing = {
                                 Text(
@@ -306,6 +534,108 @@ private fun RecentList(
                                     overflow = TextOverflow.Ellipsis,
                                 )
                             },
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CenteredState(content: @Composable () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(Spacing.xl),
+        contentAlignment = Alignment.Center,
+    ) {
+        content()
+    }
+}
+
+@Composable
+private fun EmptyText(emptyRes: Int) {
+    Text(
+        text = stringResource(emptyRes),
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = TextAlign.Center,
+    )
+}
+
+@Composable
+private fun ListSkeleton() {
+    Column(
+        modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.md),
+        verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+    ) {
+        repeat(4) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(MaterialTheme.shapes.large)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                    .padding(Spacing.md),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.md),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(MaterialTheme.shapes.medium)
+                        .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                )
+                Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                    Box(
+                        modifier = Modifier
+                            .width(140.dp)
+                            .height(16.dp)
+                            .clip(MaterialTheme.shapes.extraSmall)
+                            .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                    )
+                    Box(
+                        modifier = Modifier
+                            .width(80.dp)
+                            .height(12.dp)
+                            .clip(MaterialTheme.shapes.extraSmall)
+                            .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GridSkeleton(circular: Boolean) {
+    Column(
+        modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.md),
+        verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+    ) {
+        repeat(2) {
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                repeat(2) {
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(MaterialTheme.shapes.large)
+                            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                            .padding(Spacing.md),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(120.dp)
+                                .clip(if (circular) CircleShape else MaterialTheme.shapes.large)
+                                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                        )
+                        Box(
+                            modifier = Modifier
+                                .padding(top = Spacing.sm)
+                                .width(90.dp)
+                                .height(14.dp)
+                                .clip(MaterialTheme.shapes.extraSmall)
+                                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
                         )
                     }
                 }

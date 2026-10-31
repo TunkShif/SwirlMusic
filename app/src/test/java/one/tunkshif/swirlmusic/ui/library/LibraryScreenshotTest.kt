@@ -4,9 +4,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
-import androidx.compose.ui.test.performClick
 import com.github.takahirom.roborazzi.captureRoboImage
 import one.tunkshif.swirlmusic.data.model.Page
 import one.tunkshif.swirlmusic.ui.common.PagedList
@@ -36,12 +34,14 @@ class LibraryScreenshotTest {
 
     @Test
     fun albums_light() {
+        // The screen stubs onSelectTab, so pick the tab via state instead of a click.
         compose.setContent {
             CompositionLocalProvider(LocalArtworkPainter provides ColorPainter(Color(0xFF9AA0C8))) {
-                SwirlMusicTheme(dynamicColor = false) { LibraryScreenFor(state = state()) }
+                SwirlMusicTheme(dynamicColor = false) {
+                    LibraryScreenFor(state = state().copy(tab = LibraryTab.Albums))
+                }
             }
         }
-        compose.onNodeWithText("Albums").performClick()
         compose.onRoot().captureRoboImage("src/test/screenshots/library/albums-light.png")
     }
 

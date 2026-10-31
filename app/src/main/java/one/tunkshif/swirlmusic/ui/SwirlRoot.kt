@@ -17,6 +17,8 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import one.tunkshif.swirlmusic.R
 import one.tunkshif.swirlmusic.data.session.SessionState
+import one.tunkshif.swirlmusic.ui.home.HomeViewModel
+import one.tunkshif.swirlmusic.ui.library.LibraryViewModel
 import one.tunkshif.swirlmusic.ui.login.LoginRoute
 import one.tunkshif.swirlmusic.ui.player.PlayerViewModel
 import one.tunkshif.swirlmusic.ui.shell.SwirlApp
@@ -63,13 +65,21 @@ private fun SessionBranch(
     when (state) {
         SessionState.Unknown -> SplashScreen()
         SessionState.SignedOut -> LoginRoute()
-        is SessionState.SignedIn -> SwirlApp(
-            profile = state.profile,
-            onSignOut = onSignOut,
-            miniPlayer = miniPlayer,
-            onPlayPause = playerViewModel::togglePlayPause,
-            onPlayTracks = playerViewModel::play,
-        )
+        is SessionState.SignedIn -> {
+            // Tab ViewModels live at shell level, not inside a NavEntry: a tab switch clears
+            // the back stack, and entry-scoped stores would be dropped with it.
+            val homeViewModel: HomeViewModel = hiltViewModel()
+            val libraryViewModel: LibraryViewModel = hiltViewModel()
+            SwirlApp(
+                profile = state.profile,
+                onSignOut = onSignOut,
+                miniPlayer = miniPlayer,
+                onPlayPause = playerViewModel::togglePlayPause,
+                onPlayTracks = playerViewModel::play,
+                homeViewModel = homeViewModel,
+                libraryViewModel = libraryViewModel,
+            )
+        }
     }
 }
 

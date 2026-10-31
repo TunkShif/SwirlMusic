@@ -72,6 +72,25 @@ class TrackListViewModelTest {
     }
 
     @Test
+    fun `loading a different list clears the previous header`() = runTest {
+        useTestMain()
+
+        viewModel.load(TrackListSource.Playlist(1))
+        advanceUntilIdle()
+        assertThat(viewModel.state.value.title).isEqualTo("Late night drive")
+
+        // The second fetch suspends on the test dispatcher; until it lands the screen must
+        // show a blank header and Loading, not playlist 1's title and tracks.
+        viewModel.load(TrackListSource.Album(2))
+
+        val state = viewModel.state.value
+        assertThat(state.title).isEmpty()
+        assertThat(state.tracks).isInstanceOf(SectionState.Loading::class.java)
+
+        advanceUntilIdle()
+    }
+
+    @Test
     fun `a network failure is reported and retry recovers`() = runTest {
         useTestMain()
         api.failWith = ApiResult.NetworkError(IOException("offline"))

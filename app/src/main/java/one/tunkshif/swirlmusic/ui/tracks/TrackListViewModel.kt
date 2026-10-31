@@ -44,6 +44,8 @@ class TrackListViewModel @Inject constructor(
         if (loadedFor == source) return
         loadedFor = source
         this.source = source
+        // A new list starts blank: the previous list's title and artwork must not linger.
+        _state.value = TrackListUiState()
         fetch()
     }
 
