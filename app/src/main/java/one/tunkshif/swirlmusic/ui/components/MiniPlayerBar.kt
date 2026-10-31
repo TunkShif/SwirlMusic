@@ -70,7 +70,7 @@ fun MiniPlayerBar(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = state.title ?: stringResource(R.string.mini_player_idle_title),
+                    text = state.title.orEmpty(),
                     style = MaterialTheme.typography.titleMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -79,7 +79,7 @@ fun MiniPlayerBar(
                     text = if (state.isTrial) {
                         stringResource(R.string.mini_player_preview)
                     } else {
-                        state.subtitle ?: stringResource(R.string.mini_player_idle_subtitle)
+                        state.subtitle.orEmpty()
                     },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f),

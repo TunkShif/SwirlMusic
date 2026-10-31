@@ -65,6 +65,31 @@ class TrackListDaoTest {
     }
 
     @Test
+    fun `queue and resume rows round trip`() = runTest {
+        dao.replaceQueue(listOf(5L, 9L, 3L))
+        dao.saveResume(PlaybackResumeEntity(0, 1, 42_000, true, 2, 1000))
+
+        assertThat(dao.queueIds()).containsExactly(5L, 9L, 3L).inOrder()
+        dao.resume()!!.let {
+            assertThat(it.currentIndex).isEqualTo(1)
+            assertThat(it.positionMs).isEqualTo(42_000)
+            assertThat(it.shuffle).isTrue()
+            assertThat(it.repeatMode).isEqualTo(2)
+        }
+    }
+
+    @Test
+    fun `evict keeps tracks referenced by the queue`() = runTest {
+        dao.replaceQueue(listOf(55L))
+        dao.upsertTracks(listOf(track(55), track(77)))
+        dao.replaceSnapshot(snapshot("old", openedAt = -1), listOf(77L))
+
+        dao.evict(keep = 0)
+
+        assertThat(dao.tracksByIds(listOf(55L, 77L)).map { it.id }).containsExactly(55L)
+    }
+
+    @Test
     fun `clearAll removes everything`() = runTest {
         dao.replaceSnapshot(snapshot("k"), listOf(1L, 2L))
         dao.upsertTracks(listOf(track(1), track(2)))

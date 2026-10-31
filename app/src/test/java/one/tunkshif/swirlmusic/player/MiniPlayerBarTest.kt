@@ -26,15 +26,6 @@ class MiniPlayerBarTest {
     private val context = RuntimeEnvironment.getApplication()
 
     @Test
-    fun `idle shows the placeholder copy and a play action`() {
-        setContent(MiniPlayerUiState())
-
-        compose.onNodeWithText(text(R.string.mini_player_idle_title)).assertExists()
-        compose.onNodeWithText(text(R.string.mini_player_idle_subtitle)).assertExists()
-        compose.onNodeWithContentDescription(text(R.string.mini_player_play)).assertExists()
-    }
-
-    @Test
     fun `a playing track shows its title, artist, and a pause action`() {
         setContent(
             MiniPlayerUiState(

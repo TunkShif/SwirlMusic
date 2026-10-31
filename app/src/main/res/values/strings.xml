@@ -107,8 +107,6 @@
     <string name="playing_empty_body">Artwork, transport controls, queue, and lyrics arrive in a later phase.</string>
 
     <!-- Mini player -->
-    <string name="mini_player_idle_title">Nothing playing</string>
-    <string name="mini_player_idle_subtitle">Pick a track to start</string>
     <string name="mini_player_play">Play</string>
     <string name="mini_player_pause">Pause</string>
     <string name="mini_player_preview">Preview · 45 seconds</string>

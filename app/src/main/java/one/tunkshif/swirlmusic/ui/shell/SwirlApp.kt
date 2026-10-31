@@ -1,5 +1,10 @@
 package one.tunkshif.swirlmusic.ui.shell
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -123,11 +128,19 @@ fun SwirlApp(
                         .fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(Spacing.sm),
                 ) {
-                    MiniPlayerBar(
-                        state = miniPlayer,
-                        onPlayPause = onPlayPause,
-                        onOpen = { backStack.add(PlayingKey) },
-                    )
+                    AnimatedVisibility(
+                        visible = miniPlayer.hasTrack,
+                        enter = expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) +
+                            fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                        exit = shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()) +
+                            fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                    ) {
+                        MiniPlayerBar(
+                            state = miniPlayer,
+                            onPlayPause = onPlayPause,
+                            onOpen = { backStack.add(PlayingKey) },
+                        )
+                    }
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = MaterialTheme.shapes.extraLarge,

@@ -8,8 +8,7 @@ fun interface AccountScopedCache {
 }
 
 class RoomAccountScopedCache @Inject constructor(
-    private val dao: TrackListDao,
-    @one.tunkshif.swirlmusic.di.IoDispatcher private val io: kotlinx.coroutines.CoroutineDispatcher,
+    private val gate: CacheGate,
 ) : AccountScopedCache {
-    override suspend fun clear() = kotlinx.coroutines.withContext(io) { dao.clearAll() }
+    override suspend fun clear() = gate.clearAll()
 }

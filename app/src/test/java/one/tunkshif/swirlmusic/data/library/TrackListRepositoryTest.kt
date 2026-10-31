@@ -5,6 +5,7 @@ import com.google.common.truth.Truth.assertThat
 import java.io.IOException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import one.tunkshif.swirlmusic.data.api.ApiResult
 import one.tunkshif.swirlmusic.data.api.TimeSource
@@ -19,6 +20,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 
+@kotlin.OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36])
 class TrackListRepositoryTest {
@@ -26,6 +28,7 @@ class TrackListRepositoryTest {
     private lateinit var db: SwirlDatabase
     private lateinit var repo: TrackListRepository
     private val api = FakeLibraryApi()
+    private lateinit var gate: one.tunkshif.swirlmusic.data.cache.CacheGate
     private var now = 1_000L
     private val time = object : TimeSource { override fun nowMillis() = now }
 
@@ -35,7 +38,8 @@ class TrackListRepositoryTest {
             RuntimeEnvironment.getApplication(),
             SwirlDatabase::class.java,
         ).allowMainThreadQueries().build()
-        repo = TrackListRepository(api, db.trackListDao(), time, kotlinx.coroutines.test.UnconfinedTestDispatcher())
+        gate = one.tunkshif.swirlmusic.data.cache.CacheGate(db.trackListDao(), kotlinx.coroutines.test.UnconfinedTestDispatcher())
+        repo = TrackListRepository(api, db.trackListDao(), time, kotlinx.coroutines.test.UnconfinedTestDispatcher(), gate)
     }
 
     @After
@@ -115,6 +119,30 @@ class TrackListRepositoryTest {
         assertThat(api.calls.filter { it.startsWith("songs:") }).hasSize(1)
         assertThat(api.calls.last { it.startsWith("songs:") })
             .isEqualTo("songs:" + (51L..120L).joinToString(","))
+    }
+
+    @Test
+    fun `a clear during a fetch drops its writes`() = runTest {
+        playlist(1L..220L)
+        api.detailGate = kotlinx.coroutines.CompletableDeferred()
+        var done = false
+        val job = launch { repo.fetchPlaylist(7); done = true }
+
+        runCurrent()
+        gate.clearAll()
+        api.detailGate!!.complete(Unit)
+        job.join()
+        assertThat(done).isTrue()
+
+        assertThat(repo.cached(TrackListRepository.playlistKey(7))).isNull()
+        assertThat(db.trackListDao().tracksByIds(listOf(1L, 2L))).isEmpty()
+    }
+
+    @Test
+    fun `the playlist subtitle stores only the creator`() = runTest {
+        playlist(1L..150L)
+        repo.fetchPlaylist(7)
+        assertThat(repo.cached(TrackListRepository.playlistKey(7))!!.subtitle).isEqualTo("tunkshif")
     }
 
     @Test

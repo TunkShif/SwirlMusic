@@ -32,6 +32,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -225,9 +226,15 @@ private fun Header(state: TrackListUiState) {
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
-            state.subtitle?.let { subtitle ->
+            val subtitleParts = listOfNotNull(
+                state.subtitle,
+                state.trackCount?.let {
+                    pluralStringResource(R.plurals.library_track_count, it, it)
+                },
+            )
+            if (subtitleParts.isNotEmpty()) {
                 Text(
-                    text = subtitle,
+                    text = subtitleParts.joinToString(" · "),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2,

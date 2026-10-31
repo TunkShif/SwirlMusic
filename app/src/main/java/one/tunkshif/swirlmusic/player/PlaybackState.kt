@@ -31,6 +31,8 @@ data class PlaybackState(
     val pending: Track? = null,
     /** What the play/pause button means while resolving: the intent, not the player state. */
     val playIntent: Boolean = false,
+    /** Queue/position was restored from storage; the player holds no prepared items yet. */
+    val restored: Boolean = false,
 ) {
     val current: Track? get() = pending ?: queue.getOrNull(currentIndex)
 

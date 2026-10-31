@@ -52,7 +52,7 @@ interface TrackListDao {
     @Query("DELETE FROM snapshot WHERE sourceKey NOT IN (SELECT sourceKey FROM snapshot ORDER BY lastOpenedAt DESC LIMIT :keep)")
     fun evictOldSnapshots(keep: Int)
 
-    @Query("DELETE FROM track WHERE id NOT IN (SELECT trackId FROM snapshot_track)")
+    @Query("DELETE FROM track WHERE id NOT IN (SELECT trackId FROM snapshot_track UNION SELECT trackId FROM queue_item)")
     fun deleteOrphanTracks()
 
     @Query("DELETE FROM snapshot")
@@ -69,5 +69,33 @@ interface TrackListDao {
         clearSnapshots()
         clearSnapshotTracks()
         clearTracks()
+        clearQueue()
+        clearResume()
     }
+
+    // Resume playback state
+
+    @Query("DELETE FROM queue_item")
+    fun clearQueue()
+
+    @Query("DELETE FROM playback_resume")
+    fun clearResume()
+
+    @Query("SELECT trackId FROM queue_item ORDER BY position")
+    fun queueIds(): List<Long>
+
+    @Query("SELECT * FROM playback_resume WHERE id = 0")
+    fun resume(): PlaybackResumeEntity?
+
+    @Transaction
+    fun replaceQueue(trackIds: List<Long>) {
+        clearQueue()
+        trackIds.forEachIndexed { i, id -> upsertQueueItem(QueueItemEntity(i, id)) }
+    }
+
+    @androidx.room.Upsert
+    fun upsertQueueItem(item: QueueItemEntity)
+
+    @androidx.room.Upsert
+    fun saveResume(row: PlaybackResumeEntity)
 }

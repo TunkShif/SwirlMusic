@@ -19,6 +19,7 @@ data class CachedList(
     val subtitle: String?,
     val artworkUrl: String?,
     val version: Long?,
+    val trackCount: Int?,
     val orderedIds: List<Long>,
     val firstTracks: List<Track>,
 )
@@ -29,6 +30,7 @@ data class FetchedList(
     val subtitle: String?,
     val artworkUrl: String?,
     val version: Long?,
+    val trackCount: Int?,
     val orderedIds: List<Long>,
     val firstTracks: List<Track>,
     val orderChanged: Boolean,
@@ -44,6 +46,7 @@ class TrackListRepository @Inject constructor(
     private val dao: TrackListDao,
     private val timeSource: TimeSource,
     @one.tunkshif.swirlmusic.di.IoDispatcher private val io: CoroutineDispatcher,
+    private val gate: one.tunkshif.swirlmusic.data.cache.CacheGate,
 ) {
 
     companion object {
@@ -65,6 +68,7 @@ class TrackListRepository @Inject constructor(
             subtitle = snapshot.subtitle,
             artworkUrl = snapshot.artworkUrl,
             version = snapshot.version,
+            trackCount = snapshot.trackCount,
             orderedIds = ids,
             firstTracks = resolved.map { it.toTrack() },
         )
@@ -76,34 +80,40 @@ class TrackListRepository @Inject constructor(
      */
     suspend fun fetchPlaylist(id: Long): ApiResult<FetchedList> {
         val key = playlistKey(id)
+        val generation = gate.generation
         return when (val result = api.playlistDetail(id)) {
             is ApiResult.Success -> {
                 val contents = result.value
-                withContext(io) { dao.upsertTracks(contents.firstTracks.map { TrackEntity.of(it, timeSource.nowMillis()) }) }
-                val previous = withContext(io) { dao.snapshot(key) }
-                val orderChanged = previous == null || previous.version != contents.trackUpdateTime
-                val now = timeSource.nowMillis()
-                val entity = SnapshotEntity(
-                    sourceKey = key,
-                    title = contents.detail.name,
-                    subtitle = playlistSubtitle(contents.detail.creatorName, contents.detail.trackCount),
-                    artworkUrl = contents.detail.artworkUrl,
-                    trackCount = contents.detail.trackCount,
-                    version = contents.trackUpdateTime,
-                    fetchedAt = now,
-                    lastOpenedAt = now,
-                )
-                if (orderChanged) {
-                    withContext(io) { dao.replaceSnapshot(entity, contents.trackIds) }
-                } else {
-                    withContext(io) { dao.upsertSnapshot(entity) }
+                var orderChanged = true
+                // One gated write batch: a sign-out during the fetch drops everything here.
+                gate.writeIfCurrent(generation) {
+                    upsertTracks(contents.firstTracks.map { TrackEntity.of(it, timeSource.nowMillis()) })
+                    val previous = snapshot(key)
+                    orderChanged = previous == null || previous.version != contents.trackUpdateTime
+                    val now = timeSource.nowMillis()
+                    val entity = SnapshotEntity(
+                        sourceKey = key,
+                        title = contents.detail.name,
+                        subtitle = playlistSubtitle(contents.detail.creatorName, contents.detail.trackCount),
+                        artworkUrl = contents.detail.artworkUrl,
+                        trackCount = contents.detail.trackCount,
+                        version = contents.trackUpdateTime,
+                        fetchedAt = now,
+                        lastOpenedAt = now,
+                    )
+                    if (orderChanged) {
+                        replaceSnapshot(entity, contents.trackIds)
+                    } else {
+                        upsertSnapshot(entity)
+                    }
+                    touch(key, now)
+                    evict(KEEP_SNAPSHOTS)
                 }
-                withContext(io) { dao.touch(key, now) }
-                withContext(io) { dao.evict(KEEP_SNAPSHOTS) }
                 ApiResult.Success(
                     FetchedList(
                         title = contents.detail.name,
                         subtitle = playlistSubtitle(contents.detail.creatorName, contents.detail.trackCount),
+                        trackCount = contents.detail.trackCount,
                         artworkUrl = contents.detail.artworkUrl,
                         version = contents.trackUpdateTime,
                         orderedIds = contents.trackIds,
@@ -130,7 +140,7 @@ class TrackListRepository @Inject constructor(
                 ).joinToString(" · ")
                 store(key, album.name, subtitle, album.artworkUrl, album.tracks.size, null, album.tracks)
                 ApiResult.Success(
-                    FetchedList(album.name, subtitle, album.artworkUrl, null, album.tracks.map { it.id }, album.tracks, true),
+                    FetchedList(album.name, subtitle, album.artworkUrl, null, null, album.tracks.map { it.id }, album.tracks, true),
                 )
             }
 
@@ -147,7 +157,7 @@ class TrackListRepository @Inject constructor(
                 val artist = result.value
                 store(key, artist.name, null, artist.artworkUrl, artist.tracks.size, null, artist.tracks)
                 ApiResult.Success(
-                    FetchedList(artist.name, null, artist.artworkUrl, null, artist.tracks.map { it.id }, artist.tracks, true),
+                    FetchedList(artist.name, null, artist.artworkUrl, null, null, artist.tracks.map { it.id }, artist.tracks, true),
                 )
             }
 
@@ -168,15 +178,16 @@ class TrackListRepository @Inject constructor(
         tracks: List<Track>,
     ) {
         val now = timeSource.nowMillis()
-        withContext(io) { dao.upsertTracks(tracks.map { TrackEntity.of(it, now) }) }
-        withContext(io) {
-            dao.replaceSnapshot(
+        val generation = gate.generation
+        gate.writeIfCurrent(generation) {
+            upsertTracks(tracks.map { TrackEntity.of(it, now) })
+            replaceSnapshot(
                 SnapshotEntity(key, title, subtitle, artworkUrl, trackCount, version, now, now),
                 tracks.map { it.id },
             )
+            touch(key, now)
+            evict(KEEP_SNAPSHOTS)
         }
-        withContext(io) { dao.touch(key, now) }
-        withContext(io) { dao.evict(KEEP_SNAPSHOTS) }
     }
 
     /**
@@ -187,12 +198,15 @@ class TrackListRepository @Inject constructor(
         if (ids.isEmpty()) return ApiResult.Success(emptyList())
         val hits = withContext(io) { dao.tracksByIds(ids) }.associateBy { it.id }
         val misses = ids.filter { it !in hits }
+        val generation = gate.generation
         val fetched = if (misses.isEmpty()) {
             emptyList()
         } else {
             when (val result = api.songsByIds(misses)) {
                 is ApiResult.Success -> {
-                    withContext(io) { dao.upsertTracks(result.value.map { TrackEntity.of(it, timeSource.nowMillis()) }) }
+                    gate.writeIfCurrent(generation) {
+                        upsertTracks(result.value.map { TrackEntity.of(it, timeSource.nowMillis()) })
+                    }
                     result.value
                 }
 
@@ -210,9 +224,8 @@ class TrackListRepository @Inject constructor(
         return ids.mapNotNull { byId[it] }
     }
 
-    private fun playlistSubtitle(creatorName: String?, trackCount: Int): String = listOfNotNull(
-        creatorName,
-        "$trackCount tracks",
-    ).joinToString(" · ")
+    // Playlists store the creator only; the count is rendered from `trackCount` in the UI
+    // (P8a: no English copy in the data layer).
+    private fun playlistSubtitle(creatorName: String?, trackCount: Int): String? = creatorName
 
 }

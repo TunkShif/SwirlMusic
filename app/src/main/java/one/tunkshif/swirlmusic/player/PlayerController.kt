@@ -25,6 +25,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import one.tunkshif.swirlmusic.data.api.NcmPlaybackApi
 import one.tunkshif.swirlmusic.data.model.PlayableUrl
+import one.tunkshif.swirlmusic.data.session.SessionRepository
+import one.tunkshif.swirlmusic.data.session.SessionState
 import one.tunkshif.swirlmusic.data.model.Track
 import one.tunkshif.swirlmusic.di.MainDispatcher
 
@@ -63,6 +65,8 @@ class PlayerController @Inject constructor(
     private val resolver: SongUrlResolver,
     private val playbackApi: NcmPlaybackApi,
     private val scrobbler: ScrobbleTracker,
+    private val sessionRepository: SessionRepository,
+    private val resumeStore: PlaybackResumeStore,
     @MainDispatcher mainDispatcher: CoroutineDispatcher,
 ) {
 
@@ -92,6 +96,8 @@ class PlayerController @Inject constructor(
     private var repeatMode = RepeatMode.Off
     private var serviceStarted = false
     private var ticker: Job? = null
+    private var restoredQueue: RestoredQueue? = null
+    private var lastPositionSave = 0L
 
     init {
         player.addListener(
@@ -106,10 +112,64 @@ class PlayerController @Inject constructor(
 
                 override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                     scope.launch { refreshNextIfStale() }
+                    if (restoredQueue == null && queue.isNotEmpty()) {
+                        saveResumeState(playGeneration, player.currentPosition)
+                    }
+                }
+
+                override fun onIsPlayingChanged(isPlaying: Boolean) {
+                    if (!isPlaying && restoredQueue == null && queue.isNotEmpty()) {
+                        saveResumeState(playGeneration, player.currentPosition)
+                    }
                 }
             },
         )
         startTicker()
+
+        // Restore the last queue so the mini player shows the last track, paused.
+        scope.launch {
+            val restored = resumeStore.load() ?: return@launch
+            if (player.mediaItemCount > 0 || queue.isNotEmpty()) return@launch
+            restoredQueue = restored
+            queue = restored.tracks
+            publish(restored = true)
+        }
+
+        // Signing out stops playback and wipes the previous account's resume state.
+        scope.launch {
+            sessionRepository.state.collect { session ->
+                if (session is SessionState.SignedOut) stopForSignOut()
+            }
+        }
+    }
+
+    private fun stopForSignOut() {
+        playGeneration++
+        playJob?.cancel()
+        pendingTrack = null
+        restoredQueue = null
+        player.pause()
+        player.clearMediaItems()
+        queue = emptyList()
+        playable.clear()
+        retriedTracks.clear()
+        serviceStarted = false
+        context.stopService(Intent(context, PlaybackService::class.java))
+        publish(error = null)
+    }
+
+    /** Persist the queue order + resume row; a stale play() generation skips its write. */
+    private fun saveResumeState(generation: Int, positionMs: Long) {
+        if (generation != playGeneration) return
+        scope.launch {
+            resumeStore.save(
+                queue = queue,
+                currentIndex = player.currentMediaItemIndex.takeIf { it >= 0 } ?: 0,
+                positionMs = positionMs,
+                shuffle = player.shuffleModeEnabled,
+                repeatMode = repeatMode.ordinal,
+            )
+        }
     }
 
     // region commands
@@ -126,7 +186,7 @@ class PlayerController @Inject constructor(
     private var pendingTrack: Track? = null
     private var playWhenReadyIntent = false
 
-    fun play(tracks: List<Track>, startIndex: Int, rest: TrackPager? = null) {
+    fun play(tracks: List<Track>, startIndex: Int, rest: TrackPager? = null, startPositionMs: Long = 0) {
         if (tracks.isEmpty()) return
         val generation = ++playGeneration
         playJob?.cancel()
@@ -135,6 +195,7 @@ class PlayerController @Inject constructor(
         playWhenReadyIntent = true
         if (player.isPlaying) player.pause()
         publish(error = null)
+        val pendingStartTrackId = pendingTrack?.id
         playJob = scope.launch {
             // Fast start: resolve only the window around the tapped track.
             val split = queueSplit(tracks.size, startIndex, PLAY_WINDOW)
@@ -152,11 +213,14 @@ class PlayerController @Inject constructor(
             queue = windowTracks
             retriedTracks.clear()
             pendingTrack = null
-            player.setMediaItems(items.map { it.second }, newStart, 0)
+            restoredQueue = null
+            val seekMs = if (windowTracks[newStart].id == pendingStartTrackId) startPositionMs else 0
+            player.setMediaItems(items.map { it.second }, newStart, seekMs)
             player.prepare()
             player.playWhenReady = playWhenReadyIntent
             ensureService()
             publish(error = null)
+            saveResumeState(generation, seekMs)
 
             // Background fill, in order: tail of the list, then the head (inserted at 0 so
             // list order holds), then pager chunks. Each step bails if a newer play() won.
@@ -170,6 +234,7 @@ class PlayerController @Inject constructor(
                     player.addMediaItems(0, headItems.map { it.second })
                     queue = headItems.map { it.first } + queue
                     publish()
+                    saveResumeState(generation, player.currentPosition)
                 }
             }
             if (!isCurrent(generation)) return@launch
@@ -194,6 +259,7 @@ class PlayerController @Inject constructor(
                 queue = queue + items.map { it.first }
                 player.addMediaItems(items.map { it.second })
                 publish()
+                saveResumeState(generation, player.currentPosition)
             }
         }
     }
@@ -215,6 +281,15 @@ class PlayerController @Inject constructor(
         if (pendingTrack != null) {
             playWhenReadyIntent = !playWhenReadyIntent
             publish()
+            return@launch
+        }
+        val restored = restoredQueue
+        if (restored != null && player.mediaItemCount == 0) {
+            // Restore shuffle/repeat first, then take the normal play path at the saved spot.
+            repeatMode = RepeatMode.entries.getOrElse(restored.repeatMode) { RepeatMode.Off }
+            player.repeatMode = repeatMode.ordinal
+            player.shuffleModeEnabled = restored.shuffle
+            play(restored.tracks, restored.currentIndex, startPositionMs = restored.positionMs)
             return@launch
         }
         if (player.mediaItemCount == 0) return@launch
@@ -282,6 +357,7 @@ class PlayerController @Inject constructor(
             }
             player.addMediaItem(insertAt, buildItem(track, requireNotNull(url.url)))
             publish()
+            saveResumeState(playGeneration, player.currentPosition)
         }
     }
 
@@ -366,6 +442,11 @@ class PlayerController @Inject constructor(
                 if (player.isPlaying) {
                     publish()
                     maybeReportListen()
+                    val now = System.currentTimeMillis()
+                    if (restoredQueue == null && now - lastPositionSave >= 10_000) {
+                        lastPositionSave = now
+                        saveResumeState(playGeneration, player.currentPosition)
+                    }
                 }
                 delay(POSITION_TICK_MILLIS)
             }
@@ -384,7 +465,7 @@ class PlayerController @Inject constructor(
         scope.launch { playbackApi.scrobble(track.id, playedSeconds) }
     }
 
-    private fun publish(error: PlaybackError? = null) {
+    private fun publish(error: PlaybackError? = null, restored: Boolean = false) {
         val index = player.currentMediaItemIndex
         val current = queue.getOrNull(index)
         _state.value = PlaybackState(
@@ -392,14 +473,15 @@ class PlayerController @Inject constructor(
             currentIndex = index,
             isPlaying = player.isPlaying,
             isBuffering = player.playbackState == Player.STATE_BUFFERING,
-            positionMs = player.currentPosition.coerceAtLeast(0),
-            durationMs = player.duration.coerceAtLeast(0),
+            positionMs = if (restored) restoredQueue?.positionMs ?: 0 else player.currentPosition.coerceAtLeast(0),
+            durationMs = if (restored) current?.durationMs ?: 0 else player.duration.coerceAtLeast(0),
             repeatMode = repeatMode,
             shuffle = player.shuffleModeEnabled,
             isTrial = current?.let { playable[it.id]?.isTrial } == true,
             error = error,
             pending = pendingTrack,
             playIntent = playWhenReadyIntent,
+            restored = restored,
         )
     }
 

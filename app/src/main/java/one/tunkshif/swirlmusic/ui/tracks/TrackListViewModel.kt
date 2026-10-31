@@ -28,6 +28,8 @@ data class TrackListUiState(
     val artworkUrl: String? = null,
     val subtitle: String? = null,
     val tracks: SectionState<List<Track>> = SectionState.Loading,
+    /** Playlists show their real count in the subtitle (localized plural); null elsewhere. */
+    val trackCount: Int? = null,
     /** More ids wait beyond the loaded rows (playlists only). */
     val canLoadMore: Boolean = false,
     val loadingMore: Boolean = false,
@@ -83,7 +85,7 @@ class TrackListViewModel @Inject constructor(
         val cached = repository.cached(key)
         val hadSnapshot = cached != null
         if (cached != null) {
-            emitList(cached.title, cached.artworkUrl, cached.subtitle, cached.firstTracks)
+            emitList(cached.title, cached.artworkUrl, cached.subtitle, cached.firstTracks, cached.trackCount)
             setPending(cached.orderedIds, cached.firstTracks)
         }
         when (val result = repository.fetchPlaylist(id)) {
@@ -123,11 +125,18 @@ class TrackListViewModel @Inject constructor(
         }
     }
 
-    private fun emitList(title: String, artworkUrl: String?, subtitle: String?, tracks: List<Track>) {
+    private fun emitList(
+        title: String,
+        artworkUrl: String?,
+        subtitle: String?,
+        tracks: List<Track>,
+        trackCount: Int? = null,
+    ) {
         _state.value = TrackListUiState(
             title = title,
             artworkUrl = artworkUrl,
             subtitle = subtitle,
+            trackCount = trackCount,
             tracks = SectionState.Content(tracks),
         )
     }
@@ -207,7 +216,7 @@ class TrackListViewModel @Inject constructor(
         val hadSnapshot = emitCached(TrackListRepository.albumKey(id))
         when (val result = repository.fetchAlbum(id)) {
             is ApiResult.Success -> result.value.let {
-                emitList(it.title, it.artworkUrl, it.subtitle, it.firstTracks)
+                emitList(it.title, it.artworkUrl, it.subtitle, it.firstTracks, it.trackCount)
             }
 
             is ApiResult.NetworkError -> if (!hadSnapshot) fail(LoadError.Network)
@@ -219,7 +228,7 @@ class TrackListViewModel @Inject constructor(
         val hadSnapshot = emitCached(TrackListRepository.artistKey(id))
         when (val result = repository.fetchArtist(id)) {
             is ApiResult.Success -> result.value.let {
-                emitList(it.title, it.artworkUrl, it.subtitle, it.firstTracks)
+                emitList(it.title, it.artworkUrl, it.subtitle, it.firstTracks, it.trackCount)
             }
 
             is ApiResult.NetworkError -> if (!hadSnapshot) fail(LoadError.Network)
@@ -230,7 +239,7 @@ class TrackListViewModel @Inject constructor(
     /** Emit the cached snapshot (albums/artists resolve all ids). True when one existed. */
     private suspend fun emitCached(key: String): Boolean {
         val cached = repository.cached(key, limit = Int.MAX_VALUE) ?: return false
-        emitList(cached.title, cached.artworkUrl, cached.subtitle, cached.firstTracks)
+        emitList(cached.title, cached.artworkUrl, cached.subtitle, cached.firstTracks, cached.trackCount)
         return true
     }
 

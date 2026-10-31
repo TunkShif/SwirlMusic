@@ -21,7 +21,9 @@ object CacheModule {
     @Provides
     @Singleton
     fun database(@ApplicationContext context: Context): SwirlDatabase =
-        Room.databaseBuilder(context, SwirlDatabase::class.java, "swirl.db").build()
+        Room.databaseBuilder(context, SwirlDatabase::class.java, "swirl.db")
+            .fallbackToDestructiveMigration(dropAllTables = true)
+            .build()
 
     @Provides
     fun trackListDao(db: SwirlDatabase): TrackListDao = db.trackListDao()

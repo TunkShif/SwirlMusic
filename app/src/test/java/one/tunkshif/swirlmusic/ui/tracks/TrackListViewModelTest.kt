@@ -38,7 +38,7 @@ class TrackListViewModelTest {
     ).allowMainThreadQueries().build()
 
     private val api = FakeLibraryApi()
-    private val repository = TrackListRepository(api, db.trackListDao(), object : TimeSource { override fun nowMillis() = 1_000L }, kotlinx.coroutines.test.UnconfinedTestDispatcher())
+    private val repository = TrackListRepository(api, db.trackListDao(), object : TimeSource { override fun nowMillis() = 1_000L }, kotlinx.coroutines.test.UnconfinedTestDispatcher(), one.tunkshif.swirlmusic.data.cache.CacheGate(db.trackListDao(), kotlinx.coroutines.test.UnconfinedTestDispatcher()))
     private val viewModel = TrackListViewModel(repository)
 
     @After
