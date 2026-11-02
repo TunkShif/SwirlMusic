@@ -91,7 +91,9 @@ class PlayerControllerQueueTest {
         if (::controller.isInitialized) {
             instrumentation.runOnMainSync { controller.player.release() }
         }
-        db.close()
+        // Deliberately not closing db: the controller's SupervisorJob scope outlives the test,
+        // and a pending save/clear coroutine hitting a closed in-memory database crashes the
+        // process. The db is in-memory and dies with the run.
     }
 
     @Test

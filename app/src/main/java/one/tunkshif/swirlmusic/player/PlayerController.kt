@@ -266,6 +266,12 @@ class PlayerController @Inject constructor(
     private fun saveResumeState(generation: Int, positionMs: Long) {
         if (generation != playGeneration) return
         scope.launch {
+            // Nothing left to resume: a save racing a remove-only clear must not resurrect
+            // the row.
+            if (queue.isEmpty() && restoredQueue == null) {
+                resumeStore.clear()
+                return@launch
+            }
             resumeStore.save(
                 queue = queue.map { it.track },
                 currentIndex = currentIndex().takeIf { it >= 0 } ?: 0,
