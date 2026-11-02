@@ -16,7 +16,7 @@ data class PlaybackResumeEntity(
     @PrimaryKey val id: Int = 0,
     val currentIndex: Int,
     val positionMs: Long,
-    val shuffle: Boolean,
-    val repeatMode: Int,
+    /** [LoopMode][one.tunkshif.swirlmusic.player.LoopMode] ordinal. */
+    val loopMode: Int,
     val savedAt: Long,
 )

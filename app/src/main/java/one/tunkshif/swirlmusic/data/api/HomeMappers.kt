@@ -24,6 +24,8 @@ internal fun TrackDto.toDomain(): Track {
         durationMs = dt,
         discNumber = cd?.trim()?.toIntOrNull()?.takeIf { it > 0 },
         trackNumber = no.takeIf { it > 0 },
+        albumId = album?.id?.takeIf { it > 0 },
+        albumName = album?.name?.takeIf { it.isNotBlank() },
     )
 }
 
@@ -57,4 +59,17 @@ internal fun sizedArtwork(url: String, size: Int): String {
     val https = url.replaceFirst("http://", "https://")
     val separator = if (https.contains('?')) '&' else '?'
     return "$https${separator}param=${size}y$size"
+}
+
+/**
+ * Same as [sizedArtwork] for a URL that may already carry `?param=WxH` — a stored artwork URL
+ * is sized for its list, so a bigger draw (the Now Playing cover) must replace the size, not
+ * stack a second `param`.
+ */
+internal fun resizedArtwork(url: String, size: Int): String {
+    val base = url.substringBefore('?')
+    val kept = url.substringAfter('?', "")
+        .split('&')
+        .filter { it.isNotEmpty() && !it.startsWith("param=") }
+    return sizedArtwork(if (kept.isEmpty()) base else "$base?${kept.joinToString("&")}", size)
 }

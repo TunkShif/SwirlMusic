@@ -16,7 +16,7 @@ import androidx.room.RoomDatabase
         QueueItemEntity::class,
         PlaybackResumeEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 abstract class SwirlDatabase : RoomDatabase() {

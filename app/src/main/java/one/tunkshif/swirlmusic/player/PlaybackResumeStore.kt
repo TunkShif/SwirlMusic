@@ -7,18 +7,16 @@ import kotlinx.coroutines.withContext
 import one.tunkshif.swirlmusic.data.api.TimeSource
 import one.tunkshif.swirlmusic.data.cache.CacheGate
 import one.tunkshif.swirlmusic.data.cache.PlaybackResumeEntity
-import one.tunkshif.swirlmusic.data.cache.QueueItemEntity
+import one.tunkshif.swirlmusic.data.cache.TrackEntity
 import one.tunkshif.swirlmusic.data.cache.TrackListDao
 import one.tunkshif.swirlmusic.data.model.Track
 import one.tunkshif.swirlmusic.di.IoDispatcher
 
-/** What was playing when the app was closed. */
+/** Where the restored queue was: the tracks live in the controller's queue, this is the spot. */
 data class RestoredQueue(
-    val tracks: List<Track>,
     val currentIndex: Int,
     val positionMs: Long,
-    val shuffle: Boolean,
-    val repeatMode: Int,
+    val loopMode: LoopMode,
 )
 
 /** (Stored ids, metadata, saved index) -> (tracks, adjusted index), dropping missing rows. */
@@ -49,13 +47,17 @@ class PlaybackResumeStore @Inject constructor(
 ) {
 
     /** Load the saved queue + resume row. Null when nothing was playing. */
-    suspend fun load(): RestoredQueue? = withContext(io) {
+    suspend fun load(): Pair<List<Track>, RestoredQueue>? = withContext(io) {
         val resume = dao.resume() ?: return@withContext null
         val ids = dao.queueIds()
         if (ids.isEmpty()) return@withContext null
         val metadata = dao.tracksByIds(ids).associate { it.id to it.toTrack() }
         restoreQueue(ids, metadata, resume.currentIndex)?.let { (tracks, index, _) ->
-            RestoredQueue(tracks, index, resume.positionMs, resume.shuffle, resume.repeatMode)
+            tracks to RestoredQueue(
+                index,
+                resume.positionMs,
+                LoopMode.entries.getOrElse(resume.loopMode) { LoopMode.ListLoop },
+            )
         }
     }
 
@@ -67,13 +69,22 @@ class PlaybackResumeStore @Inject constructor(
         queue: List<Track>,
         currentIndex: Int,
         positionMs: Long,
-        shuffle: Boolean,
-        repeatMode: Int,
+        loopMode: LoopMode,
     ) {
         gate.writeIfCurrent(gate.generation) {
-            upsertTracks(queue.map { one.tunkshif.swirlmusic.data.cache.TrackEntity.of(it, timeSource.nowMillis()) })
+            upsertTracks(queue.map { TrackEntity.of(it, timeSource.nowMillis()) })
             replaceQueue(queue.map { it.id })
-            saveResume(PlaybackResumeEntity(0, currentIndex, positionMs, shuffle, repeatMode, timeSource.nowMillis()))
+            saveResume(
+                PlaybackResumeEntity(0, currentIndex, positionMs, loopMode.ordinal, timeSource.nowMillis()),
+            )
+        }
+    }
+
+    /** Wipe the persisted queue + resume row, e.g. when the last entry is removed. */
+    suspend fun clear() {
+        gate.writeIfCurrent(gate.generation) {
+            clearQueue()
+            clearResume()
         }
     }
 }

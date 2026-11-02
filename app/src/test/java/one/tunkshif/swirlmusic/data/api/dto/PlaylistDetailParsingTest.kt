@@ -47,6 +47,25 @@ class PlaylistDetailParsingTest {
     }
 
     @Test
+    fun `album detail songs carry their album id and name`() {
+        val response = json.decodeFromString<AlbumDetailResponse>(fixture("album_detail.json"))
+        val track = response.toDomain().tracks.first()
+
+        assertThat(track.albumId).isEqualTo(1571654)
+        assertThat(track.albumName).isEqualTo("Back To Basics")
+    }
+
+    @Test
+    fun `album detail songs without al fall back to the album header`() {
+        val response = json.decodeFromString<AlbumDetailResponse>(fixture("album_detail.json"))
+        val withoutAlbum = response.copy(songs = response.songs.map { it.copy(al = null) })
+        val track = withoutAlbum.toDomain().tracks.first()
+
+        assertThat(track.albumId).isEqualTo(1571654)
+        assertThat(track.albumName).isEqualTo("Back To Basics")
+    }
+
+    @Test
     fun `user playlist items carry subscribed, specialType and creator`() {
         val response = json.decodeFromString<UserPlaylistResponse>(fixture("user_playlist.json"))
 

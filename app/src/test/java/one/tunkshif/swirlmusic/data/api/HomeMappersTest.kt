@@ -68,11 +68,52 @@ class HomeMappersTest {
     }
 
     @Test
+    fun `a track keeps its album id and name`() {
+        val response = json.decodeFromString<RecommendSongsResponse>(fixture("recommend_songs.json"))
+        val track = response.data.dailySongs.first().toDomain()
+
+        assertThat(track.albumId).isEqualTo(601)
+        assertThat(track.albumName).isEqualTo("OutRun")
+    }
+
+    @Test
+    fun `a search-style track reads the album from the album key`() {
+        // `/search` and `/song/detail` spell the album object `album`, not `al`.
+        val dto = json.decodeFromString<one.tunkshif.swirlmusic.data.api.dto.TrackDto>(
+            """
+            {
+              "id": 42,
+              "name": "Song",
+              "artists": [{"id": 1, "name": "Artist"}],
+              "album": {"id": 77, "name": "The Album", "picUrl": "http://p1.example/c.jpg"},
+              "dt": 1000
+            }
+            """.trimIndent(),
+        )
+        val track = dto.toDomain()
+
+        assertThat(track.albumId).isEqualTo(77)
+        assertThat(track.albumName).isEqualTo("The Album")
+    }
+
+    @Test
     fun `artwork sizing keeps an existing query string`() {
         assertThat(sizedArtwork("https://host/a.jpg?x=1", 64))
             .isEqualTo("https://host/a.jpg?x=1&param=64y64")
         assertThat(sizedArtwork("http://host/a.jpg", 64))
             .isEqualTo("https://host/a.jpg?param=64y64")
+    }
+
+    @Test
+    fun `resized artwork replaces an existing param`() {
+        assertThat(resizedArtwork("https://host/a.jpg", 1000))
+            .isEqualTo("https://host/a.jpg?param=1000y1000")
+        assertThat(resizedArtwork("https://host/a.jpg?param=300y300", 1000))
+            .isEqualTo("https://host/a.jpg?param=1000y1000")
+        assertThat(resizedArtwork("https://host/a.jpg?foo=1&param=300y300", 1000))
+            .isEqualTo("https://host/a.jpg?foo=1&param=1000y1000")
+        assertThat(resizedArtwork("http://host/a.jpg?param=300y300", 1000))
+            .isEqualTo("https://host/a.jpg?param=1000y1000")
     }
 
     private fun fixture(name: String): String =

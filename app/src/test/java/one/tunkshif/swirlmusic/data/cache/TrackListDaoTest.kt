@@ -67,15 +67,36 @@ class TrackListDaoTest {
     @Test
     fun `queue and resume rows round trip`() = runTest {
         dao.replaceQueue(listOf(5L, 9L, 3L))
-        dao.saveResume(PlaybackResumeEntity(0, 1, 42_000, true, 2, 1000))
+        dao.saveResume(PlaybackResumeEntity(0, 1, 42_000, 2, 1000))
 
         assertThat(dao.queueIds()).containsExactly(5L, 9L, 3L).inOrder()
         dao.resume()!!.let {
             assertThat(it.currentIndex).isEqualTo(1)
             assertThat(it.positionMs).isEqualTo(42_000)
-            assertThat(it.shuffle).isTrue()
-            assertThat(it.repeatMode).isEqualTo(2)
+            assertThat(it.loopMode).isEqualTo(2)
         }
+    }
+
+    @Test
+    fun `track metadata round trips the album fields`() = runTest {
+        dao.upsertTracks(listOf(track(7).copy(albumId = 61, albumName = "OutRun")))
+
+        dao.tracksByIds(listOf(7L)).single().let {
+            assertThat(it.albumId).isEqualTo(61)
+            assertThat(it.albumName).isEqualTo("OutRun")
+        }
+    }
+
+    @Test
+    fun `clearQueue and clearResume wipe the persisted playback state`() = runTest {
+        dao.replaceQueue(listOf(5L))
+        dao.saveResume(PlaybackResumeEntity(0, 0, 0, 0, 0))
+
+        dao.clearQueue()
+        dao.clearResume()
+
+        assertThat(dao.queueIds()).isEmpty()
+        assertThat(dao.resume()).isNull()
     }
 
     @Test

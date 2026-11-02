@@ -61,7 +61,13 @@ internal fun AlbumDetailResponse.toDomain(): AlbumDetail = AlbumDetail(
     artistLine = album.artists.orEmpty().joinToString(" / ") { it.name },
     artworkUrl = album.picUrl?.let { sizedArtwork(it, 400) },
     publishYear = album.publishTime.takeIf { it > 0 }?.let { publishYearOf(it) },
-    tracks = songs.map { it.toDomain() },
+    // `/album` songs may come without `al`; the album header is the album they belong to.
+    tracks = songs.map { it.toDomain() }.map { track ->
+        track.copy(
+            albumId = track.albumId ?: album.id.takeIf { it > 0 },
+            albumName = track.albumName ?: album.name.takeIf { it.isNotBlank() },
+        )
+    },
     description = album.description?.takeIf { it.isNotBlank() },
     releasedAt = album.publishTime.takeIf { it > 0 },
     company = album.company?.takeIf { it.isNotBlank() },

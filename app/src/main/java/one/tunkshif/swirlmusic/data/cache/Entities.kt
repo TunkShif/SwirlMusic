@@ -17,8 +17,12 @@ data class TrackEntity(
     val fetchedAt: Long,
     val discNumber: Int? = null,
     val trackNumber: Int? = null,
+    val albumId: Long? = null,
+    val albumName: String? = null,
 ) {
-    fun toTrack(): Track = Track(id, title, artistLine, artworkUrl, durationMs, discNumber, trackNumber)
+    fun toTrack(): Track = Track(
+        id, title, artistLine, artworkUrl, durationMs, discNumber, trackNumber, albumId, albumName,
+    )
 
     companion object {
         fun of(track: Track, now: Long) = TrackEntity(
@@ -30,6 +34,8 @@ data class TrackEntity(
             fetchedAt = now,
             discNumber = track.discNumber,
             trackNumber = track.trackNumber,
+            albumId = track.albumId,
+            albumName = track.albumName,
         )
     }
 }

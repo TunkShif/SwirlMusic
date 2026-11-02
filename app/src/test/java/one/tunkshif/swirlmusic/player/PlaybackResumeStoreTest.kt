@@ -33,7 +33,7 @@ class PlaybackResumeStoreTest {
     @Test
     fun `restored state exposes its saved progress`() {
         val state = PlaybackState(
-            queue = listOf(track(1), track(3)),
+            queue = listOf(QueueEntry(0, track(1)), QueueEntry(1, track(3))),
             currentIndex = 1,
             positionMs = 500,
             durationMs = 1000,

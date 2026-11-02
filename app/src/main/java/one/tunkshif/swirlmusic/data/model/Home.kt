@@ -9,6 +9,8 @@ data class Track(
     val durationMs: Long,
     val discNumber: Int? = null,
     val trackNumber: Int? = null,
+    val albumId: Long? = null,
+    val albumName: String? = null,
 )
 
 data class PlaylistSummary(
