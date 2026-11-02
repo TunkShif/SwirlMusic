@@ -1,11 +1,19 @@
 package one.tunkshif.swirlmusic.ui.shell
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -19,6 +27,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
@@ -41,6 +50,7 @@ import one.tunkshif.swirlmusic.navigation.SearchKey
 import one.tunkshif.swirlmusic.navigation.ProfileKey
 import one.tunkshif.swirlmusic.navigation.TopLevelDestination
 import one.tunkshif.swirlmusic.data.model.Track
+import one.tunkshif.swirlmusic.ui.components.LocalSharedTransitionScope
 import one.tunkshif.swirlmusic.ui.components.MiniPlayerBar
 import one.tunkshif.swirlmusic.ui.player.MiniPlayerUiState
 import one.tunkshif.swirlmusic.player.PlayerController
@@ -53,7 +63,7 @@ import one.tunkshif.swirlmusic.ui.search.SearchRoute
 import one.tunkshif.swirlmusic.ui.tracks.TrackListRoute
 import one.tunkshif.swirlmusic.ui.theme.Spacing
 import one.tunkshif.swirlmusic.ui.tracks.TrackListSource
-import one.tunkshif.swirlmusic.ui.playing.PlayingScreen
+import one.tunkshif.swirlmusic.ui.playing.NowPlayingRoute
 import one.tunkshif.swirlmusic.ui.profile.ProfileScreen
 
 /** Every screen shows the dock except the full-screen player. */
@@ -109,38 +119,57 @@ fun SwirlApp(
             viewModel = libraryViewModel ?: hiltViewModel(),
         )
     },
+    /**
+     * The full-screen player. A parameter, like [homeContent], so shell tests can render the
+     * screen with a fixed state and no Hilt.
+     */
+    playingContent: @Composable (onBack: () -> Unit, onOpenAlbum: (Long) -> Unit) -> Unit = { onBack, onOpenAlbum ->
+        NowPlayingRoute(onBack = onBack, onOpenAlbum = onOpenAlbum)
+    },
 ) {
     val backStack = rememberNavBackStack(HomeKey)
     val currentKey = backStack.lastOrNull()
     val selectedDestination = selectedTab(backStack)
     val showChrome = showsDock(currentKey)
 
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        bottomBar = {
-            if (showChrome) {
-                // Two floating pieces: the mini player is its own coloured pill above the
-                // rounded navigation bar, the way the reference does it.
-                Column(
-                    modifier = Modifier
-                        .navigationBarsPadding()
-                        .padding(horizontal = Spacing.md)
-                        .fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.sm),
-                ) {
+    SharedTransitionLayout {
+        CompositionLocalProvider(LocalSharedTransitionScope provides this) {
+            Scaffold(
+                modifier = modifier.fillMaxSize(),
+                bottomBar = {
+                    // Two floating pieces: the mini player is its own coloured pill above the
+                    // rounded navigation bar, the way the reference does it.
                     AnimatedVisibility(
-                        visible = miniPlayer.hasTrack,
-                        enter = expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) +
+                        visible = showChrome,
+                        enter = slideInVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) { it } +
                             fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
-                        exit = shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()) +
+                        exit = slideOutVertically(MaterialTheme.motionScheme.fastSpatialSpec()) { it } +
                             fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
                     ) {
-                        MiniPlayerBar(
-                            state = miniPlayer,
-                            onPlayPause = onPlayPause,
-                            onOpen = { backStack.add(PlayingKey) },
-                        )
-                    }
+                        Column(
+                            modifier = Modifier
+                                .navigationBarsPadding()
+                                .padding(horizontal = Spacing.md)
+                                .fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+                        ) {
+                            // The dock's scope, not the bar's inner one: the shared artwork
+                            // rides the dock sliding away, not the bar appearing.
+                            val dockScope = this@AnimatedVisibility
+                            AnimatedVisibility(
+                                visible = miniPlayer.hasTrack,
+                                enter = expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) +
+                                    fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                                exit = shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()) +
+                                    fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                            ) {
+                                MiniPlayerBar(
+                                    state = miniPlayer,
+                                    onPlayPause = onPlayPause,
+                                    onOpen = { backStack.add(PlayingKey) },
+                                    animatedVisibilityScope = dockScope,
+                                )
+                            }
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = MaterialTheme.shapes.extraLarge,
@@ -172,6 +201,11 @@ fun SwirlApp(
             }
         },
     ) { innerPadding ->
+        // Per-entry insets: Playing draws edge to edge, everything else stays inside the bars.
+        @Composable
+        fun padded(content: @Composable () -> Unit) {
+            Box(modifier = Modifier.padding(innerPadding)) { content() }
+        }
         NavDisplay(
             backStack = backStack,
             onBack = { backStack.removeLastOrNull() },
@@ -182,50 +216,84 @@ fun SwirlApp(
                 rememberSaveableStateHolderNavEntryDecorator(),
                 rememberViewModelStoreNavEntryDecorator(),
             ),
-            modifier = Modifier.padding(innerPadding),
             entryProvider = entryProvider {
-                entry<HomeKey> { homeContent() }
+                entry<HomeKey> { padded { homeContent() } }
                 entry<LibraryKey> {
-                    libraryContent(
-                        { id -> backStack.add(PlaylistKey(id)) },
-                        { id -> backStack.add(AlbumKey(id)) },
-                        { id -> backStack.add(ArtistKey(id)) },
-                        { backStack.add(SearchKey) },
-                    )
+                    padded {
+                        libraryContent(
+                            { id -> backStack.add(PlaylistKey(id)) },
+                            { id -> backStack.add(AlbumKey(id)) },
+                            { id -> backStack.add(ArtistKey(id)) },
+                            { backStack.add(SearchKey) },
+                        )
+                    }
                 }
                 entry<PlaylistKey> { key ->
-                    TrackListRoute(
-                        source = TrackListSource.Playlist(key.id),
-                        onBack = { backStack.removeLastOrNull() },
-                        onPlayTracks = onPlayTracks,
-                    )
+                    padded {
+                        TrackListRoute(
+                            source = TrackListSource.Playlist(key.id),
+                            onBack = { backStack.removeLastOrNull() },
+                            onPlayTracks = onPlayTracks,
+                        )
+                    }
                 }
                 entry<AlbumKey> { key ->
-                    TrackListRoute(
-                        source = TrackListSource.Album(key.id),
-                        onBack = { backStack.removeLastOrNull() },
-                        onPlayTracks = onPlayTracks,
-                    )
+                    padded {
+                        TrackListRoute(
+                            source = TrackListSource.Album(key.id),
+                            onBack = { backStack.removeLastOrNull() },
+                            onPlayTracks = onPlayTracks,
+                        )
+                    }
                 }
                 entry<ArtistKey> { key ->
-                    TrackListRoute(
-                        source = TrackListSource.Artist(key.id),
-                        onBack = { backStack.removeLastOrNull() },
-                        onPlayTracks = onPlayTracks,
-                    )
+                    padded {
+                        TrackListRoute(
+                            source = TrackListSource.Artist(key.id),
+                            onBack = { backStack.removeLastOrNull() },
+                            onPlayTracks = onPlayTracks,
+                        )
+                    }
                 }
                 entry<SearchKey> {
-                    SearchRoute(
-                        onBack = { backStack.removeLastOrNull() },
-                        onOpenPlaylist = { id -> backStack.add(PlaylistKey(id)) },
-                        onOpenAlbum = { id -> backStack.add(AlbumKey(id)) },
-                        onOpenArtist = { id -> backStack.add(ArtistKey(id)) },
-                        onPlayTracks = { t, i -> onPlayTracks(t, i, null) },
+                    padded {
+                        SearchRoute(
+                            onBack = { backStack.removeLastOrNull() },
+                            onOpenPlaylist = { id -> backStack.add(PlaylistKey(id)) },
+                            onOpenAlbum = { id -> backStack.add(AlbumKey(id)) },
+                            onOpenArtist = { id -> backStack.add(ArtistKey(id)) },
+                            onPlayTracks = { t, i -> onPlayTracks(t, i, null) },
+                        )
+                    }
+                }
+                entry<ProfileKey> {
+                    padded { ProfileScreen(profile = profile, onSignOut = onSignOut) }
+                }
+                entry<PlayingKey>(
+                    // Not a composable context, so the default easing specs are used.
+                    metadata = NavDisplay.transitionSpec {
+                        // The screen underneath stays put so the dock and the artwork can travel.
+                        (fadeIn() + slideInVertically { it / 6 }) togetherWith
+                            ExitTransition.KeepUntilTransitionsFinished
+                    } + NavDisplay.popTransitionSpec {
+                        EnterTransition.None togetherWith
+                            (fadeOut() + slideOutVertically { it / 6 })
+                    } + NavDisplay.predictivePopTransitionSpec {
+                        // The dock isn't composed during the gesture, so no shared morph here.
+                        EnterTransition.None togetherWith fadeOut()
+                    },
+                ) {
+                    playingContent(
+                        { backStack.removeLastOrNull() },
+                        { id ->
+                            backStack.removeLastOrNull()
+                            backStack.add(AlbumKey(id))
+                        },
                     )
                 }
-                entry<ProfileKey> { ProfileScreen(profile = profile, onSignOut = onSignOut) }
-                entry<PlayingKey> { PlayingScreen(onBack = { backStack.removeLastOrNull() }) }
             },
         )
+        }
+        }
     }
 }

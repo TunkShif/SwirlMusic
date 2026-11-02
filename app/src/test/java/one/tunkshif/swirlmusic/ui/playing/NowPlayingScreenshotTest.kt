@@ -1,0 +1,117 @@
+package one.tunkshif.swirlmusic.ui.playing
+
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.ColorPainter
+import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onRoot
+import com.github.takahirom.roborazzi.RoborazziOptions
+import com.github.takahirom.roborazzi.captureRoboImage
+import one.tunkshif.swirlmusic.ui.components.LocalArtworkPainter
+import one.tunkshif.swirlmusic.ui.theme.SwirlMusicTheme
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
+import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
+
+/**
+ * Goldens for the Now Playing screen. `autoAdvance` stays off so the infinite wave animation and
+ * the marquee freeze at frame zero; `LocalArtworkPainter` pins the cover.
+ */
+@RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+@Config(sdk = [36], qualifiers = "w411dp-h891dp-xhdpi")
+class NowPlayingScreenshotTest {
+
+    @get:Rule
+    val compose = createComposeRule()
+
+    @Test
+    fun playing_light() = capture("playing-light", PlayingStatePlaying, dark = false)
+
+    @Test
+    fun playing_dark() = capture("playing-dark", PlayingStatePlaying, dark = true)
+
+    @Test
+    fun paused_light() = capture("playing-paused", PlayingStatePaused, dark = false)
+
+    @Test
+    fun loading_light() = capture("playing-loading", PlayingStateLoading, dark = false)
+
+    @Test
+    fun trial_error_light() = capture("playing-trial-error", PlayingStateTrialError, dark = false)
+
+    @Test
+    fun empty_light() = capture("playing-empty", PlayingStateEmpty, dark = false)
+
+    @Test
+    fun playing_short_phone() {
+        RuntimeEnvironment.setQualifiers("+w360dp-h640dp")
+        capture("playing-short", PlayingStatePlaying, dark = false)
+    }
+
+    @Test
+    fun queue_light() = captureQueue("queue-light", QueueFixture, dark = false)
+
+    @Test
+    fun queue_dark() = captureQueue("queue-dark", QueueFixture, dark = true)
+
+    @Test
+    fun queue_shuffle() = captureQueue("queue-shuffle", QueueFixture.copy(canReorder = false), dark = false)
+
+    private fun captureQueue(name: String, queue: QueueUiState, dark: Boolean) {
+        compose.mainClock.autoAdvance = false
+        compose.setContent {
+            SwirlMusicTheme(darkTheme = dark, dynamicColor = false) {
+                CompositionLocalProvider(
+                    LocalArtworkPainter provides ColorPainter(Color(0xFF9AA0C8)),
+                    LocalPositionClock provides { 0L },
+                ) {
+                    androidx.compose.material3.Surface {
+                        QueueSheetContent(queue = queue, onEvent = {})
+                    }
+                }
+            }
+        }
+        compose.mainClock.advanceTimeByFrame()
+        compose.onRoot().captureRoboImage("src/test/screenshots/playing/$name.png")
+    }
+
+    private fun capture(name: String, state: NowPlayingUiState, dark: Boolean) {
+        compose.mainClock.autoAdvance = false
+        compose.setContent {
+            SwirlMusicTheme(darkTheme = dark, dynamicColor = false) {
+                CompositionLocalProvider(
+                    LocalArtworkPainter provides ColorPainter(Color(0xFF9AA0C8)),
+                    LocalPositionClock provides { 0L },
+                ) {
+                    NowPlayingScreen(
+                        state = state,
+                        onEvent = {},
+                        onBack = {},
+                        onOpenAlbum = {},
+                        onOpenQueue = {},
+                    )
+                }
+            }
+        }
+        compose.mainClock.advanceTimeByFrame()
+        compose.onRoot().captureRoboImage(
+            "src/test/screenshots/playing/$name.png",
+            roborazziOptions = WAVY_TOLERANCE,
+        )
+    }
+
+    private companion object {
+        /**
+         * The wavy indicator's stroke edge carries a few pixels of antialiasing noise between
+         * runs; everything else is bit-exact.
+         */
+        val WAVY_TOLERANCE = RoborazziOptions(
+            compareOptions = RoborazziOptions.CompareOptions(changeThreshold = 0.002f),
+        )
+    }
+}

@@ -110,6 +110,7 @@ dependencies {
     implementation(libs.okhttp.logging)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.zxing.core)
+    implementation(libs.reorderable)
 
     testImplementation(platform(libs.androidx.compose.bom))
     testImplementation(libs.junit)

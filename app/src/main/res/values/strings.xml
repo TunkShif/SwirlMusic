@@ -102,9 +102,32 @@
 
     <!-- Playing -->
     <string name="playing_title">Now playing</string>
-    <string name="playing_back">Back</string>
+    <string name="playing_collapse">Close player</string>
+    <string name="playing_play">Play</string>
+    <string name="playing_pause">Pause</string>
+    <string name="playing_next">Next</string>
+    <string name="playing_previous">Previous</string>
+    <string name="playing_queue">Queue</string>
+    <string name="playing_open_album">Open album</string>
+    <string name="playing_seek">Seek</string>
+    <string name="playing_loop_list">Repeat queue</string>
+    <string name="playing_loop_shuffle">Shuffle</string>
+    <string name="playing_loop_one">Repeat one</string>
+    <string name="playing_error_unavailable">This song isn\'t available</string>
+    <string name="playing_error_network">Couldn\'t play. Check your connection.</string>
+    <string name="playing_error_server">Playback failed</string>
     <string name="playing_empty_title">Nothing to play</string>
-    <string name="playing_empty_body">Artwork, transport controls, queue, and lyrics arrive in a later phase.</string>
+    <string name="playing_empty_body">Pick a song to start listening.</string>
+    <string name="playing_queue_now_playing">Now playing</string>
+    <string name="playing_queue_remove">Remove from queue</string>
+    <string name="playing_queue_move_up">Move up</string>
+    <string name="playing_queue_move_down">Move down</string>
+    <string name="playing_queue_shuffle_hint">Turn off shuffle to reorder</string>
+    <string name="playing_queue_drag">Drag to reorder</string>
+    <plurals name="playing_queue_count">
+        <item quantity="one">%d song</item>
+        <item quantity="other">%d songs</item>
+    </plurals>
 
     <!-- Mini player -->
     <string name="mini_player_play">Play</string>

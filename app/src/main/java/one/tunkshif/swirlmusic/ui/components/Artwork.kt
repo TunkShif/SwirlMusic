@@ -11,7 +11,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
 
 /**
  * Test seam for screenshots. When set, [Artwork] paints this instead of loading the URL, so a
@@ -28,6 +30,8 @@ fun Artwork(
     contentDescription: String?,
     modifier: Modifier = Modifier,
     shape: Shape = MaterialTheme.shapes.medium,
+    /** An already-loaded smaller URL, shown while [url] loads so the image never flashes empty. */
+    placeholderUrl: String? = null,
 ) {
     val override = LocalArtworkPainter.current
     Box(
@@ -44,7 +48,14 @@ fun Artwork(
             )
 
             url != null -> AsyncImage(
-                model = url,
+                model = if (placeholderUrl != null) {
+                    ImageRequest.Builder(LocalContext.current)
+                        .data(url)
+                        .placeholderMemoryCacheKey(placeholderUrl)
+                        .build()
+                } else {
+                    url
+                },
                 contentDescription = contentDescription,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.matchParentSize(),

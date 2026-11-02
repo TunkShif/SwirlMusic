@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
@@ -45,6 +47,7 @@ fun MiniPlayerBar(
     onPlayPause: () -> Unit,
     onOpen: () -> Unit,
     modifier: Modifier = Modifier,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -65,7 +68,9 @@ fun MiniPlayerBar(
                 url = state.artworkUrl,
                 contentDescription = null,
                 shape = CircleShape,
-                modifier = Modifier.size(48.dp),
+                modifier = Modifier
+                    .size(48.dp)
+                    .nowPlayingArtwork(animatedVisibilityScope, visibleCorner = 24.dp),
             )
 
             Column(modifier = Modifier.weight(1f)) {

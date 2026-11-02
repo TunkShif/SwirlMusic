@@ -110,6 +110,7 @@ class ShellBehaviorTest {
                     onPlayTracks = { _, _, _ -> },
                     homeContent = { TestHome() },
                     libraryContent = { _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
+                    playingContent = { onBack, _ -> PlayingStub(onBack) },
                 )
             }
         }
@@ -117,6 +118,7 @@ class ShellBehaviorTest {
         compose.onNodeWithTag(MINI_PLAYER_TAG).performClick()
 
         compose.onNodeWithText(context.getString(R.string.playing_empty_body)).assertExists()
+        compose.onNodeWithText(context.getString(R.string.playing_title)).assertExists()
         // The bottom bar is gone, so no navigation label is on screen.
         assertThat(compose.onAllNodesWithText(label(TopLevelDestination.Home)).fetchSemanticsNodes())
             .isEmpty()
@@ -139,15 +141,22 @@ class ShellBehaviorTest {
                     onPlayTracks = { _, _, _ -> },
                     homeContent = { TestHome() },
                     libraryContent = { _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
+                    playingContent = { onBack, _ -> PlayingStub(onBack) },
                 )
             }
         }
 
         compose.onAllNodesWithText(label(TopLevelDestination.Library)).onFirst().performClick()
         compose.onNodeWithTag(MINI_PLAYER_TAG).performClick()
-        compose.onNodeWithContentDescription(context.getString(R.string.playing_back)).performClick()
+        compose.onNodeWithContentDescription(context.getString(R.string.playing_collapse)).performClick()
+        // The dock slides back in; let the animation settle, then both pieces are visible
+        // and the previous tab is still selected.
+        compose.mainClock.advanceTimeBy(500)
+        compose.waitForIdle()
 
         compose.onNodeWithText("Library stub").assertExists()
+        compose.onNodeWithTag(MINI_PLAYER_TAG).assertExists()
+        compose.onNodeWithText(label(TopLevelDestination.Home)).assertExists()
     }
 
     @Test
@@ -191,5 +200,17 @@ class ShellBehaviorTest {
                 now = HomeTestData.evening,
             )
         }
+    }
+
+    /** A fixed Now Playing screen so the shell test needs no Hilt or player. */
+    @androidx.compose.runtime.Composable
+    private fun PlayingStub(onBack: () -> Unit) {
+        one.tunkshif.swirlmusic.ui.playing.NowPlayingScreen(
+            state = one.tunkshif.swirlmusic.ui.playing.NowPlayingUiState(),
+            onEvent = {},
+            onBack = onBack,
+            onOpenAlbum = {},
+            onOpenQueue = {},
+        )
     }
 }

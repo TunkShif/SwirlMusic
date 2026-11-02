@@ -78,23 +78,40 @@ class ShellScreenshotTest {
     fun playing_light() {
         compose.setContent {
             SwirlMusicTheme(dynamicColor = false) {
-                SwirlApp(
-                    profile = profile,
-                    onSignOut = {},
-                    miniPlayer = MiniPlayerUiState(
-                        title = "Nightcall",
-                        subtitle = "Kavinsky",
-                        isPlaying = true,
-                        progress = 0.35f,
-                    ),
-                    onPlayPause = {},
-                    onPlayTracks = { _, _, _ -> },
-                    homeContent = { TestHome() },
-                    libraryContent = { _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
-                )
+                CompositionLocalProvider(
+                    LocalArtworkPainter provides ColorPainter(Color(0xFF9AA0C8)),
+                    one.tunkshif.swirlmusic.ui.playing.LocalPositionClock provides { 0L },
+                ) {
+                    SwirlApp(
+                        profile = profile,
+                        onSignOut = {},
+                        miniPlayer = MiniPlayerUiState(
+                            title = "Nightcall",
+                            subtitle = "Kavinsky",
+                            isPlaying = true,
+                            progress = 0.35f,
+                        ),
+                        onPlayPause = {},
+                        onPlayTracks = { _, _, _ -> },
+                        homeContent = { TestHome() },
+                        libraryContent = { _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
+                        playingContent = { _, _ ->
+                            one.tunkshif.swirlmusic.ui.playing.NowPlayingScreen(
+                                state = one.tunkshif.swirlmusic.ui.playing.PlayingStatePlaying,
+                                onEvent = {},
+                                onBack = {},
+                                onOpenAlbum = {},
+                                onOpenQueue = {},
+                            )
+                        },
+                    )
+                }
             }
         }
         compose.onNodeWithTag(MINI_PLAYER_TAG).performClick()
+        // The dock slides out behind Playing; capture after the exit has finished.
+        compose.mainClock.advanceTimeBy(600)
+        compose.waitForIdle()
         compose.onRoot().captureRoboImage("src/test/screenshots/shell/playing-light.png")
     }
 
