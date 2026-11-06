@@ -31,8 +31,8 @@ android {
         applicationId = "one.tunkshif.swirlmusic"
         minSdk = 36
         targetSdk = 37
-        versionCode = 9
-        versionName = "0.3.0"
+        versionCode = 10
+        versionName = "0.4.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
