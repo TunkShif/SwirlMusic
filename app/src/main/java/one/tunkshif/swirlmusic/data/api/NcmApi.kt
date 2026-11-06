@@ -22,6 +22,7 @@ import one.tunkshif.swirlmusic.data.api.dto.AlbumSublistResponse
 import one.tunkshif.swirlmusic.data.api.dto.ArtistDetailResponse
 import one.tunkshif.swirlmusic.data.api.dto.ArtistSublistResponse
 import one.tunkshif.swirlmusic.data.api.dto.LikeResponse
+import one.tunkshif.swirlmusic.data.api.dto.LyricResponse
 import one.tunkshif.swirlmusic.data.api.dto.LikelistResponse
 import one.tunkshif.swirlmusic.data.api.dto.PlaylistDetailResponse
 import one.tunkshif.swirlmusic.data.api.dto.RecommendResourceResponse
@@ -39,6 +40,7 @@ import one.tunkshif.swirlmusic.data.model.AlbumSummary
 import one.tunkshif.swirlmusic.data.model.ArtistDetail
 import one.tunkshif.swirlmusic.data.model.ArtistSummary
 import one.tunkshif.swirlmusic.data.model.ChartSummary
+import one.tunkshif.swirlmusic.data.model.LyricsSource
 import one.tunkshif.swirlmusic.data.model.Page
 import one.tunkshif.swirlmusic.data.model.PlayedEntry
 import one.tunkshif.swirlmusic.data.model.PlaylistContents
@@ -61,7 +63,14 @@ class NcmApi @Inject constructor(
     private val config: ApiConfig,
     private val timeSource: TimeSource,
     @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
-) : NcmAuthApi, NcmHomeApi, NcmPlaybackApi, NcmLibraryApi {
+) : NcmAuthApi, NcmHomeApi, NcmPlaybackApi, NcmLibraryApi, NcmLyricsApi {
+
+    override suspend fun lyrics(trackId: Long): ApiResult<LyricsSource> =
+        request(
+            "/lyric/new",
+            LyricResponse.serializer(),
+            mapOf("id" to trackId.toString()),
+        ).map { it.toLyricsSource() }
 
     suspend fun loginStatus(): ApiResult<AccountStatusBody> =
         request("/login/status", LoginStatusResponse.serializer()).map { it.data }

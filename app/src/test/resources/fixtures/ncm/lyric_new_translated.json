@@ -1,0 +1,23 @@
+{
+  "code": 200,
+  "sgc": true,
+  "sfy": false,
+  "qfy": false,
+  "lyricUser": {"id": 123, "status": 0, "demand": 0, "userid": 456, "nickname": "synth-user", "uptime": 1700000000000},
+  "transUser": {"id": 124, "status": 0, "demand": 0, "userid": 457, "nickname": "synth-tl", "uptime": 1700000000001},
+  "klyric": {"version": 8, "lyric": ""},
+  "lrc": {
+    "version": 14,
+    "lyric": "[by:synth-transcriber]\n{\"t\":0,\"c\":[{\"tx\":\"words: \"},{\"tx\":\"synth poet\"}]}\n[00:11:95]first invented line\n[00:20.50][01:05.00]repeated invented line\n[00:30.00]\n[00:40.025]last invented line"
+  },
+  "tlyric": {
+    "version": 6,
+    "lyric": "[by:synth-tl]\n[00:12.03]translated first line\n[00:20.51]translated repeated line\n[00:40.10]translated last line"
+  },
+  "romalrc": {
+    "version": 4,
+    "lyric": "[00:12.00]roma first line\n[00:40.00]roma last line"
+  },
+  "pureMusic": false,
+  "needDesc": false
+}

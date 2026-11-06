@@ -11,6 +11,7 @@ import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 import one.tunkshif.swirlmusic.data.cache.AccountScopedCache
 import one.tunkshif.swirlmusic.data.cache.RoomAccountScopedCache
+import one.tunkshif.swirlmusic.data.cache.LyricsDao
 import one.tunkshif.swirlmusic.data.cache.SwirlDatabase
 import one.tunkshif.swirlmusic.data.cache.TrackListDao
 
@@ -27,6 +28,9 @@ object CacheModule {
 
     @Provides
     fun trackListDao(db: SwirlDatabase): TrackListDao = db.trackListDao()
+
+    @Provides
+    fun lyricsDao(db: SwirlDatabase): LyricsDao = db.lyricsDao()
 }
 
 @Module

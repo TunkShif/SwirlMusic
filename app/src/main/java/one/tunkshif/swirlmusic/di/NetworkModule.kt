@@ -13,6 +13,7 @@ import one.tunkshif.swirlmusic.data.api.ApiConfig
 import one.tunkshif.swirlmusic.data.api.NcmAuthApi
 import one.tunkshif.swirlmusic.data.api.NcmHomeApi
 import one.tunkshif.swirlmusic.data.api.NcmLibraryApi
+import one.tunkshif.swirlmusic.data.api.NcmLyricsApi
 import one.tunkshif.swirlmusic.data.api.NcmPlaybackApi
 import one.tunkshif.swirlmusic.data.api.NcmApi
 import one.tunkshif.swirlmusic.data.api.SwirlApiInterceptor
@@ -80,6 +81,10 @@ object NetworkModule {
     @Provides
     @Singleton
     fun libraryApi(api: NcmApi): NcmLibraryApi = api
+
+    @Provides
+    @Singleton
+    fun lyricsApi(api: NcmApi): NcmLyricsApi = api
 
     @Provides
     @Singleton

@@ -11,6 +11,8 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
+import one.tunkshif.swirlmusic.data.local.LyricsPreferences
+import one.tunkshif.swirlmusic.data.local.LyricsPreferencesStore
 import one.tunkshif.swirlmusic.data.local.SearchHistory
 import one.tunkshif.swirlmusic.data.local.SearchHistoryStore
 import one.tunkshif.swirlmusic.data.session.DataStoreSessionStorage
@@ -42,4 +44,8 @@ object StorageModule {
     @Provides
     @Singleton
     fun searchHistory(store: SearchHistoryStore): SearchHistory = store
+
+    @Provides
+    @Singleton
+    fun lyricsPreferences(store: LyricsPreferencesStore): LyricsPreferences = store
 }

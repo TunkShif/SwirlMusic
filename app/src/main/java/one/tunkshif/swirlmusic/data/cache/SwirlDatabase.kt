@@ -1,12 +1,14 @@
 package one.tunkshif.swirlmusic.data.cache
 
+import androidx.room.AutoMigration
 import androidx.room.Database
 import androidx.room.RoomDatabase
 
 /**
- * This database is a cache (list snapshots, track metadata, playback resume). Schema bumps
- * drop every table via `fallbackToDestructiveMigration(true)` — losing cached lists and the
- * resume row is acceptable; the next open refetches.
+ * This database is a cache (list snapshots, track metadata, playback resume, lyrics). Schema
+ * bumps drop every table via `fallbackToDestructiveMigration(true)` — losing cached lists and the
+ * resume row is acceptable; the next open refetches. Lyrics ride an AutoMigration so existing
+ * rows survive.
  */
 @Database(
     entities = [
@@ -15,10 +17,13 @@ import androidx.room.RoomDatabase
         SnapshotTrackEntity::class,
         QueueItemEntity::class,
         PlaybackResumeEntity::class,
+        LyricsEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true,
+    autoMigrations = [AutoMigration(from = 4, to = 5)],
 )
 abstract class SwirlDatabase : RoomDatabase() {
     abstract fun trackListDao(): TrackListDao
+    abstract fun lyricsDao(): LyricsDao
 }

@@ -1,0 +1,19 @@
+{
+  "code": 200,
+  "sgc": false,
+  "sfy": true,
+  "qfy": false,
+  "lrc": {
+    "version": 14,
+    "lyric": "{\"t\":-3,\"c\":[{\"tx\":\"music: \"},{\"tx\":\"synth composer\"}]}\n[00:06.60]synthetic words line one\n[00:12.30]synthetic words line two"
+  },
+  "tlyric": {
+    "version": 3,
+    "lyric": "[00:06.65]translated words one\n[00:12.35]translated words two"
+  },
+  "yrc": {
+    "version": 1,
+    "lyric": "{\"t\":-1,\"c\":[{\"tx\":\"yrc credit: \"},{\"tx\":\"synth writer\"}]}\n[0,4800](0,500,0)syn(500,700,0)thetic (1200,800,0)words (2000,600,0)line (2600,700,0)one\n[6000,5000](6000,700,0)syn(6700,800,0)thetic (7500,900,0)words (8400,600,0)line (9000,700,0)two"
+  },
+  "pureMusic": false
+}

@@ -1,0 +1,10 @@
+{
+  "code": 200,
+  "pureMusic": true,
+  "needDesc": false,
+  "lrc": {
+    "version": 12,
+    "lyric": "{\"t\":0,\"c\":[{\"tx\":\"composer: \"},{\"tx\":\"synth keys\"}]}\n{\"t\":-5,\"c\":[{\"tx\":\"arranger: \"},{\"tx\":\"synth pads\"}]}\n[00:05.00]instrumental placeholder text"
+  },
+  "yrc": {"version": 1, "lyric": "{\"t\":0,\"c\":[{\"tx\":\"yrc credit: \"},{\"tx\":\"synth keys\"}]}"}
+}
