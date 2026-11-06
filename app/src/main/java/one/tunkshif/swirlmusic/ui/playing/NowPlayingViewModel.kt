@@ -4,12 +4,27 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import one.tunkshif.swirlmusic.data.api.ApiResult
 import one.tunkshif.swirlmusic.data.api.resizedArtwork
+import one.tunkshif.swirlmusic.data.local.LyricsExtra
+import one.tunkshif.swirlmusic.data.local.LyricsPreferences
+import one.tunkshif.swirlmusic.data.lyrics.LyricsRepository
+import one.tunkshif.swirlmusic.data.model.Lyrics
 import one.tunkshif.swirlmusic.player.LoopMode
 import one.tunkshif.swirlmusic.player.PlaybackError
 import one.tunkshif.swirlmusic.player.PlaybackState
@@ -51,7 +66,79 @@ sealed interface NowPlayingEvent {
     data class SkipTo(val uid: Long) : NowPlayingEvent
     data class Remove(val uid: Long) : NowPlayingEvent
     data class Move(val uid: Long, val targetUid: Long) : NowPlayingEvent
+    data object RetryLyrics : NowPlayingEvent
+    data object CycleLyricsExtra : NowPlayingEvent
 }
+
+sealed interface LyricsUiState {
+    data object Loading : LyricsUiState
+    data object Error : LyricsUiState
+    data class Content(
+        val lyrics: Lyrics,
+        /** Effective extra line: the preference if this song has it, else None. */
+        val extra: LyricsExtra,
+        /** [LyricsExtra.None] plus the kinds this song has (Synced only). */
+        val extraChoices: List<LyricsExtra>,
+    ) : LyricsUiState
+}
+
+internal fun lyricsContentOf(lyrics: Lyrics, preferred: LyricsExtra): LyricsUiState.Content {
+    val choices = if (lyrics is Lyrics.Synced) {
+        buildList {
+            add(LyricsExtra.None)
+            if (lyrics.hasTranslation) add(LyricsExtra.Translation)
+            if (lyrics.hasRomanization) add(LyricsExtra.Romanization)
+        }
+    } else {
+        listOf(LyricsExtra.None)
+    }
+    return LyricsUiState.Content(
+        lyrics = lyrics,
+        extra = if (preferred in choices) preferred else LyricsExtra.None,
+        extraChoices = choices,
+    )
+}
+
+internal fun nextExtra(choices: List<LyricsExtra>, current: LyricsExtra): LyricsExtra {
+    val index = choices.indexOf(current)
+    return choices[(index + 1) % choices.size]
+}
+
+/** The entry after current in play order, wrapping; null when the queue has under 2 items. */
+internal fun nextTrackIdInPlayOrder(state: PlaybackState): Long? {
+    if (state.queue.size < 2) return null
+    val order = state.playOrder.takeIf { it.isNotEmpty() } ?: state.queue.indices.toList()
+    val position = order.indexOf(state.currentIndex).takeIf { it >= 0 } ?: 0
+    val nextIndex = order[(position + 1) % order.size]
+    return state.queue.getOrNull(nextIndex)?.track?.id
+}
+
+/**
+ * Track id changes and retries fetch lyrics; a null marker goes out first so a new song or a
+ * retry never shows the previous song's lines. Null track id → Loading.
+ */
+@OptIn(ExperimentalCoroutinesApi::class)
+internal fun lyricsStateFlow(
+    trackIds: Flow<Long?>,
+    retry: Flow<Int>,
+    fetch: suspend (Long) -> ApiResult<Lyrics>,
+    extra: Flow<LyricsExtra>,
+): Flow<LyricsUiState> = trackIds
+    .combine(retry) { id, _ -> id }
+    .flatMapLatest { id ->
+        if (id == null) return@flatMapLatest flowOf<ApiResult<Lyrics>?>(null)
+        flow {
+            emit(null)
+            emit(fetch(id))
+        }
+    }
+    .combine(extra) { result, preferred ->
+        when {
+            result == null -> LyricsUiState.Loading
+            result is ApiResult.Success -> lyricsContentOf(result.value, preferred)
+            else -> LyricsUiState.Error
+        }
+    }
 
 data class QueueItemUi(
     val uid: Long,
@@ -124,9 +211,12 @@ internal fun PlaybackState.toNowPlayingUiState(): NowPlayingUiState {
     )
 }
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class NowPlayingViewModel @Inject constructor(
     private val controller: PlayerController,
+    private val lyricsRepository: LyricsRepository,
+    private val lyricsPreferences: LyricsPreferences,
 ) : ViewModel() {
 
     val state: StateFlow<NowPlayingUiState> = controller.state
@@ -147,6 +237,30 @@ class NowPlayingViewModel @Inject constructor(
             initialValue = QueueUiState(),
         )
 
+    private val lyricsRetry = MutableStateFlow(0)
+
+    val lyrics: StateFlow<LyricsUiState> = lyricsStateFlow(
+        trackIds = controller.state.map { it.current?.id }.distinctUntilChanged(),
+        retry = lyricsRetry,
+        fetch = lyricsRepository::lyrics,
+        extra = lyricsPreferences.extra,
+    )
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = LyricsUiState.Loading,
+        )
+
+    init {
+        viewModelScope.launch {
+            controller.state
+                .map(::nextTrackIdInPlayOrder)
+                .distinctUntilChanged()
+                .filterNotNull()
+                .collect { lyricsRepository.prefetch(it) }
+        }
+    }
+
     fun onEvent(event: NowPlayingEvent) {
         when (event) {
             NowPlayingEvent.PlayPause -> controller.togglePlayPause()
@@ -157,6 +271,11 @@ class NowPlayingViewModel @Inject constructor(
             is NowPlayingEvent.SkipTo -> controller.skipTo(event.uid)
             is NowPlayingEvent.Remove -> controller.remove(event.uid)
             is NowPlayingEvent.Move -> controller.move(event.uid, event.targetUid)
+            NowPlayingEvent.RetryLyrics -> lyricsRetry.update { it + 1 }
+            NowPlayingEvent.CycleLyricsExtra -> viewModelScope.launch {
+                val content = lyrics.value as? LyricsUiState.Content ?: return@launch
+                lyricsPreferences.setExtra(nextExtra(content.extraChoices, content.extra))
+            }
         }
     }
 }

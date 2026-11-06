@@ -1,6 +1,10 @@
 package one.tunkshif.swirlmusic.ui.playing
 
 import androidx.compose.foundation.basicMarquee
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,6 +26,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconToggleButton
 import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.FilledTonalIconToggleButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LoadingIndicator
@@ -83,6 +88,8 @@ fun NowPlayingRoute(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val queue by viewModel.queue.collectAsStateWithLifecycle()
+    val lyrics by viewModel.lyrics.collectAsStateWithLifecycle()
+    var showLyrics by rememberSaveable { mutableStateOf(false) }
     var showQueue by rememberSaveable { mutableStateOf(false) }
     // An empty queue means playback ended; the sheet has nothing to show.
     LaunchedEffect(queue.items.isEmpty()) {
@@ -95,6 +102,9 @@ fun NowPlayingRoute(
         onBack = onBack,
         onOpenAlbum = onOpenAlbum,
         onOpenQueue = { showQueue = true },
+        lyrics = lyrics,
+        showLyrics = showLyrics,
+        onToggleLyrics = { showLyrics = !showLyrics },
         modifier = modifier,
     )
     if (showQueue) {
@@ -114,7 +124,16 @@ fun NowPlayingScreen(
     onOpenAlbum: (Long) -> Unit,
     onOpenQueue: () -> Unit,
     modifier: Modifier = Modifier,
+    lyrics: LyricsUiState = LyricsUiState.Loading,
+    showLyrics: Boolean = false,
+    onToggleLyrics: () -> Unit = {},
 ) {
+    // One shared position source for the seek bar, the elapsed label and the lyrics pane.
+    val displayed = rememberDisplayedPosition(state.positionMs, state.durationMs, state.isPlaying)
+    val seekTo: (Long) -> Unit = { target ->
+        displayed.onSeeked(target)
+        onEvent(NowPlayingEvent.SeekTo(target))
+    }
     // Reading LocalNavAnimatedContentScope outside a NavEntry throws; it is only needed when a
     // shared transition exists, which previews and tests never provide.
     val navAnimatedScope =
@@ -130,7 +149,7 @@ fun NowPlayingScreen(
                 .windowInsetsPadding(WindowInsets.safeDrawing)
                 .padding(horizontal = Spacing.xl),
         ) {
-            TopRow(onBack)
+            TopRow(onBack, hasTrack = state.track != null, showLyrics = showLyrics, onToggleLyrics = onToggleLyrics)
             val track = state.track
             if (track == null) {
                 EmptyState(
@@ -148,22 +167,47 @@ fun NowPlayingScreen(
                         .fillMaxWidth(),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Artwork(
-                        url = track.artworkUrl,
-                        placeholderUrl = track.placeholderArtworkUrl,
-                        contentDescription = null,
-                        // The clip lives outside so the shared element can morph the corners.
-                        shape = androidx.compose.ui.graphics.RectangleShape,
-                        modifier = Modifier
-                            .padding(vertical = Spacing.lg)
-                            .aspectRatio(1f, matchHeightConstraintsFirst = true)
-                            .nowPlayingArtwork(navAnimatedScope, visibleCorner = NowPlayingDimens.coverCorner)
-                            .clip(MaterialTheme.shapes.extraLarge),
-                    )
+                    AnimatedContent(
+                        targetState = showLyrics,
+                        transitionSpec = {
+                            fadeIn() togetherWith fadeOut()
+                        },
+                        label = "coverLyrics",
+                    ) { lyricsShown ->
+                        if (lyricsShown) {
+                            LyricsPane(
+                                state = lyrics,
+                                position = { displayed.ms },
+                                onSeek = seekTo,
+                                onRetry = { onEvent(NowPlayingEvent.RetryLyrics) },
+                                onCycleExtra = { onEvent(NowPlayingEvent.CycleLyricsExtra) },
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(vertical = Spacing.lg),
+                            )
+                        } else {
+                            Artwork(
+                                url = track.artworkUrl,
+                                placeholderUrl = track.placeholderArtworkUrl,
+                                contentDescription = null,
+                                // The clip lives outside so the shared element morphs the corners.
+                                shape = androidx.compose.ui.graphics.RectangleShape,
+                                modifier = Modifier
+                                    .padding(vertical = Spacing.lg)
+                                    .aspectRatio(1f, matchHeightConstraintsFirst = true)
+                                    .nowPlayingArtwork(navAnimatedScope, visibleCorner = NowPlayingDimens.coverCorner)
+                                    .clip(MaterialTheme.shapes.extraLarge)
+                                    .clickable(
+                                        onClickLabel = stringResource(R.string.playing_show_lyrics),
+                                        role = Role.Button,
+                                    ) { onToggleLyrics() },
+                            )
+                        }
+                    }
                 }
                 TrackText(track, onOpenAlbum, isTrial = state.isTrial)
                 Spacer(Modifier.size(Spacing.xl))
-                SeekBlock(state, onEvent)
+                SeekBlock(state, onEvent, displayed, seekTo)
                 Spacer(Modifier.size(Spacing.md))
                 if (state.error != null) {
                     Text(
@@ -181,7 +225,12 @@ fun NowPlayingScreen(
 }
 
 @Composable
-private fun TopRow(onBack: () -> Unit) {
+private fun TopRow(
+    onBack: () -> Unit,
+    hasTrack: Boolean = false,
+    showLyrics: Boolean = false,
+    onToggleLyrics: () -> Unit = {},
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -204,7 +253,20 @@ private fun TopRow(onBack: () -> Unit) {
             textAlign = TextAlign.Center,
             modifier = Modifier.weight(1f),
         )
-        Spacer(Modifier.width(NowPlayingDimens.actionSmall))
+        if (hasTrack) {
+            FilledTonalIconToggleButton(
+                checked = showLyrics,
+                onCheckedChange = { onToggleLyrics() },
+                modifier = Modifier.size(NowPlayingDimens.actionSmall),
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_lyrics),
+                    contentDescription = stringResource(R.string.playing_lyrics),
+                )
+            }
+        } else {
+            Spacer(Modifier.width(NowPlayingDimens.actionSmall))
+        }
     }
 }
 
@@ -273,8 +335,9 @@ private fun TrackText(
 private fun SeekBlock(
     state: NowPlayingUiState,
     onEvent: (NowPlayingEvent) -> Unit,
+    displayed: DisplayedPosition,
+    seekTo: (Long) -> Unit,
 ) {
-    val displayed = rememberDisplayedPosition(state.positionMs, state.durationMs, state.isPlaying)
     val elapsedSeconds by remember { derivedStateOf { displayed.ms / 1_000 } }
     val timeStyle = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum")
     Column {
@@ -283,10 +346,7 @@ private fun SeekBlock(
             durationMs = state.durationMs,
             isPlaying = state.isPlaying,
             enabled = state.durationMs > 0 && !state.isLoading,
-            onSeek = { target ->
-                displayed.onSeeked(target)
-                onEvent(NowPlayingEvent.SeekTo(target))
-            },
+            onSeek = seekTo,
             modifier = Modifier.fillMaxWidth(),
         )
         Row(modifier = Modifier.fillMaxWidth()) {

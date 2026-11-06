@@ -40,3 +40,63 @@ internal val QueueFixture = QueueUiState(
     currentUid = 2L,
     canReorder = true,
 )
+
+internal val LyricsSynced = LyricsUiState.Content(
+    lyrics = one.tunkshif.swirlmusic.data.model.Lyrics.Synced(
+        lines = (0 until 12).map { i ->
+            one.tunkshif.swirlmusic.data.model.LyricLine(
+                startMs = i * 4_000L,
+                endMs = (i + 1) * 4_000L,
+                text = "Invented lyric line " + ('A' + i),
+                translation = "translated line " + ('A' + i),
+            )
+        },
+        credits = listOf("words: synth poet"),
+    ),
+    extra = one.tunkshif.swirlmusic.data.local.LyricsExtra.Translation,
+    extraChoices = listOf(
+        one.tunkshif.swirlmusic.data.local.LyricsExtra.None,
+        one.tunkshif.swirlmusic.data.local.LyricsExtra.Translation,
+    ),
+)
+
+internal val LyricsRomanized = LyricsUiState.Content(
+    lyrics = (LyricsSynced.lyrics as one.tunkshif.swirlmusic.data.model.Lyrics.Synced).let { s ->
+        s.copy(lines = s.lines.map { it.copy(translation = null, romanization = "roma " + it.text) })
+    },
+    extra = one.tunkshif.swirlmusic.data.local.LyricsExtra.Romanization,
+    extraChoices = listOf(
+        one.tunkshif.swirlmusic.data.local.LyricsExtra.None,
+        one.tunkshif.swirlmusic.data.local.LyricsExtra.Romanization,
+    ),
+)
+
+internal val LyricsWordTimed = LyricsUiState.Content(
+    lyrics = one.tunkshif.swirlmusic.data.model.Lyrics.Synced(
+        lines = listOf(
+            one.tunkshif.swirlmusic.data.model.LyricLine(
+                startMs = 0, endMs = 30_000, text = "invented words fade in",
+            ),
+            one.tunkshif.swirlmusic.data.model.LyricLine(
+                startMs = 30_000, endMs = Long.MAX_VALUE, text = "made up karaoke line",
+                words = listOf(
+                    one.tunkshif.swirlmusic.data.model.LyricWord(30_000, 4_000, "made"),
+                    one.tunkshif.swirlmusic.data.model.LyricWord(34_000, 4_000, " up"),
+                    one.tunkshif.swirlmusic.data.model.LyricWord(38_000, 4_000, " karaoke"),
+                    one.tunkshif.swirlmusic.data.model.LyricWord(42_000, 8_000, " line"),
+                ),
+            ),
+        ),
+        credits = emptyList(),
+    ),
+    extra = one.tunkshif.swirlmusic.data.local.LyricsExtra.None,
+    extraChoices = listOf(one.tunkshif.swirlmusic.data.local.LyricsExtra.None),
+)
+
+internal val LyricsInstrumental = LyricsUiState.Content(
+    lyrics = one.tunkshif.swirlmusic.data.model.Lyrics.Instrumental(
+        credits = listOf("composer: synth keys"),
+    ),
+    extra = one.tunkshif.swirlmusic.data.local.LyricsExtra.None,
+    extraChoices = listOf(one.tunkshif.swirlmusic.data.local.LyricsExtra.None),
+)

@@ -80,7 +80,13 @@ class NowPlayingScreenshotTest {
         compose.onRoot().captureRoboImage("src/test/screenshots/playing/$name.png")
     }
 
-    private fun capture(name: String, state: NowPlayingUiState, dark: Boolean) {
+    private fun capture(
+        name: String,
+        state: NowPlayingUiState,
+        dark: Boolean,
+        lyrics: LyricsUiState = LyricsUiState.Loading,
+        showLyrics: Boolean = false,
+    ) {
         compose.mainClock.autoAdvance = false
         compose.setContent {
             SwirlMusicTheme(darkTheme = dark, dynamicColor = false) {
@@ -94,6 +100,8 @@ class NowPlayingScreenshotTest {
                         onBack = {},
                         onOpenAlbum = {},
                         onOpenQueue = {},
+                        lyrics = lyrics,
+                        showLyrics = showLyrics,
                     )
                 }
             }
@@ -104,6 +112,25 @@ class NowPlayingScreenshotTest {
             roborazziOptions = WAVY_TOLERANCE,
         )
     }
+
+
+    @Test
+    fun lyrics_synced_light() = capture("lyrics-synced-light", PlayingStatePlaying, dark = false, lyrics = LyricsSynced, showLyrics = true)
+
+    @Test
+    fun lyrics_synced_dark() = capture("lyrics-synced-dark", PlayingStatePlaying, dark = true, lyrics = LyricsSynced, showLyrics = true)
+
+    @Test
+    fun lyrics_word_timed_light() = capture("lyrics-word-timed-light", PlayingStatePlaying, dark = false, lyrics = LyricsWordTimed, showLyrics = true)
+
+    @Test
+    fun lyrics_romanization_light() = capture("lyrics-romanization-light", PlayingStatePlaying, dark = false, lyrics = LyricsRomanized, showLyrics = true)
+
+    @Test
+    fun lyrics_error_light() = capture("lyrics-error-light", PlayingStatePlaying, dark = false, lyrics = LyricsUiState.Error, showLyrics = true)
+
+    @Test
+    fun lyrics_instrumental_light() = capture("lyrics-instrumental-light", PlayingStatePlaying, dark = false, lyrics = LyricsInstrumental, showLyrics = true)
 
     private companion object {
         /**

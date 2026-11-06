@@ -146,4 +146,16 @@
     <string name="track_list_more">More</string>
     <string name="track_list_show_details">Show details</string>
     <string name="track_list_disc_fmt">Disc %1$d</string>
+    <string name="playing_lyrics">Lyrics</string>
+    <string name="playing_lyrics_error">Couldn\'t load lyrics</string>
+    <string name="playing_lyrics_retry">Retry</string>
+    <string name="playing_lyrics_none">No lyrics</string>
+    <string name="playing_lyrics_instrumental">Instrumental</string>
+    <string name="playing_lyrics_unsynced">Lyrics aren\'t synced for this song</string>
+    <string name="playing_lyrics_extra_original">Original</string>
+    <string name="playing_lyrics_extra_translation">Translation</string>
+    <string name="playing_lyrics_extra_romanization">Romanized</string>
+    <string name="playing_lyrics_extra_change">Change lyrics extra line</string>
+    <string name="playing_lyrics_play_from_line">Play from this line</string>
+    <string name="playing_show_lyrics">Show lyrics</string>
 </resources>

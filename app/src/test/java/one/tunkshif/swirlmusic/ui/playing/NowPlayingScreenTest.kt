@@ -165,4 +165,60 @@ class NowPlayingScreenTest {
 
         compose.onNodeWithText(context.getString(R.string.playing_empty_body)).assertExists()
     }
+
+    @Test
+    fun `the lyrics toggle and cover tap call the toggle`() {
+        var toggles = 0
+        compose.setContent {
+            SwirlMusicTheme(dynamicColor = false) {
+                NowPlayingScreen(
+                    state = PlayingStatePlaying,
+                    onEvent = {},
+                    onBack = {},
+                    onOpenAlbum = {},
+                    onOpenQueue = {},
+                    onToggleLyrics = { toggles++ },
+                )
+            }
+        }
+
+        compose.onNodeWithContentDescription(context.getString(R.string.playing_lyrics)).performClick()
+        assertThat(toggles).isEqualTo(1)
+
+        compose.onNode(
+            androidx.compose.ui.test.SemanticsMatcher("click label") { node ->
+                runCatching {
+                    node.config[androidx.compose.ui.semantics.SemanticsActions.OnClick].label
+                }.getOrNull() == context.getString(R.string.playing_show_lyrics)
+            },
+        ).performClick()
+        assertThat(toggles).isEqualTo(2)
+    }
+
+    @Test
+    fun `showLyrics renders the pane instead of the cover`() {
+        val lyrics = one.tunkshif.swirlmusic.data.model.Lyrics.Synced(
+            lines = listOf(
+                one.tunkshif.swirlmusic.data.model.LyricLine(0, Long.MAX_VALUE, "lyric line one"),
+            ),
+            credits = emptyList(),
+        )
+        compose.setContent {
+            SwirlMusicTheme(dynamicColor = false) {
+                NowPlayingScreen(
+                    state = PlayingStatePlaying,
+                    onEvent = {},
+                    onBack = {},
+                    onOpenAlbum = {},
+                    onOpenQueue = {},
+                    lyrics = LyricsUiState.Content(lyrics, one.tunkshif.swirlmusic.data.local.LyricsExtra.None, listOf(one.tunkshif.swirlmusic.data.local.LyricsExtra.None)),
+                    showLyrics = true,
+                )
+            }
+        }
+        compose.mainClock.advanceTimeBy(600)
+        compose.waitForIdle()
+
+        compose.onNodeWithText("lyric line one").assertExists()
+    }
 }
