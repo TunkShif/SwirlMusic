@@ -45,8 +45,18 @@ data class NowPlayingTrack(
     val placeholderArtworkUrl: String?,
 )
 
+/** A neighbour cover for the carousel; artwork pre-resized like the main cover. */
+data class NowPlayingCover(
+    val uid: Long,
+    val artworkUrl: String?,
+    val placeholderArtworkUrl: String?,
+)
+
 data class NowPlayingUiState(
     val track: NowPlayingTrack? = null,
+    val currentUid: Long? = null,
+    val previous: NowPlayingCover? = null,
+    val next: NowPlayingCover? = null,
     val isPlaying: Boolean = false,
     val isLoading: Boolean = false,
     val isTrial: Boolean = false,
@@ -62,10 +72,8 @@ sealed interface NowPlayingEvent {
     data object Next : NowPlayingEvent
     data object Previous : NowPlayingEvent
     data object CycleLoopMode : NowPlayingEvent
+    data class SkipToCover(val uid: Long) : NowPlayingEvent
     data class SeekTo(val positionMs: Long) : NowPlayingEvent
-    data class SkipTo(val uid: Long) : NowPlayingEvent
-    data class Remove(val uid: Long) : NowPlayingEvent
-    data class Move(val uid: Long, val targetUid: Long) : NowPlayingEvent
     data object RetryLyrics : NowPlayingEvent
     data object CycleLyricsExtra : NowPlayingEvent
 }
@@ -179,16 +187,25 @@ internal fun queueUiStateOf(
     )
 }
 
-/** The inputs [toQueueUiState] reads: position ticks do not remap the queue. */
-private data class QueueKey(
-    val queue: List<QueueEntry>,
-    val playOrder: List<Int>,
-    val currentIndex: Int,
-    val loopMode: LoopMode,
-)
-
 internal fun PlaybackState.toNowPlayingUiState(): NowPlayingUiState {
     val current = current
+    val currentEntry = queue.getOrNull(currentIndex)
+
+    // Play-order neighbours of current, wrapping; null when the queue has under 2 items.
+    fun neighbourCover(offset: Int): NowPlayingCover? {
+        if (queue.size < 2) return null
+        val order = playOrder.takeIf { it.isNotEmpty() } ?: queue.indices.toList()
+        val position = order.indexOf(currentIndex).takeIf { it >= 0 } ?: 0
+        val index = order[(position + offset + order.size) % order.size]
+        return queue.getOrNull(index)?.let { entry ->
+            NowPlayingCover(
+                uid = entry.uid,
+                artworkUrl = entry.track.artworkUrl?.let { resizedArtwork(it, COVER_ARTWORK_PX) },
+                placeholderArtworkUrl = entry.track.artworkUrl,
+            )
+        }
+    }
+
     return NowPlayingUiState(
         track = current?.let { track ->
             NowPlayingTrack(
@@ -200,6 +217,9 @@ internal fun PlaybackState.toNowPlayingUiState(): NowPlayingUiState {
                 placeholderArtworkUrl = track.artworkUrl,
             )
         },
+        currentUid = currentEntry?.uid,
+        previous = neighbourCover(offset = -1),
+        next = neighbourCover(offset = 1),
         isPlaying = if (pending != null) playIntent else isPlaying,
         isLoading = isLoading,
         isTrial = isTrial,
@@ -225,16 +245,6 @@ class NowPlayingViewModel @Inject constructor(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = NowPlayingUiState(),
-        )
-
-    val queue: StateFlow<QueueUiState> = controller.state
-        .map { QueueKey(it.queue, it.playOrder, it.currentIndex, it.loopMode) }
-        .distinctUntilChanged()
-        .map { queueUiStateOf(it.queue, it.playOrder, it.currentIndex, it.loopMode) }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = QueueUiState(),
         )
 
     private val lyricsRetry = MutableStateFlow(0)
@@ -265,12 +275,10 @@ class NowPlayingViewModel @Inject constructor(
         when (event) {
             NowPlayingEvent.PlayPause -> controller.togglePlayPause()
             NowPlayingEvent.Next -> controller.next()
+            is NowPlayingEvent.SkipToCover -> controller.skipTo(event.uid)
             NowPlayingEvent.Previous -> controller.previous()
             NowPlayingEvent.CycleLoopMode -> controller.cycleLoopMode()
             is NowPlayingEvent.SeekTo -> controller.seekTo(event.positionMs)
-            is NowPlayingEvent.SkipTo -> controller.skipTo(event.uid)
-            is NowPlayingEvent.Remove -> controller.remove(event.uid)
-            is NowPlayingEvent.Move -> controller.move(event.uid, event.targetUid)
             NowPlayingEvent.RetryLyrics -> lyricsRetry.update { it + 1 }
             NowPlayingEvent.CycleLyricsExtra -> viewModelScope.launch {
                 val content = lyrics.value as? LyricsUiState.Content ?: return@launch

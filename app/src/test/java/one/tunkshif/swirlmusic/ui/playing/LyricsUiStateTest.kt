@@ -146,4 +146,26 @@ class LyricsUiStateTest {
             cancelAndIgnoreRemainingEvents()
         }
     }
+
+    @Test
+    fun `neighbour covers wrap in play order`() {
+        val tracks = queueState(currentIndex = 1).toNowPlayingUiState()
+        assertThat(tracks.previous?.uid).isEqualTo(0L)
+        assertThat(tracks.next?.uid).isEqualTo(2L)
+        assertThat(tracks.currentUid).isEqualTo(1L)
+
+        // First → prev wraps to last; last → next wraps to first.
+        assertThat(queueState(currentIndex = 0).toNowPlayingUiState().previous?.uid).isEqualTo(2L)
+        assertThat(queueState(currentIndex = 2).toNowPlayingUiState().next?.uid).isEqualTo(0L)
+
+        // Shuffled order [0,2,1]: after index1 comes index0.
+        val shuffled = queueState(order = listOf(0, 2, 1), currentIndex = 1).toNowPlayingUiState()
+        assertThat(shuffled.next?.uid).isEqualTo(0L)
+
+        // One entry → no neighbours; two → prev and next are the other entry.
+        assertThat(queueState(size = 1).toNowPlayingUiState().next).isNull()
+        val two = queueState(size = 2, currentIndex = 0).toNowPlayingUiState()
+        assertThat(two.previous?.uid).isEqualTo(1L)
+        assertThat(two.next?.uid).isEqualTo(1L)
+    }
 }

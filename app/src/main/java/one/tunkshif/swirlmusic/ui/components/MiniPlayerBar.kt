@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -47,6 +48,7 @@ fun MiniPlayerBar(
     onPlayPause: () -> Unit,
     onOpen: () -> Unit,
     modifier: Modifier = Modifier,
+    onOpenQueue: () -> Unit = {},
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
 ) {
     Surface(
@@ -90,6 +92,17 @@ fun MiniPlayerBar(
                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                )
+            }
+
+            IconButton(
+                onClick = onOpenQueue,
+                modifier = Modifier.size(48.dp),
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_queue_music),
+                    contentDescription = stringResource(R.string.playing_queue),
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
             }
 

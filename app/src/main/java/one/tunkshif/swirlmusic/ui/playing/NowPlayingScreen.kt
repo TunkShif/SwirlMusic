@@ -86,36 +86,24 @@ fun NowPlayingRoute(
     onBack: () -> Unit,
     onOpenAlbum: (Long) -> Unit,
     modifier: Modifier = Modifier,
+    onOpenQueue: () -> Unit = {},
     viewModel: NowPlayingViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val queue by viewModel.queue.collectAsStateWithLifecycle()
     val lyrics by viewModel.lyrics.collectAsStateWithLifecycle()
     var showLyrics by rememberSaveable { mutableStateOf(false) }
-    var showQueue by rememberSaveable { mutableStateOf(false) }
-    // An empty queue means playback ended; the sheet has nothing to show.
-    LaunchedEffect(queue.items.isEmpty()) {
-        if (queue.items.isEmpty()) showQueue = false
-    }
 
     NowPlayingScreen(
         state = state,
         onEvent = viewModel::onEvent,
         onBack = onBack,
         onOpenAlbum = onOpenAlbum,
-        onOpenQueue = { showQueue = true },
+        onOpenQueue = onOpenQueue,
         lyrics = lyrics,
         showLyrics = showLyrics,
         onToggleLyrics = { showLyrics = !showLyrics },
         modifier = modifier,
     )
-    if (showQueue) {
-        QueueSheet(
-            queue = queue,
-            onEvent = viewModel::onEvent,
-            onDismiss = { showQueue = false },
-        )
-    }
 }
 
 @Composable
@@ -192,21 +180,30 @@ fun NowPlayingScreen(
                                     .padding(vertical = Spacing.lg),
                             )
                         } else {
-                            Artwork(
-                                url = track.artworkUrl,
-                                placeholderUrl = track.placeholderArtworkUrl,
-                                contentDescription = null,
-                                // The clip lives outside so the shared element morphs the corners.
-                                shape = androidx.compose.ui.graphics.RectangleShape,
-                                modifier = Modifier
-                                    .padding(vertical = Spacing.lg)
+                            CoverCarousel(
+                                current = track,
+                                currentUid = state.currentUid,
+                                previous = state.previous,
+                                next = state.next,
+                                onSkipTo = { uid -> onEvent(NowPlayingEvent.SkipToCover(uid)) },
+                                coverModifier = Modifier
                                     .aspectRatio(1f, matchHeightConstraintsFirst = true)
-                                    .nowPlayingArtwork(navAnimatedScope, visibleCorner = NowPlayingDimens.coverCorner)
+                                    .nowPlayingArtwork(
+                                        navAnimatedScope,
+                                        visibleCorner = NowPlayingDimens.coverCorner,
+                                    )
+                                    // The clip lives outside so the shared element morphs the corners.
                                     .clip(MaterialTheme.shapes.extraLarge)
                                     .clickable(
                                         onClickLabel = stringResource(R.string.playing_show_lyrics),
                                         role = Role.Button,
                                     ) { onToggleLyrics() },
+                                // bleed must stay equal to the Column's horizontal padding
+                                // (Spacing.xl) so covers exit at the physical screen edge.
+                                bleed = Spacing.xl,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = Spacing.lg),
                             )
                         }
                     }

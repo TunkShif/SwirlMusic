@@ -1,5 +1,7 @@
 package one.tunkshif.swirlmusic.ui.playing
 
+import one.tunkshif.swirlmusic.ui.player.QueueEvent
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -64,7 +66,7 @@ private object QueueDimens {
 @Composable
 fun QueueSheet(
     queue: QueueUiState,
-    onEvent: (NowPlayingEvent) -> Unit,
+    onEvent: (QueueEvent) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -85,7 +87,7 @@ fun QueueSheet(
 @Composable
 fun QueueSheetContent(
     queue: QueueUiState,
-    onEvent: (NowPlayingEvent) -> Unit,
+    onEvent: (QueueEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
@@ -164,7 +166,7 @@ fun QueueSheetContent(
                                                     val toIndex = localItems.indexOfFirst { it.uid == uid }
                                                     if (fromIndex >= 0 && toIndex in queue.items.indices && toIndex != fromIndex) {
                                                         onEvent(
-                                                            NowPlayingEvent.Move(
+                                                            QueueEvent.Move(
                                                                 uid = uid,
                                                                 targetUid = queue.items[toIndex].uid,
                                                             ),
@@ -192,7 +194,7 @@ private fun QueueRow(
     canReorder: Boolean,
     originalIndex: Int,
     originalItems: List<QueueItemUi>,
-    onEvent: (NowPlayingEvent) -> Unit,
+    onEvent: (QueueEvent) -> Unit,
     dragHandle: @Composable () -> Unit,
 ) {
     val removeLabel = stringResource(R.string.playing_queue_remove)
@@ -203,7 +205,7 @@ private fun QueueRow(
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
             if (value == SwipeToDismissBoxValue.EndToStart) {
-                onEvent(NowPlayingEvent.Remove(item.uid))
+                onEvent(QueueEvent.Remove(item.uid))
             }
             // The row itself always returns: the controller decides whether it actually leaves.
             false
@@ -242,13 +244,13 @@ private fun QueueRow(
                         MaterialTheme.colorScheme.surface
                     },
                 )
-                .clickable { onEvent(NowPlayingEvent.SkipTo(item.uid)) }
+                .clickable { onEvent(QueueEvent.SkipTo(item.uid)) }
                 .semantics {
                     if (isCurrent) stateDescription = nowPlayingLabel
                     customActions = buildList {
                         add(
                             CustomAccessibilityAction(removeLabel) {
-                                onEvent(NowPlayingEvent.Remove(item.uid))
+                                onEvent(QueueEvent.Remove(item.uid))
                                 true
                             },
                         )
@@ -256,7 +258,7 @@ private fun QueueRow(
                             originalItems.getOrNull(originalIndex - 1)?.let { previous ->
                                 add(
                                     CustomAccessibilityAction(moveUpLabel) {
-                                        onEvent(NowPlayingEvent.Move(item.uid, previous.uid))
+                                        onEvent(QueueEvent.Move(item.uid, previous.uid))
                                         true
                                     },
                                 )
@@ -264,7 +266,7 @@ private fun QueueRow(
                             originalItems.getOrNull(originalIndex + 1)?.let { next ->
                                 add(
                                     CustomAccessibilityAction(moveDownLabel) {
-                                        onEvent(NowPlayingEvent.Move(item.uid, next.uid))
+                                        onEvent(QueueEvent.Move(item.uid, next.uid))
                                         true
                                     },
                                 )

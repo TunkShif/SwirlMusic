@@ -3,10 +3,15 @@ package one.tunkshif.swirlmusic.ui.playing
 import one.tunkshif.swirlmusic.R
 
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.geometry.Offset
+import one.tunkshif.swirlmusic.ui.components.LocalArtworkPainterResolver
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performTouchInput
 import com.github.takahirom.roborazzi.RoborazziOptions
 import com.github.takahirom.roborazzi.captureRoboImage
 import one.tunkshif.swirlmusic.ui.components.LocalArtworkPainter
@@ -153,6 +158,57 @@ class NowPlayingScreenshotTest {
             show(R.drawable.ic_translate, R.string.playing_lyrics_showing_translation)
         },
     )
+
+
+
+
+    /** ~40 % drag toward Next: current cover slid left, next cover entering from the right. */
+    private fun captureSwipe(name: String, shortDevice: Boolean) {
+        if (shortDevice) RuntimeEnvironment.setQualifiers("+w360dp-h640dp")
+        compose.mainClock.autoAdvance = false
+        val painters: (String?) -> androidx.compose.ui.graphics.painter.Painter? = { url ->
+            when (url) {
+                "u1" -> androidx.compose.ui.graphics.painter.ColorPainter(androidx.compose.ui.graphics.Color(0xFF9AA0C8))
+                "u2" -> androidx.compose.ui.graphics.painter.ColorPainter(androidx.compose.ui.graphics.Color(0xFFC89AA0))
+                else -> androidx.compose.ui.graphics.painter.ColorPainter(androidx.compose.ui.graphics.Color(0xFFA0C89A))
+            }
+        }
+        compose.setContent {
+            SwirlMusicTheme(darkTheme = false, dynamicColor = false) {
+                CompositionLocalProvider(
+                    LocalArtworkPainterResolver provides painters,
+                    LocalPositionClock provides { 0L },
+                ) {
+                    NowPlayingScreen(
+                        state = PlayingStatePlaying.copy(
+                            currentUid = 1,
+                            previous = NowPlayingCover(0, "u0", null),
+                            next = NowPlayingCover(2, "u2", null),
+                            track = PlayingStatePlaying.track!!.copy(artworkUrl = "u1"),
+                        ),
+                        onEvent = {},
+                        onBack = {},
+                        onOpenAlbum = {},
+                        onOpenQueue = {},
+                    )
+                }
+            }
+        }
+        compose.mainClock.advanceTimeByFrame()
+        compose.onRoot().performTouchInput {
+            down(center)
+            moveBy(Offset(-viewConfiguration.touchSlop - width * 0.4f, 0f))
+        }
+        // Push a layout frame so the drag offset is rendered before capture.
+        compose.mainClock.advanceTimeByFrame()
+        compose.onRoot().captureRoboImage("src/test/screenshots/playing/$name.png")
+    }
+
+    @Test
+    fun playing_swipe_mid_light() = captureSwipe("playing-swipe-mid-light", shortDevice = false)
+
+    @Test
+    fun playing_swipe_short_light() = captureSwipe("playing-swipe-short-light", shortDevice = true)
 
     private companion object {
         /**

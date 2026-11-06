@@ -51,7 +51,15 @@ import one.tunkshif.swirlmusic.navigation.ProfileKey
 import one.tunkshif.swirlmusic.navigation.TopLevelDestination
 import one.tunkshif.swirlmusic.data.model.Track
 import one.tunkshif.swirlmusic.ui.components.LocalSharedTransitionScope
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import one.tunkshif.swirlmusic.ui.components.MiniPlayerBar
+import one.tunkshif.swirlmusic.ui.player.QueueEvent
+import one.tunkshif.swirlmusic.ui.playing.QueueSheet
+import one.tunkshif.swirlmusic.ui.playing.QueueUiState
 import one.tunkshif.swirlmusic.ui.player.MiniPlayerUiState
 import one.tunkshif.swirlmusic.player.PlayerController
 import one.tunkshif.swirlmusic.data.model.UserProfile
@@ -123,10 +131,19 @@ fun SwirlApp(
      * The full-screen player. A parameter, like [homeContent], so shell tests can render the
      * screen with a fixed state and no Hilt.
      */
-    playingContent: @Composable (onBack: () -> Unit, onOpenAlbum: (Long) -> Unit) -> Unit = { onBack, onOpenAlbum ->
-        NowPlayingRoute(onBack = onBack, onOpenAlbum = onOpenAlbum)
-    },
+    queue: QueueUiState = QueueUiState(),
+    onQueueEvent: (QueueEvent) -> Unit = {},
+    playingContent: @Composable (onBack: () -> Unit, onOpenAlbum: (Long) -> Unit, onOpenQueue: () -> Unit) -> Unit =
+        { onBack, onOpenAlbum, onOpenQueue ->
+            NowPlayingRoute(onBack = onBack, onOpenAlbum = onOpenAlbum, onOpenQueue = onOpenQueue)
+        },
 ) {
+    var showQueue by rememberSaveable { mutableStateOf(false) }
+    // An empty queue means playback ended; the sheet has nothing to show.
+    LaunchedEffect(queue.items.isEmpty()) {
+        if (queue.items.isEmpty()) showQueue = false
+    }
+
     val backStack = rememberNavBackStack(HomeKey)
     val currentKey = backStack.lastOrNull()
     val selectedDestination = selectedTab(backStack)
@@ -167,6 +184,7 @@ fun SwirlApp(
                                     state = miniPlayer,
                                     onPlayPause = onPlayPause,
                                     onOpen = { backStack.add(PlayingKey) },
+                                    onOpenQueue = { showQueue = true },
                                     animatedVisibilityScope = dockScope,
                                 )
                             }
@@ -289,11 +307,20 @@ fun SwirlApp(
                             backStack.removeLastOrNull()
                             backStack.add(AlbumKey(id))
                         },
+                        { showQueue = true },
                     )
                 }
             },
         )
         }
         }
+    }
+
+    if (showQueue) {
+        QueueSheet(
+            queue = queue,
+            onEvent = onQueueEvent,
+            onDismiss = { showQueue = false },
+        )
     }
 }

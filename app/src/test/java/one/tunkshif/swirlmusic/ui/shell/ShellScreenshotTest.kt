@@ -95,7 +95,7 @@ class ShellScreenshotTest {
                         onPlayTracks = { _, _, _ -> },
                         homeContent = { TestHome() },
                         libraryContent = { _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
-                        playingContent = { _, _ ->
+                        playingContent = { _, _, _ ->
                             one.tunkshif.swirlmusic.ui.playing.NowPlayingScreen(
                                 state = one.tunkshif.swirlmusic.ui.playing.PlayingStatePlaying,
                                 onEvent = {},

@@ -22,6 +22,12 @@ import coil3.request.ImageRequest
 val LocalArtworkPainter = staticCompositionLocalOf<Painter?> { null }
 
 /**
+ * Test seam like [LocalArtworkPainter] but resolved per URL, consulted first — lets one golden
+ * show distinct placeholder colours for current/previous/next covers.
+ */
+val LocalArtworkPainterResolver = staticCompositionLocalOf<((url: String?) -> Painter?)?> { null }
+
+/**
  * Artwork slot. Shows the theme's surface while the image loads, or when there is none.
  */
 @Composable
@@ -33,7 +39,8 @@ fun Artwork(
     /** An already-loaded smaller URL, shown while [url] loads so the image never flashes empty. */
     placeholderUrl: String? = null,
 ) {
-    val override = LocalArtworkPainter.current
+    val override = LocalArtworkPainterResolver.current?.invoke(url)
+        ?: LocalArtworkPainter.current
     Box(
         modifier = modifier
             .clip(shape)

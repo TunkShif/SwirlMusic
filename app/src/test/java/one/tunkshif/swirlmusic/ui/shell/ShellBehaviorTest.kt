@@ -13,6 +13,8 @@ import one.tunkshif.swirlmusic.R
 import one.tunkshif.swirlmusic.data.model.UserProfile
 import one.tunkshif.swirlmusic.navigation.TopLevelDestination
 import one.tunkshif.swirlmusic.ui.components.MINI_PLAYER_TAG
+import one.tunkshif.swirlmusic.ui.playing.QueueItemUi
+import one.tunkshif.swirlmusic.ui.playing.QueueUiState
 import one.tunkshif.swirlmusic.ui.home.HomeScreen
 import one.tunkshif.swirlmusic.ui.player.MiniPlayerUiState
 import one.tunkshif.swirlmusic.ui.home.HomeTestData
@@ -110,7 +112,7 @@ class ShellBehaviorTest {
                     onPlayTracks = { _, _, _ -> },
                     homeContent = { TestHome() },
                     libraryContent = { _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
-                    playingContent = { onBack, _ -> PlayingStub(onBack) },
+                    playingContent = { onBack, _, _ -> PlayingStub(onBack) },
                 )
             }
         }
@@ -141,7 +143,7 @@ class ShellBehaviorTest {
                     onPlayTracks = { _, _, _ -> },
                     homeContent = { TestHome() },
                     libraryContent = { _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
-                    playingContent = { onBack, _ -> PlayingStub(onBack) },
+                    playingContent = { onBack, _, _ -> PlayingStub(onBack) },
                 )
             }
         }
@@ -212,5 +214,73 @@ class ShellBehaviorTest {
             onOpenAlbum = {},
             onOpenQueue = {},
         )
+    }
+
+    @Test
+    fun `the mini player queue button opens the queue sheet`() {
+        compose.setContent {
+            SwirlMusicTheme(dynamicColor = false) {
+                SwirlApp(
+                    profile = profile,
+                    onSignOut = {},
+                    miniPlayer = MiniPlayerUiState(title = "Nightcall", subtitle = "Kavinsky"),
+                    onPlayPause = {},
+                    onPlayTracks = { _, _, _ -> },
+                    queue = QueueUiState(
+                        items = listOf(
+                            QueueItemUi(uid = 1, title = "Queue item one", artistLine = "a", artworkUrl = null),
+                        ),
+                    ),
+                    onQueueEvent = {},
+                    homeContent = { TestHome() },
+                    libraryContent = { _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
+                    playingContent = { _, _, _ -> androidx.compose.material3.Text("Playing stub") },
+                )
+            }
+        }
+
+        compose.onNodeWithContentDescription(context.getString(R.string.playing_queue)).performClick()
+
+        compose.onNodeWithText("Queue item one").assertExists()
+    }
+
+    @Test
+    fun `the playing queue button opens the same sheet and an empty queue closes it`() {
+        val queue = androidx.compose.runtime.mutableStateOf(
+            QueueUiState(
+                items = listOf(
+                    QueueItemUi(uid = 1, title = "Queue item one", artistLine = "a", artworkUrl = null),
+                ),
+            ),
+        )
+        compose.setContent {
+            SwirlMusicTheme(dynamicColor = false) {
+                SwirlApp(
+                    profile = profile,
+                    onSignOut = {},
+                    miniPlayer = MiniPlayerUiState(title = "Nightcall", subtitle = "Kavinsky"),
+                    onPlayPause = {},
+                    onPlayTracks = { _, _, _ -> },
+                    queue = queue.value,
+                    onQueueEvent = {},
+                    homeContent = { TestHome() },
+                    libraryContent = { _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
+                    playingContent = { _, _, onOpenQueue ->
+                        androidx.compose.foundation.layout.Column {
+                            androidx.compose.material3.Text("Playing stub")
+                            androidx.compose.runtime.SideEffect { onOpenQueue() }
+                        }
+                    },
+                )
+            }
+        }
+
+        compose.onNodeWithTag(MINI_PLAYER_TAG).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText("Queue item one").assertExists()
+
+        queue.value = QueueUiState()
+        compose.waitForIdle()
+        compose.onNodeWithText("Queue item one").assertDoesNotExist()
     }
 }

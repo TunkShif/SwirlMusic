@@ -39,6 +39,8 @@ fun SwirlRoot(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val playerViewModel: PlayerViewModel = hiltViewModel()
     val miniPlayer by playerViewModel.state.collectAsStateWithLifecycle()
+    val queueViewModel: one.tunkshif.swirlmusic.ui.player.QueueViewModel = hiltViewModel()
+    val queue by queueViewModel.queue.collectAsStateWithLifecycle()
 
     // One root surface: without it the window background stays light and a dark scheme draws
     // pale text on white.
@@ -50,6 +52,8 @@ fun SwirlRoot(
             state = state,
             miniPlayer = miniPlayer,
             playerViewModel = playerViewModel,
+            queue = queue,
+            onQueueEvent = queueViewModel::onEvent,
             onSignOut = viewModel::signOut,
         )
     }
@@ -60,6 +64,8 @@ private fun SessionBranch(
     state: SessionState,
     miniPlayer: one.tunkshif.swirlmusic.ui.player.MiniPlayerUiState,
     playerViewModel: PlayerViewModel,
+    queue: one.tunkshif.swirlmusic.ui.playing.QueueUiState,
+    onQueueEvent: (one.tunkshif.swirlmusic.ui.player.QueueEvent) -> Unit,
     onSignOut: () -> Unit,
 ) {
     when (state) {
@@ -74,6 +80,8 @@ private fun SessionBranch(
                 profile = state.profile,
                 onSignOut = onSignOut,
                 miniPlayer = miniPlayer,
+                queue = queue,
+                onQueueEvent = onQueueEvent,
                 onPlayPause = playerViewModel::togglePlayPause,
                 onPlayTracks = playerViewModel::play,
                 homeViewModel = homeViewModel,

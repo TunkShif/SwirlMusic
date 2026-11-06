@@ -11,6 +11,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.google.common.truth.Truth.assertThat
 import one.tunkshif.swirlmusic.R
+import one.tunkshif.swirlmusic.ui.player.QueueEvent
 import one.tunkshif.swirlmusic.ui.theme.SwirlMusicTheme
 import org.junit.Rule
 import org.junit.Test
@@ -29,7 +30,7 @@ class QueueSheetTest {
 
     private val context = RuntimeEnvironment.getApplication()
 
-    private val events = mutableListOf<NowPlayingEvent>()
+    private val events = mutableListOf<QueueEvent>()
 
     private fun item(uid: Long) = QueueItemUi(uid, "title-$uid", "artist-$uid", null)
 
@@ -66,7 +67,7 @@ class QueueSheetTest {
 
         compose.onNodeWithText("title-3").performClick()
 
-        assertThat(events).containsExactly(NowPlayingEvent.SkipTo(3L))
+        assertThat(events).containsExactly(QueueEvent.SkipTo(3L))
     }
 
     @Test
@@ -76,7 +77,7 @@ class QueueSheetTest {
         compose.onNodeWithText("title-1")
             .performCustomAction(context.getString(R.string.playing_queue_remove))
 
-        assertThat(events).containsExactly(NowPlayingEvent.Remove(1L))
+        assertThat(events).containsExactly(QueueEvent.Remove(1L))
     }
 
     @Test
@@ -86,7 +87,7 @@ class QueueSheetTest {
         compose.onNodeWithText("title-0")
             .performCustomAction(context.getString(R.string.playing_queue_move_down))
 
-        assertThat(events).containsExactly(NowPlayingEvent.Move(0L, 1L))
+        assertThat(events).containsExactly(QueueEvent.Move(0L, 1L))
     }
 
     @Test
