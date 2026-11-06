@@ -1,5 +1,7 @@
 package one.tunkshif.swirlmusic.ui.playing
 
+import one.tunkshif.swirlmusic.R
+
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.ColorPainter
@@ -86,6 +88,7 @@ class NowPlayingScreenshotTest {
         dark: Boolean,
         lyrics: LyricsUiState = LyricsUiState.Loading,
         showLyrics: Boolean = false,
+        toast: PlayerToastState? = null,
     ) {
         compose.mainClock.autoAdvance = false
         compose.setContent {
@@ -102,6 +105,7 @@ class NowPlayingScreenshotTest {
                         onOpenQueue = {},
                         lyrics = lyrics,
                         showLyrics = showLyrics,
+                        toastState = toast ?: rememberPlayerToastState(),
                     )
                 }
             }
@@ -131,6 +135,24 @@ class NowPlayingScreenshotTest {
 
     @Test
     fun lyrics_instrumental_light() = capture("lyrics-instrumental-light", PlayingStatePlaying, dark = false, lyrics = LyricsInstrumental, showLyrics = true)
+
+
+    @Test
+    fun playing_toast_light() = capture(
+        "playing-toast-light", PlayingStatePlaying, dark = false,
+        toast = PlayerToastState().apply {
+            show(R.drawable.ic_shuffle, R.string.playing_loop_shuffle)
+        },
+    )
+
+    @Test
+    fun lyrics_toast_dark() = capture(
+        "lyrics-toast-dark", PlayingStatePlaying, dark = true,
+        lyrics = LyricsSynced, showLyrics = true,
+        toast = PlayerToastState().apply {
+            show(R.drawable.ic_translate, R.string.playing_lyrics_showing_translation)
+        },
+    )
 
     private companion object {
         /**

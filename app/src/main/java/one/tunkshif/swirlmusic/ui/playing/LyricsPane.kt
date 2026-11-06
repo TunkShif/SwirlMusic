@@ -17,9 +17,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -45,9 +45,9 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextLayoutResult
@@ -77,7 +77,7 @@ fun LyricsPane(
     position: () -> Long,
     onSeek: (Long) -> Unit,
     onRetry: () -> Unit,
-    onCycleExtra: () -> Unit,
+    onCycleExtra: (LyricsExtra) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     when (state) {
@@ -176,11 +176,11 @@ private fun SyncedLyrics(
     extraChoices: List<LyricsExtra>,
     position: () -> Long,
     onSeek: (Long) -> Unit,
-    onCycleExtra: () -> Unit,
+    onCycleExtra: (LyricsExtra) -> Unit,
     modifier: Modifier,
 ) {
     Column(modifier = modifier.fillMaxSize()) {
-        BoxWithConstraints(modifier = Modifier.weight(1f)) {
+        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val listState = remember(synced) { LazyListState() }
             val activeIndex by remember(synced) {
                 derivedStateOf { synced.lineIndexAt(position()) }
@@ -248,21 +248,20 @@ private fun SyncedLyrics(
                 }
                 item { Credits(credits = synced.credits) }
             }
-        }
 
-        val extraChangeLabel = stringResource(R.string.playing_lyrics_extra_change)
-        if (extraChoices.size > 1) {
-            FilledTonalButton(
-                onClick = onCycleExtra,
-                shapes = ButtonDefaults.shapes(),
-                modifier = Modifier
-                    .align(Alignment.End)
-                    .padding(top = Spacing.xs)
-                    .semantics {
-                        contentDescription = extraChangeLabel
-                    },
-            ) {
-                Text(stringResource(extraLabelRes(extra)))
+            if (extraChoices.size > 1) {
+                FilledTonalIconButton(
+                    onClick = { onCycleExtra(nextExtra(extraChoices, extra)) },
+                    modifier = Modifier.align(Alignment.BottomEnd),
+                ) {
+                    Icon(
+                        painter = painterResource(extraIconRes(extra)),
+                        contentDescription = stringResource(
+                            R.string.playing_lyrics_extra_fmt,
+                            stringResource(extraLabelRes(extra)),
+                        ),
+                    )
+                }
             }
         }
     }
@@ -272,6 +271,12 @@ private fun extraLabelRes(extra: LyricsExtra) = when (extra) {
     LyricsExtra.None -> R.string.playing_lyrics_extra_original
     LyricsExtra.Translation -> R.string.playing_lyrics_extra_translation
     LyricsExtra.Romanization -> R.string.playing_lyrics_extra_romanization
+}
+
+internal fun extraIconRes(extra: LyricsExtra) = when (extra) {
+    LyricsExtra.None -> R.drawable.ic_lyrics
+    LyricsExtra.Translation -> R.drawable.ic_translate
+    LyricsExtra.Romanization -> R.drawable.ic_abc
 }
 
 @Composable
@@ -440,4 +445,10 @@ internal fun wordFillOffset(
     } else {
         if (offset > 0f) offset else 0f
     }
+}
+
+internal fun extraToastRes(extra: LyricsExtra) = when (extra) {
+    LyricsExtra.None -> R.string.playing_lyrics_showing_original
+    LyricsExtra.Translation -> R.string.playing_lyrics_showing_translation
+    LyricsExtra.Romanization -> R.string.playing_lyrics_showing_romanization
 }

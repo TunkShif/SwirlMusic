@@ -57,6 +57,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.ui.LocalNavAnimatedContentScope
 import one.tunkshif.swirlmusic.R
 import one.tunkshif.swirlmusic.player.LoopMode
+import one.tunkshif.swirlmusic.player.next
 import one.tunkshif.swirlmusic.player.PlaybackError
 import one.tunkshif.swirlmusic.ui.components.Artwork
 import one.tunkshif.swirlmusic.ui.components.EmptyState
@@ -76,6 +77,7 @@ internal object NowPlayingDimens {
     val seekGap = 8.dp
     /** Matches `shapes.extraLarge`: the resting cover corner. */
     val coverCorner = 32.dp
+    val toastIcon = 18.dp
 }
 
 /** The entry point wired into the shell's nav graph. */
@@ -127,6 +129,7 @@ fun NowPlayingScreen(
     lyrics: LyricsUiState = LyricsUiState.Loading,
     showLyrics: Boolean = false,
     onToggleLyrics: () -> Unit = {},
+    toastState: PlayerToastState = rememberPlayerToastState(),
 ) {
     // One shared position source for the seek bar, the elapsed label and the lyrics pane.
     val displayed = rememberDisplayedPosition(state.positionMs, state.durationMs, state.isPlaying)
@@ -180,7 +183,10 @@ fun NowPlayingScreen(
                                 position = { displayed.ms },
                                 onSeek = seekTo,
                                 onRetry = { onEvent(NowPlayingEvent.RetryLyrics) },
-                                onCycleExtra = { onEvent(NowPlayingEvent.CycleLyricsExtra) },
+                                onCycleExtra = { target ->
+                                    toastState.show(extraIconRes(target), extraToastRes(target))
+                                    onEvent(NowPlayingEvent.CycleLyricsExtra)
+                                },
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .padding(vertical = Spacing.lg),
@@ -204,6 +210,12 @@ fun NowPlayingScreen(
                             )
                         }
                     }
+                    PlayerToastHost(
+                        state = toastState,
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = Spacing.lg),
+                    )
                 }
                 TrackText(track, onOpenAlbum, isTrial = state.isTrial)
                 Spacer(Modifier.size(Spacing.xl))
@@ -217,7 +229,12 @@ fun NowPlayingScreen(
                     )
                     Spacer(Modifier.size(Spacing.sm))
                 }
-                TransportRow(state, onEvent, onOpenQueue)
+                TransportRow(
+                    state = state,
+                    onEvent = onEvent,
+                    onOpenQueue = onOpenQueue,
+                    toastState = toastState,
+                )
                 Spacer(Modifier.size(Spacing.xl))
             }
         }
@@ -371,6 +388,7 @@ private fun TransportRow(
     state: NowPlayingUiState,
     onEvent: (NowPlayingEvent) -> Unit,
     onOpenQueue: () -> Unit,
+    toastState: PlayerToastState,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -378,7 +396,12 @@ private fun TransportRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         FilledTonalIconButton(
-            onClick = { onEvent(NowPlayingEvent.CycleLoopMode) },
+            onClick = {
+                // Announce the target mode, not the current one.
+                val target = state.loopMode.next()
+                toastState.show(loopIcon(target), loopDescription(target))
+                onEvent(NowPlayingEvent.CycleLoopMode)
+            },
             modifier = Modifier.size(NowPlayingDimens.actionSmall),
         ) {
             Icon(

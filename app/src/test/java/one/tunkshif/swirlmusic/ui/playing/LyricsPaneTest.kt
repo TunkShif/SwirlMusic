@@ -38,7 +38,7 @@ class LyricsPaneTest {
 
     private val seeks = mutableListOf<Long>()
     private var retries = 0
-    private var cycles = 0
+    private val cycles = mutableListOf<LyricsExtra>()
     private var positionMs by mutableLongStateOf(0L)
     private var contentSet = false
     private var uiState by mutableStateOf<LyricsUiState>(LyricsUiState.Loading)
@@ -71,7 +71,7 @@ class LyricsPaneTest {
                         position = { positionMs },
                         onSeek = { seeks += it },
                         onRetry = { retries++ },
-                        onCycleExtra = { cycles++ },
+                        onCycleExtra = { cycles += it },
                     )
                 }
             }
@@ -132,17 +132,19 @@ class LyricsPaneTest {
             content(
                 synced(2),
                 LyricsExtra.Translation,
-                listOf(LyricsExtra.None, LyricsExtra.Translation),
+                listOf(LyricsExtra.None, LyricsExtra.Translation, LyricsExtra.Romanization),
             ),
         )
-        compose.onNodeWithContentDescription(context.getString(R.string.playing_lyrics_extra_change))
-            .performClick()
-        assertThat(cycles).isEqualTo(1)
+        compose.onNodeWithContentDescription(
+            context.getString(R.string.playing_lyrics_extra_fmt, "Translation"),
+        ).performClick()
+        assertThat(cycles).containsExactly(LyricsExtra.Romanization)
 
         // A song without extras hides the button.
         show(content(synced(2, t = null, r = null), LyricsExtra.None, listOf(LyricsExtra.None)))
-        compose.onNodeWithContentDescription(context.getString(R.string.playing_lyrics_extra_change))
-            .assertDoesNotExist()
+        compose.onNodeWithContentDescription(
+            context.getString(R.string.playing_lyrics_extra_fmt, "Translation"),
+        ).assertDoesNotExist()
     }
 
     @Test

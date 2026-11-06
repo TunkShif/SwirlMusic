@@ -221,4 +221,24 @@ class NowPlayingScreenTest {
 
         compose.onNodeWithText("lyric line one").assertExists()
     }
+
+    @Test
+    fun `tapping loop shows the target mode toast`() {
+        compose.setContent {
+            SwirlMusicTheme(dynamicColor = false) {
+                NowPlayingScreen(
+                    state = PlayingStatePlaying,
+                    onEvent = { events += it },
+                    onBack = {},
+                    onOpenAlbum = {},
+                    onOpenQueue = {},
+                )
+            }
+        }
+
+        compose.onNodeWithContentDescription(description(R.string.playing_loop_list)).performClick()
+
+        assertThat(events).contains(NowPlayingEvent.CycleLoopMode)
+        compose.onNodeWithText(context.getString(R.string.playing_loop_shuffle)).assertExists()
+    }
 }
