@@ -4,6 +4,9 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeDown
+import androidx.compose.ui.test.swipeUp
 import com.google.common.truth.Truth.assertThat
 import one.tunkshif.swirlmusic.R
 import one.tunkshif.swirlmusic.ui.components.MiniPlayerBar
@@ -105,4 +108,43 @@ class MiniPlayerBarTest {
     }
 
     private fun text(resId: Int): String = context.getString(resId)
+
+    @Test
+    fun `swiping up past the lift threshold opens the player`() {
+        var opens = 0
+        compose.setContent {
+            SwirlMusicTheme(dynamicColor = false) {
+                MiniPlayerBar(
+                    state = MiniPlayerUiState(title = "Nightcall", subtitle = "Kavinsky"),
+                    onPlayPause = {},
+                    onOpen = { opens++ },
+                )
+            }
+        }
+        compose.onNodeWithText("Nightcall").performTouchInput {
+            swipeUp(endY = centerY - 120f)
+        }
+        compose.waitForIdle()
+        assertThat(opens).isEqualTo(1)
+    }
+
+    @Test
+    fun `a small swipe up or a swipe down does not open`() {
+        var opens = 0
+        compose.setContent {
+            SwirlMusicTheme(dynamicColor = false) {
+                MiniPlayerBar(
+                    state = MiniPlayerUiState(title = "Nightcall", subtitle = "Kavinsky"),
+                    onPlayPause = {},
+                    onOpen = { opens++ },
+                )
+            }
+        }
+        compose.onNodeWithText("Nightcall").performTouchInput {
+            swipeUp(endY = centerY - 10f)
+        }
+        compose.onNodeWithText("Nightcall").performTouchInput { swipeDown() }
+        compose.waitForIdle()
+        assertThat(opens).isEqualTo(0)
+    }
 }

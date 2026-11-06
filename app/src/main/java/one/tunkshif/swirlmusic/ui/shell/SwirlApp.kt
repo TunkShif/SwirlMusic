@@ -39,6 +39,7 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
+import androidx.navigationevent.NavigationEvent
 import one.tunkshif.swirlmusic.R
 import one.tunkshif.swirlmusic.navigation.AlbumKey
 import one.tunkshif.swirlmusic.navigation.ArtistKey
@@ -296,9 +297,14 @@ fun SwirlApp(
                     } + NavDisplay.popTransitionSpec {
                         EnterTransition.None togetherWith
                             (fadeOut() + slideOutVertically { it / 6 })
-                    } + NavDisplay.predictivePopTransitionSpec {
-                        // The dock isn't composed during the gesture, so no shared morph here.
-                        EnterTransition.None togetherWith fadeOut()
+                    } + NavDisplay.predictivePopTransitionSpec { edge ->
+                        // Our drag-down collapse feeds EDGE_NONE events: the player slides
+                        // off with the finger; system edge-back keeps the fade.
+                        if (edge == NavigationEvent.EDGE_NONE) {
+                            EnterTransition.None togetherWith slideOutVertically { it }
+                        } else {
+                            EnterTransition.None togetherWith fadeOut()
+                        }
                     },
                 ) {
                     playingContent(

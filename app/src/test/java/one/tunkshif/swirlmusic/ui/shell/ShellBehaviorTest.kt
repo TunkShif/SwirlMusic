@@ -1,7 +1,11 @@
 package one.tunkshif.swirlmusic.ui.shell
 
 import androidx.compose.ui.test.junit4.StateRestorationTester
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -14,6 +18,11 @@ import one.tunkshif.swirlmusic.data.model.UserProfile
 import one.tunkshif.swirlmusic.navigation.TopLevelDestination
 import one.tunkshif.swirlmusic.ui.components.MINI_PLAYER_TAG
 import one.tunkshif.swirlmusic.ui.playing.QueueItemUi
+import one.tunkshif.swirlmusic.ui.playing.NowPlayingCover
+import one.tunkshif.swirlmusic.ui.playing.NowPlayingEvent
+import one.tunkshif.swirlmusic.ui.playing.NowPlayingScreen
+import one.tunkshif.swirlmusic.ui.playing.NowPlayingTrack
+import one.tunkshif.swirlmusic.ui.playing.NowPlayingUiState
 import one.tunkshif.swirlmusic.ui.playing.QueueUiState
 import one.tunkshif.swirlmusic.ui.home.HomeScreen
 import one.tunkshif.swirlmusic.ui.player.MiniPlayerUiState
@@ -282,5 +291,168 @@ class ShellBehaviorTest {
         queue.value = QueueUiState()
         compose.waitForIdle()
         compose.onNodeWithText("Queue item one").assertDoesNotExist()
+    }
+
+    @Test
+    fun `a long down swipe on the playing top row collapses it`() {
+        compose.setContent {
+            SwirlMusicTheme(dynamicColor = false) {
+                SwirlApp(
+                    profile = profile,
+                    onSignOut = {},
+                    miniPlayer = MiniPlayerUiState(title = "Nightcall", subtitle = "Kavinsky"),
+                    onPlayPause = {},
+                    onPlayTracks = { _, _, _ -> },
+                    homeContent = { TestHome() },
+                    libraryContent = { _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
+                    playingContent = { onBack, _, _ -> PlayingStub(onBack) },
+                )
+            }
+        }
+
+        compose.onNodeWithTag(MINI_PLAYER_TAG).performClick()
+        compose.onNodeWithTag(one.tunkshif.swirlmusic.ui.playing.PLAYING_TOP_ROW_TAG)
+            .assertExists()
+
+        // > 25 % of the ROOT height: the gesture must pop the playing entry.
+        val rootHeight = compose.onRoot().fetchSemanticsNode().size.height
+        compose.onNodeWithTag(one.tunkshif.swirlmusic.ui.playing.PLAYING_TOP_ROW_TAG)
+            .performTouchInput {
+                down(center)
+                moveBy(Offset(0f, rootHeight * 0.4f), delayMillis = 100)
+                up()
+            }
+        compose.waitForIdle()
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.waitForIdle()
+
+        compose.onNodeWithTag(one.tunkshif.swirlmusic.ui.playing.PLAYING_TOP_ROW_TAG)
+            .assertDoesNotExist()
+    }
+
+    @Test
+    fun `a short down swipe stays on the playing screen`() {
+        compose.setContent {
+            SwirlMusicTheme(dynamicColor = false) {
+                SwirlApp(
+                    profile = profile,
+                    onSignOut = {},
+                    miniPlayer = MiniPlayerUiState(title = "Nightcall", subtitle = "Kavinsky"),
+                    onPlayPause = {},
+                    onPlayTracks = { _, _, _ -> },
+                    homeContent = { TestHome() },
+                    libraryContent = { _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
+                    playingContent = { onBack, _, _ -> PlayingStub(onBack) },
+                )
+            }
+        }
+
+        compose.onNodeWithTag(MINI_PLAYER_TAG).performClick()
+        compose.onNodeWithTag(one.tunkshif.swirlmusic.ui.playing.PLAYING_TOP_ROW_TAG)
+            .assertExists()
+
+        // ~10 % of the height, slow: cancelled, stays on Playing.
+        compose.onNodeWithTag(one.tunkshif.swirlmusic.ui.playing.PLAYING_TOP_ROW_TAG)
+            .performTouchInput {
+                down(center)
+                moveBy(Offset(0f, height * 0.10f), delayMillis = 500)
+                up()
+            }
+        compose.waitForIdle()
+
+        compose.onNodeWithTag(one.tunkshif.swirlmusic.ui.playing.PLAYING_TOP_ROW_TAG)
+            .assertExists()
+    }
+
+    private val coverState = NowPlayingUiState(
+        track = NowPlayingTrack("Nightcall", "Kavinsky", null, null, "u1", null),
+        currentUid = 1,
+        previous = NowPlayingCover(0, "u0", null),
+        next = NowPlayingCover(2, "u2", null),
+        isPlaying = true,
+        durationMs = 60_000,
+    )
+
+    @Test
+    fun `a down swipe on the cover collapses playing`() {
+        compose.setContent {
+            SwirlMusicTheme(dynamicColor = false) {
+                SwirlApp(
+                    profile = profile,
+                    onSignOut = {},
+                    miniPlayer = MiniPlayerUiState(title = "Nightcall", subtitle = "Kavinsky"),
+                    onPlayPause = {},
+                    onPlayTracks = { _, _, _ -> },
+                    homeContent = { TestHome() },
+                    libraryContent = { _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
+                    playingContent = { onBack, _, _ ->
+                        NowPlayingScreen(
+                            state = coverState,
+                            onEvent = {},
+                            onBack = onBack,
+                            onOpenAlbum = {},
+                            onOpenQueue = {},
+                        )
+                    },
+                )
+            }
+        }
+
+        compose.onNodeWithTag(MINI_PLAYER_TAG).performClick()
+        compose.onNodeWithTag(one.tunkshif.swirlmusic.ui.playing.PLAYING_COVER_TAG)
+            .assertExists()
+
+        val rootHeight = compose.onRoot().fetchSemanticsNode().size.height
+        compose.onNodeWithTag(one.tunkshif.swirlmusic.ui.playing.PLAYING_COVER_TAG)
+            .performTouchInput {
+                down(center)
+                moveBy(Offset(0f, rootHeight * 0.4f), delayMillis = 100)
+                up()
+            }
+        compose.waitForIdle()
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.waitForIdle()
+
+        compose.onNodeWithTag(one.tunkshif.swirlmusic.ui.playing.PLAYING_COVER_TAG)
+            .assertDoesNotExist()
+    }
+
+    @Test
+    fun `a horizontal swipe on the cover skips without collapsing`() {
+        val events = mutableListOf<Any>()
+        compose.setContent {
+            SwirlMusicTheme(dynamicColor = false) {
+                SwirlApp(
+                    profile = profile,
+                    onSignOut = {},
+                    miniPlayer = MiniPlayerUiState(title = "Nightcall", subtitle = "Kavinsky"),
+                    onPlayPause = {},
+                    onPlayTracks = { _, _, _ -> },
+                    homeContent = { TestHome() },
+                    libraryContent = { _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
+                    playingContent = { onBack, _, _ ->
+                        NowPlayingScreen(
+                            state = coverState,
+                            onEvent = { events += it },
+                            onBack = onBack,
+                            onOpenAlbum = {},
+                            onOpenQueue = {},
+                        )
+                    },
+                )
+            }
+        }
+
+        compose.onNodeWithTag(MINI_PLAYER_TAG).performClick()
+        compose.onNodeWithTag(one.tunkshif.swirlmusic.ui.playing.PLAYING_COVER_TAG)
+            .performTouchInput { swipeLeft() }
+        compose.waitForIdle()
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.waitForIdle()
+
+        assertThat(events).contains(NowPlayingEvent.SkipToCover(2L))
+        // Still on Playing: the cover slot remains.
+        compose.onNodeWithTag(one.tunkshif.swirlmusic.ui.playing.PLAYING_COVER_TAG)
+            .assertExists()
     }
 }

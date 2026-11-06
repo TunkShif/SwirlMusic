@@ -47,6 +47,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -67,7 +68,11 @@ import one.tunkshif.swirlmusic.ui.format.formatDuration
 import one.tunkshif.swirlmusic.ui.theme.Spacing
 import one.tunkshif.swirlmusic.ui.theme.SwirlMusicTheme
 
+internal const val PLAYING_TOP_ROW_TAG = "playingTopRow"
+internal const val PLAYING_COVER_TAG = "playingCover"
+
 /** Sizes on this screen. Spacing comes from the theme; these are local to the player. */
+
 internal object NowPlayingDimens {
     val actionSmall = 48.dp
     val actionLarge = 56.dp
@@ -140,7 +145,15 @@ fun NowPlayingScreen(
                 .windowInsetsPadding(WindowInsets.safeDrawing)
                 .padding(horizontal = Spacing.xl),
         ) {
-            TopRow(onBack, hasTrack = state.track != null, showLyrics = showLyrics, onToggleLyrics = onToggleLyrics)
+            TopRow(
+                onBack = onBack,
+                hasTrack = state.track != null,
+                showLyrics = showLyrics,
+                onToggleLyrics = onToggleLyrics,
+                modifier = Modifier
+                    .collapseOnDragDown(onFallbackBack = onBack)
+                    .testTag(PLAYING_TOP_ROW_TAG),
+            )
             val track = state.track
             if (track == null) {
                 EmptyState(
@@ -155,7 +168,8 @@ fun NowPlayingScreen(
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .fillMaxWidth(),
+                        .fillMaxWidth()
+                        .testTag(PLAYING_COVER_TAG),
                     contentAlignment = Alignment.Center,
                 ) {
                     AnimatedContent(
@@ -203,7 +217,10 @@ fun NowPlayingScreen(
                                 bleed = Spacing.xl,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = Spacing.lg),
+                                    .padding(vertical = Spacing.lg)
+                                    // The carousel's horizontal drag coexists with a
+                                    // vertical collapse drag on different axes.
+                                    .collapseOnDragDown(onFallbackBack = onBack),
                             )
                         }
                     }
@@ -244,9 +261,10 @@ private fun TopRow(
     hasTrack: Boolean = false,
     showLyrics: Boolean = false,
     onToggleLyrics: () -> Unit = {},
+    modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(vertical = Spacing.md),
         verticalAlignment = Alignment.CenterVertically,
