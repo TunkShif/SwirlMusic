@@ -17,15 +17,18 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import one.tunkshif.swirlmusic.data.api.ApiResult
 import one.tunkshif.swirlmusic.data.api.resizedArtwork
+import one.tunkshif.swirlmusic.data.library.ArtistAvatarRepository
 import one.tunkshif.swirlmusic.data.local.LyricsExtra
 import one.tunkshif.swirlmusic.data.local.LyricsPreferences
 import one.tunkshif.swirlmusic.data.lyrics.LyricsRepository
 import one.tunkshif.swirlmusic.data.model.ArtistRef
 import one.tunkshif.swirlmusic.data.model.Lyrics
+import one.tunkshif.swirlmusic.data.model.Track
 import one.tunkshif.swirlmusic.player.LoopMode
 import one.tunkshif.swirlmusic.player.PlaybackError
 import one.tunkshif.swirlmusic.player.PlaybackState
@@ -45,7 +48,26 @@ data class NowPlayingTrack(
     /** The original list-sized URL, the Coil placeholder so the cover never flashes empty. */
     val placeholderArtworkUrl: String?,
     val artists: List<ArtistRef> = emptyList(),
+    val artistAvatars: Map<Long, String> = emptyMap(),
 )
+
+/** The artists the menu can offer: real ids only, named, deduped by id. */
+internal fun Track.menuArtists(): List<ArtistRef> =
+    artists.filter { it.id > 0 && it.name.isNotBlank() }.distinctBy { it.id }
+
+/**
+ * Avatar map for the choose-artist menu. Emits `emptyMap()` first so `combine` never waits on
+ * a fetch; only multi-artist tracks fetch at all — a single artist has no menu.
+ */
+@OptIn(ExperimentalCoroutinesApi::class)
+internal fun artistAvatarsFlow(
+    artistIds: Flow<List<Long>>,
+    fetch: suspend (List<Long>) -> Map<Long, String>,
+): Flow<Map<Long, String>> =
+    artistIds.distinctUntilChanged().transformLatest { ids ->
+        emit(emptyMap())
+        if (ids.size >= 2) emit(fetch(ids))
+    }
 
 /** A neighbour cover for the carousel; artwork pre-resized like the main cover. */
 data class NowPlayingCover(
@@ -217,9 +239,7 @@ internal fun PlaybackState.toNowPlayingUiState(): NowPlayingUiState {
                 albumId = track.albumId,
                 artworkUrl = track.artworkUrl?.let { resizedArtwork(it, COVER_ARTWORK_PX) },
                 placeholderArtworkUrl = track.artworkUrl,
-                artists = track.artists
-                    .filter { it.id > 0 && it.name.isNotBlank() }
-                    .distinctBy { it.id },
+                artists = track.menuArtists(),
             )
         },
         currentUid = currentEntry?.uid,
@@ -242,10 +262,18 @@ class NowPlayingViewModel @Inject constructor(
     private val controller: PlayerController,
     private val lyricsRepository: LyricsRepository,
     private val lyricsPreferences: LyricsPreferences,
+    artistAvatarRepository: ArtistAvatarRepository,
 ) : ViewModel() {
 
-    val state: StateFlow<NowPlayingUiState> = controller.state
-        .map { it.toNowPlayingUiState() }
+    val state: StateFlow<NowPlayingUiState> = combine(
+        controller.state.map { it.toNowPlayingUiState() },
+        artistAvatarsFlow(
+            controller.state.map { it.current?.menuArtists()?.map(ArtistRef::id).orEmpty() },
+            artistAvatarRepository::avatars,
+        ),
+    ) { uiState, avatars ->
+        uiState.copy(track = uiState.track?.copy(artistAvatars = avatars))
+    }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),

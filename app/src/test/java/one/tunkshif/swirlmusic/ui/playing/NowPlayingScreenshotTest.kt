@@ -167,14 +167,20 @@ class NowPlayingScreenshotTest {
 
 
 
-    /** Artist line with the choose-artist menu open. */
+    /** Artist line with the choose-artist menu open, one avatar and one fallback. */
     @OptIn(ExperimentalRoborazziApi::class)
     @Test
     fun playing_artist_menu_light() {
         compose.setContent {
             SwirlMusicTheme(darkTheme = false, dynamicColor = false) {
                 CompositionLocalProvider(
-                    LocalArtworkPainter provides ColorPainter(Color(0xFF9AA0C8)),
+                    // The avatar URL paints orange so it reads next to the lavender cover.
+                    LocalArtworkPainterResolver provides { url ->
+                        when (url) {
+                            "avatar-501" -> ColorPainter(Color(0xFFE0662B))
+                            else -> ColorPainter(Color(0xFF9AA0C8))
+                        }
+                    },
                     LocalPositionClock provides { 0L },
                 ) {
                     NowPlayingScreen(
@@ -185,6 +191,7 @@ class NowPlayingScreenshotTest {
                                     ArtistRef(501, "Kavinsky"),
                                     ArtistRef(502, "M83"),
                                 ),
+                                artistAvatars = mapOf(501L to "avatar-501"),
                             ),
                         ),
                         onEvent = {},

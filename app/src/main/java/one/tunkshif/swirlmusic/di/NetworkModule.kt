@@ -10,6 +10,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.serialization.json.Json
 import one.tunkshif.swirlmusic.BuildConfig
 import one.tunkshif.swirlmusic.data.api.ApiConfig
+import one.tunkshif.swirlmusic.data.api.NcmArtistApi
 import one.tunkshif.swirlmusic.data.api.NcmAuthApi
 import one.tunkshif.swirlmusic.data.api.NcmHomeApi
 import one.tunkshif.swirlmusic.data.api.NcmLibraryApi
@@ -85,6 +86,10 @@ object NetworkModule {
     @Provides
     @Singleton
     fun lyricsApi(api: NcmApi): NcmLyricsApi = api
+
+    @Provides
+    @Singleton
+    fun artistApi(api: NcmApi): NcmArtistApi = api
 
     @Provides
     @Singleton

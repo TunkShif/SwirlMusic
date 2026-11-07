@@ -5,6 +5,9 @@
 Taken from the deployment with the development token, then trimmed.
 
 - `login_status_signed_out.json` — real response, no cookie.
+- `artist_detail.json` — real `/artist/detail?id=9272` (public artist data), trimmed to the
+  artist object plus a few extra keys; `briefDesc` shortened, `identify`, `blacklist`,
+  `secondaryExpertIdentiy` dropped. Track `ar` entries carry no image, hence this call.
 
 ## Synthetic
 

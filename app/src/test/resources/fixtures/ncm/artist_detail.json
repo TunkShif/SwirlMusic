@@ -1,0 +1,20 @@
+{
+  "code": 200,
+  "message": "ok",
+  "data": {
+    "videoCount": 160,
+    "artist": {
+      "id": 9272,
+      "cover": "http://p3.music.126.net/VED2XoZcISpeGUTE_Q6lTA==/109951170045683199.jpg",
+      "avatar": "http://p4.music.126.net/4egsgJXURoPcBNjj00YQHQ==/109951170045684137.jpg",
+      "name": "孙燕姿",
+      "transNames": [],
+      "alias": [
+        "Stefanie Sun"
+      ],
+      "briefDesc": "孙燕姿（Stefanie Sun），新加坡人，华语流行女歌手，以独特的嗓音和唱腔",
+      "albumSize": 46,
+      "musicSize": 609
+    }
+  }
+}

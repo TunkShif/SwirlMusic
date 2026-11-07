@@ -5,6 +5,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,6 +20,7 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
@@ -85,6 +87,8 @@ internal object NowPlayingDimens {
     /** Matches `shapes.extraLarge`: the resting cover corner. */
     val coverCorner = 32.dp
     val toastIcon = 18.dp
+    val artistAvatar = 32.dp
+    val artistAvatarIcon = 20.dp
 }
 
 /** The entry point wired into the shell's nav graph. */
@@ -345,10 +349,7 @@ private fun ArtistLine(track: NowPlayingTrack, onOpenArtist: (Long) -> Unit) {
                         DropdownMenuItem(
                             text = { Text(artist.name) },
                             leadingIcon = {
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_person),
-                                    contentDescription = null,
-                                )
+                                ArtistAvatar(avatarUrl = track.artistAvatars[artist.id])
                             },
                             onClick = {
                                 expanded = false
@@ -358,6 +359,34 @@ private fun ArtistLine(track: NowPlayingTrack, onOpenArtist: (Long) -> Unit) {
                     }
                 }
             }
+        }
+    }
+}
+
+/** Menu leading slot: the artist's avatar, or a person glyph on surfaceVariant. */
+@Composable
+private fun ArtistAvatar(avatarUrl: String?) {
+    if (avatarUrl != null) {
+        Artwork(
+            url = avatarUrl,
+            contentDescription = null,
+            shape = CircleShape,
+            modifier = Modifier.size(NowPlayingDimens.artistAvatar),
+        )
+    } else {
+        Box(
+            modifier = Modifier
+                .size(NowPlayingDimens.artistAvatar)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_person),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(NowPlayingDimens.artistAvatarIcon),
+            )
         }
     }
 }

@@ -109,3 +109,22 @@ data class SearchResultDto(
     val playlists: List<PlaylistDto> = emptyList(),
     val playlistCount: Int = 0,
 )
+
+@Serializable
+data class ArtistProfileResponse(
+    val code: Int = 0,
+    val data: ArtistProfileData = ArtistProfileData(),
+)
+
+@Serializable
+data class ArtistProfileData(
+    val artist: ArtistProfileDto = ArtistProfileDto(),
+)
+
+@Serializable
+data class ArtistProfileDto(
+    val id: Long = 0,
+    val name: String = "",
+    val avatar: String? = null,
+    val cover: String? = null,
+)

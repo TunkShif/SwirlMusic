@@ -20,6 +20,7 @@ import one.tunkshif.swirlmusic.data.api.dto.QrKeyResponse
 import one.tunkshif.swirlmusic.data.api.dto.AlbumDetailResponse
 import one.tunkshif.swirlmusic.data.api.dto.AlbumSublistResponse
 import one.tunkshif.swirlmusic.data.api.dto.ArtistDetailResponse
+import one.tunkshif.swirlmusic.data.api.dto.ArtistProfileResponse
 import one.tunkshif.swirlmusic.data.api.dto.ArtistSublistResponse
 import one.tunkshif.swirlmusic.data.api.dto.LikeResponse
 import one.tunkshif.swirlmusic.data.api.dto.LyricResponse
@@ -63,7 +64,14 @@ class NcmApi @Inject constructor(
     private val config: ApiConfig,
     private val timeSource: TimeSource,
     @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
-) : NcmAuthApi, NcmHomeApi, NcmPlaybackApi, NcmLibraryApi, NcmLyricsApi {
+) : NcmAuthApi, NcmHomeApi, NcmPlaybackApi, NcmLibraryApi, NcmLyricsApi, NcmArtistApi {
+
+    override suspend fun artistAvatar(id: Long): ApiResult<String?> =
+        request(
+            "/artist/detail",
+            ArtistProfileResponse.serializer(),
+            mapOf("id" to id.toString()),
+        ).map { it.avatarUrl() }
 
     override suspend fun lyrics(trackId: Long): ApiResult<LyricsSource> =
         request(

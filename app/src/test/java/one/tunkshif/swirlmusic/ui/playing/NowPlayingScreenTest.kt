@@ -159,6 +159,25 @@ class NowPlayingScreenTest {
     }
 
     @Test
+    fun `an avatar on one artist still lists and opens both`() {
+        show(
+            PlayingStatePlaying.copy(
+                track = PlayingStatePlaying.track!!.copy(
+                    artistLine = "M83 / Guest",
+                    artists = listOf(ArtistRef(502, "M83"), ArtistRef(503, "Guest")),
+                    artistAvatars = mapOf(502L to "https://img/502.jpg"),
+                ),
+            ),
+        )
+
+        compose.onNodeWithText("M83 / Guest").performClick()
+        compose.onNodeWithText("M83").assertExists()
+        compose.onNodeWithText("Guest").performClick()
+
+        assertThat(openedArtist).isEqualTo(503)
+    }
+
+    @Test
     fun `no artists leaves the artist line unclickable`() {
         show(PlayingStatePlaying)
 
