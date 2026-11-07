@@ -98,11 +98,11 @@ fun SwirlApp(
     profile: UserProfile?,
     onSignOut: () -> Unit,
     miniPlayer: MiniPlayerUiState,
-    /** Artwork colour seed re-theming the mini player and Now Playing; null keeps the app theme. */
-    albumSeed: Int? = null,
     onPlayPause: () -> Unit,
     onPlayTracks: (List<Track>, Int, PlayerController.TrackPager?) -> Unit,
     modifier: Modifier = Modifier,
+    /** Artwork colour seed re-theming the mini player and Now Playing; null keeps the app theme. */
+    albumSeed: Int? = null,
     /**
      * Activity-scoped tab ViewModels, obtained in SwirlRoot. They must NOT be created inside a
      * NavEntry: a tab switch clears the back stack, so entry-scoped stores would drop them,
