@@ -23,6 +23,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconToggleButton
 import androidx.compose.material3.FilledTonalIconButton
@@ -92,6 +94,7 @@ fun NowPlayingRoute(
     onOpenAlbum: (Long) -> Unit,
     modifier: Modifier = Modifier,
     onOpenQueue: () -> Unit = {},
+    onOpenArtist: (Long) -> Unit = {},
     viewModel: NowPlayingViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -104,6 +107,7 @@ fun NowPlayingRoute(
         onBack = onBack,
         onOpenAlbum = onOpenAlbum,
         onOpenQueue = onOpenQueue,
+        onOpenArtist = onOpenArtist,
         lyrics = lyrics,
         showLyrics = showLyrics,
         onToggleLyrics = { showLyrics = !showLyrics },
@@ -118,6 +122,7 @@ fun NowPlayingScreen(
     onBack: () -> Unit,
     onOpenAlbum: (Long) -> Unit,
     onOpenQueue: () -> Unit,
+    onOpenArtist: (Long) -> Unit = {},
     modifier: Modifier = Modifier,
     lyrics: LyricsUiState = LyricsUiState.Loading,
     showLyrics: Boolean = false,
@@ -231,7 +236,7 @@ fun NowPlayingScreen(
                             .padding(bottom = Spacing.lg),
                     )
                 }
-                TrackText(track, onOpenAlbum, isTrial = state.isTrial)
+                TrackText(track, onOpenAlbum, onOpenArtist, isTrial = state.isTrial)
                 Spacer(Modifier.size(Spacing.xl))
                 SeekBlock(state, onEvent, displayed, seekTo)
                 Spacer(Modifier.size(Spacing.md))
@@ -303,9 +308,65 @@ private fun TopRow(
 }
 
 @Composable
+private fun ArtistLine(track: NowPlayingTrack, onOpenArtist: (Long) -> Unit) {
+    val text = @Composable { m: Modifier ->
+        Text(
+            text = track.artistLine,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = m,
+        )
+    }
+    when (track.artists.size) {
+        0 -> text(Modifier)
+        1 -> text(
+            Modifier.clickable(
+                onClickLabel = stringResource(R.string.playing_open_artist),
+                role = Role.Button,
+            ) { onOpenArtist(track.artists[0].id) },
+        )
+        else -> {
+            var expanded by rememberSaveable(track.artists) { mutableStateOf(false) }
+            Box {
+                text(
+                    Modifier.clickable(
+                        onClickLabel = stringResource(R.string.playing_choose_artist),
+                        role = Role.Button,
+                    ) { expanded = true },
+                )
+                DropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false },
+                    shape = MaterialTheme.shapes.large,
+                ) {
+                    track.artists.forEach { artist ->
+                        DropdownMenuItem(
+                            text = { Text(artist.name) },
+                            leadingIcon = {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_person),
+                                    contentDescription = null,
+                                )
+                            },
+                            onClick = {
+                                expanded = false
+                                onOpenArtist(artist.id)
+                            },
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun TrackText(
     track: NowPlayingTrack,
     onOpenAlbum: (Long) -> Unit,
+    onOpenArtist: (Long) -> Unit,
     isTrial: Boolean,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
@@ -321,13 +382,7 @@ private fun TrackText(
             // A later slice draws a like button here; the space is already reserved.
             Spacer(Modifier.width(NowPlayingDimens.actionSmall))
         }
-        Text(
-            text = track.artistLine,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        ArtistLine(track, onOpenArtist)
         val albumName = track.albumName
         if (!albumName.isNullOrBlank()) {
             val albumId = track.albumId

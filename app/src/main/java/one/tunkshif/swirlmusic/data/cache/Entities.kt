@@ -4,6 +4,10 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import one.tunkshif.swirlmusic.data.model.ArtistRef
 import one.tunkshif.swirlmusic.data.model.Track
 
 /** Metadata for one track; playability and stream URLs are never cached. */
@@ -19,9 +23,16 @@ data class TrackEntity(
     val trackNumber: Int? = null,
     val albumId: Long? = null,
     val albumName: String? = null,
+    /** Compact encoding of the artist list; [artistLine] stays the display string. */
+    val artists: String? = null,
 ) {
     fun toTrack(): Track = Track(
         id, title, artistLine, artworkUrl, durationMs, discNumber, trackNumber, albumId, albumName,
+        artists = runCatching {
+            artists?.let { artistJson.decodeFromString<List<ArtistRefJson>>(it) }
+                .orEmpty()
+                .map { ArtistRef(it.id, it.name) }
+        }.getOrDefault(emptyList()),
     )
 
     companion object {
@@ -36,9 +47,17 @@ data class TrackEntity(
             trackNumber = track.trackNumber,
             albumId = track.albumId,
             albumName = track.albumName,
+            artists = track.artists
+                .takeIf { it.isNotEmpty() }
+                ?.let { list -> artistJson.encodeToString(list.map { ArtistRefJson(it.id, it.name) }) },
         )
     }
 }
+
+@Serializable
+private data class ArtistRefJson(val id: Long, val name: String)
+
+private val artistJson = Json { ignoreUnknownKeys = true }
 
 /** One cached detail list: `playlist:<id>`, `album:<id>` or `artist:<id>`. */
 @Entity(tableName = "snapshot")

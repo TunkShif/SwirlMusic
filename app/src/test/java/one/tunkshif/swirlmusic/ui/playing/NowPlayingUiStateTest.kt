@@ -1,6 +1,7 @@
 package one.tunkshif.swirlmusic.ui.playing
 
 import com.google.common.truth.Truth.assertThat
+import one.tunkshif.swirlmusic.data.model.ArtistRef
 import one.tunkshif.swirlmusic.data.model.Track
 import one.tunkshif.swirlmusic.player.LoopMode
 import one.tunkshif.swirlmusic.player.PlaybackState
@@ -55,6 +56,26 @@ class NowPlayingUiStateTest {
         val ui = state(0L to track).copy(durationMs = 0).toNowPlayingUiState()
 
         assertThat(ui.durationMs).isEqualTo(258_000)
+    }
+
+    @Test
+    fun `the track drops unusable artists and dedups by id`() {
+        val withArtists = track.copy(
+            artists = listOf(
+                ArtistRef(0, "Zero"),
+                ArtistRef(-3, "Negative"),
+                ArtistRef(501, "  "),
+                ArtistRef(502, "M83"),
+                ArtistRef(501, "Kavinsky"),
+                ArtistRef(502, "Duplicate"),
+            ),
+        )
+
+        val ui = state(0L to withArtists).toNowPlayingUiState()
+
+        assertThat(ui.track!!.artists)
+            .containsExactly(ArtistRef(502, "M83"), ArtistRef(501, "Kavinsky"))
+            .inOrder()
     }
 
     @Test

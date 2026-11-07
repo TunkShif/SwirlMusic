@@ -5,6 +5,8 @@ import kotlinx.serialization.json.Json
 import one.tunkshif.swirlmusic.data.api.dto.RecommendResourceResponse
 import one.tunkshif.swirlmusic.data.api.dto.RecommendSongsResponse
 import one.tunkshif.swirlmusic.data.api.dto.ToplistResponse
+import one.tunkshif.swirlmusic.data.api.dto.TrackDto
+import one.tunkshif.swirlmusic.data.model.ArtistRef
 import org.junit.Test
 
 /**
@@ -36,6 +38,33 @@ class HomeMappersTest {
         val response = json.decodeFromString<RecommendSongsResponse>(fixture("recommend_songs.json"))
 
         assertThat(response.data.dailySongs[1].toDomain().artistLine).isEqualTo("M83 / Guest")
+    }
+
+    @Test
+    fun `a track keeps artist ids and names in order`() {
+        val response = json.decodeFromString<RecommendSongsResponse>(fixture("recommend_songs.json"))
+
+        assertThat(response.data.dailySongs[1].toDomain().artists)
+            .containsExactly(ArtistRef(502, "M83"), ArtistRef(503, "Guest"))
+            .inOrder()
+    }
+
+    @Test
+    fun `a zero artist id is kept as sent`() {
+        val dto = json.decodeFromString<TrackDto>(
+            """
+            {
+              "id": 9,
+              "name": "Song",
+              "ar": [{"id": 0, "name": "Unknown"}, {"id": 7, "name": "Known"}],
+              "dt": 1000
+            }
+            """.trimIndent(),
+        )
+
+        assertThat(dto.toDomain().artists)
+            .containsExactly(ArtistRef(0, "Unknown"), ArtistRef(7, "Known"))
+            .inOrder()
     }
 
     @Test

@@ -3,6 +3,7 @@ package one.tunkshif.swirlmusic.data.api
 import one.tunkshif.swirlmusic.data.api.dto.ChartDto
 import one.tunkshif.swirlmusic.data.api.dto.PlaylistDto
 import one.tunkshif.swirlmusic.data.api.dto.TrackDto
+import one.tunkshif.swirlmusic.data.model.ArtistRef
 import one.tunkshif.swirlmusic.data.model.ChartSummary
 import one.tunkshif.swirlmusic.data.model.PlaylistSummary
 import one.tunkshif.swirlmusic.data.model.Track
@@ -20,6 +21,7 @@ internal fun TrackDto.toDomain(): Track {
         id = id,
         title = name,
         artistLine = artists.joinToString(" / ") { it.name },
+        artists = artists.map { ArtistRef(it.id, it.name) },
         artworkUrl = (album?.picUrl ?: album?.coverImgUrl)?.let { sizedArtwork(it, 300) },
         durationMs = dt,
         discNumber = cd?.trim()?.toIntOrNull()?.takeIf { it > 0 },

@@ -1,5 +1,7 @@
 package one.tunkshif.swirlmusic.data.model
 
+data class ArtistRef(val id: Long, val name: String)
+
 /** A track as the lists on the home screen need it. Full models arrive with the player. */
 data class Track(
     val id: Long,
@@ -11,6 +13,7 @@ data class Track(
     val trackNumber: Int? = null,
     val albumId: Long? = null,
     val albumName: String? = null,
+    val artists: List<ArtistRef> = emptyList(),
 )
 
 data class PlaylistSummary(

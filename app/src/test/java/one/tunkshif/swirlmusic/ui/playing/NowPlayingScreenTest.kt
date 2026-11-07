@@ -3,6 +3,7 @@ package one.tunkshif.swirlmusic.ui.playing
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -12,6 +13,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performSemanticsAction
 import com.google.common.truth.Truth.assertThat
 import one.tunkshif.swirlmusic.R
+import one.tunkshif.swirlmusic.data.model.ArtistRef
 import one.tunkshif.swirlmusic.player.LoopMode
 import one.tunkshif.swirlmusic.ui.theme.SwirlMusicTheme
 import org.junit.Rule
@@ -34,6 +36,7 @@ class NowPlayingScreenTest {
     private val events = mutableListOf<Any>()
     private var backPressed = 0
     private var openedAlbum: Long? = null
+    private var openedArtist: Long? = null
     private var queueOpened = 0
 
     private fun show(state: NowPlayingUiState): androidx.compose.runtime.MutableState<NowPlayingUiState> {
@@ -45,6 +48,7 @@ class NowPlayingScreenTest {
                     onEvent = { events += it },
                     onBack = { backPressed++ },
                     onOpenAlbum = { openedAlbum = it },
+                    onOpenArtist = { openedArtist = it },
                     onOpenQueue = { queueOpened++ },
                 )
             }
@@ -118,6 +122,47 @@ class NowPlayingScreenTest {
                 },
             )
         assertThat(openedAlbum).isNull()
+    }
+
+    @Test
+    fun `a single artist opens it from the artist line`() {
+        show(
+            PlayingStatePlaying.copy(
+                track = PlayingStatePlaying.track!!.copy(
+                    artists = listOf(ArtistRef(501, "Kavinsky")),
+                ),
+            ),
+        )
+
+        compose.onNodeWithText("Kavinsky").performClick()
+
+        assertThat(openedArtist).isEqualTo(501)
+    }
+
+    @Test
+    fun `several artists open a menu that picks one`() {
+        show(
+            PlayingStatePlaying.copy(
+                track = PlayingStatePlaying.track!!.copy(
+                    artistLine = "M83 / Guest",
+                    artists = listOf(ArtistRef(502, "M83"), ArtistRef(503, "Guest")),
+                ),
+            ),
+        )
+
+        compose.onNodeWithText("M83 / Guest").performClick()
+        compose.onNodeWithText("M83").assertExists()
+        compose.onNodeWithText("Guest").performClick()
+
+        assertThat(openedArtist).isEqualTo(503)
+        compose.onNodeWithText("M83").assertDoesNotExist()
+    }
+
+    @Test
+    fun `no artists leaves the artist line unclickable`() {
+        show(PlayingStatePlaying)
+
+        compose.onNodeWithText("Kavinsky").assertHasNoClickAction()
     }
 
     @Test

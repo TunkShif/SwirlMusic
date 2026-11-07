@@ -161,4 +161,6 @@
     <string name="playing_lyrics_showing_romanization">Showing romanization</string>
     <string name="playing_lyrics_play_from_line">Play from this line</string>
     <string name="playing_show_lyrics">Show lyrics</string>
+    <string name="playing_open_artist">Open artist</string>
+    <string name="playing_choose_artist">Choose artist</string>
 </resources>

@@ -10,10 +10,15 @@ import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import com.github.takahirom.roborazzi.RoborazziOptions
 import com.github.takahirom.roborazzi.captureRoboImage
+import com.github.takahirom.roborazzi.captureScreenRoboImage
+import com.github.takahirom.roborazzi.ExperimentalRoborazziApi
+import one.tunkshif.swirlmusic.data.model.ArtistRef
 import one.tunkshif.swirlmusic.ui.components.LocalArtworkPainter
 import one.tunkshif.swirlmusic.ui.theme.SwirlMusicTheme
 import org.junit.Rule
@@ -161,6 +166,43 @@ class NowPlayingScreenshotTest {
 
 
 
+
+    /** Artist line with the choose-artist menu open. */
+    @OptIn(ExperimentalRoborazziApi::class)
+    @Test
+    fun playing_artist_menu_light() {
+        compose.setContent {
+            SwirlMusicTheme(darkTheme = false, dynamicColor = false) {
+                CompositionLocalProvider(
+                    LocalArtworkPainter provides ColorPainter(Color(0xFF9AA0C8)),
+                    LocalPositionClock provides { 0L },
+                ) {
+                    NowPlayingScreen(
+                        state = PlayingStatePlaying.copy(
+                            track = PlayingStatePlaying.track!!.copy(
+                                artistLine = "Kavinsky / M83",
+                                artists = listOf(
+                                    ArtistRef(501, "Kavinsky"),
+                                    ArtistRef(502, "M83"),
+                                ),
+                            ),
+                        ),
+                        onEvent = {},
+                        onBack = {},
+                        onOpenAlbum = {},
+                        onOpenQueue = {},
+                    )
+                }
+            }
+        }
+        compose.onNodeWithText("Kavinsky / M83").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText("M83").assertExists()
+        captureScreenRoboImage(
+            "src/test/screenshots/playing/playing-artist-menu-light.png",
+            roborazziOptions = WAVY_TOLERANCE,
+        )
+    }
 
     /** ~40 % drag toward Next: current cover slid left, next cover entering from the right. */
     private fun captureSwipe(name: String, shortDevice: Boolean) {

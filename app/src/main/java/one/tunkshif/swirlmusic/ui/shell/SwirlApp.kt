@@ -134,9 +134,19 @@ fun SwirlApp(
      */
     queue: QueueUiState = QueueUiState(),
     onQueueEvent: (QueueEvent) -> Unit = {},
-    playingContent: @Composable (onBack: () -> Unit, onOpenAlbum: (Long) -> Unit, onOpenQueue: () -> Unit) -> Unit =
-        { onBack, onOpenAlbum, onOpenQueue ->
-            NowPlayingRoute(onBack = onBack, onOpenAlbum = onOpenAlbum, onOpenQueue = onOpenQueue)
+    playingContent: @Composable (
+        onBack: () -> Unit,
+        onOpenAlbum: (Long) -> Unit,
+        onOpenArtist: (Long) -> Unit,
+        onOpenQueue: () -> Unit,
+    ) -> Unit =
+        { onBack, onOpenAlbum, onOpenArtist, onOpenQueue ->
+            NowPlayingRoute(
+                onBack = onBack,
+                onOpenAlbum = onOpenAlbum,
+                onOpenArtist = onOpenArtist,
+                onOpenQueue = onOpenQueue,
+            )
         },
 ) {
     var showQueue by rememberSaveable { mutableStateOf(false) }
@@ -312,6 +322,10 @@ fun SwirlApp(
                         { id ->
                             backStack.removeLastOrNull()
                             backStack.add(AlbumKey(id))
+                        },
+                        { id ->
+                            backStack.removeLastOrNull()
+                            backStack.add(ArtistKey(id))
                         },
                         { showQueue = true },
                     )

@@ -24,6 +24,7 @@ import one.tunkshif.swirlmusic.data.api.resizedArtwork
 import one.tunkshif.swirlmusic.data.local.LyricsExtra
 import one.tunkshif.swirlmusic.data.local.LyricsPreferences
 import one.tunkshif.swirlmusic.data.lyrics.LyricsRepository
+import one.tunkshif.swirlmusic.data.model.ArtistRef
 import one.tunkshif.swirlmusic.data.model.Lyrics
 import one.tunkshif.swirlmusic.player.LoopMode
 import one.tunkshif.swirlmusic.player.PlaybackError
@@ -43,6 +44,7 @@ data class NowPlayingTrack(
     val artworkUrl: String?,
     /** The original list-sized URL, the Coil placeholder so the cover never flashes empty. */
     val placeholderArtworkUrl: String?,
+    val artists: List<ArtistRef> = emptyList(),
 )
 
 /** A neighbour cover for the carousel; artwork pre-resized like the main cover. */
@@ -215,6 +217,9 @@ internal fun PlaybackState.toNowPlayingUiState(): NowPlayingUiState {
                 albumId = track.albumId,
                 artworkUrl = track.artworkUrl?.let { resizedArtwork(it, COVER_ARTWORK_PX) },
                 placeholderArtworkUrl = track.artworkUrl,
+                artists = track.artists
+                    .filter { it.id > 0 && it.name.isNotBlank() }
+                    .distinctBy { it.id },
             )
         },
         currentUid = currentEntry?.uid,
