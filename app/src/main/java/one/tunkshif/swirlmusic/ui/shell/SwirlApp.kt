@@ -73,6 +73,7 @@ import one.tunkshif.swirlmusic.ui.tracks.TrackListRoute
 import one.tunkshif.swirlmusic.ui.theme.Spacing
 import one.tunkshif.swirlmusic.ui.tracks.TrackListSource
 import one.tunkshif.swirlmusic.ui.playing.NowPlayingRoute
+import one.tunkshif.swirlmusic.ui.theme.AlbumColorTheme
 import one.tunkshif.swirlmusic.ui.profile.ProfileScreen
 
 /** Every screen shows the dock except the full-screen player. */
@@ -97,6 +98,8 @@ fun SwirlApp(
     profile: UserProfile?,
     onSignOut: () -> Unit,
     miniPlayer: MiniPlayerUiState,
+    /** Artwork colour seed re-theming the mini player and Now Playing; null keeps the app theme. */
+    albumSeed: Int? = null,
     onPlayPause: () -> Unit,
     onPlayTracks: (List<Track>, Int, PlayerController.TrackPager?) -> Unit,
     modifier: Modifier = Modifier,
@@ -191,13 +194,15 @@ fun SwirlApp(
                                 exit = shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()) +
                                     fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
                             ) {
-                                MiniPlayerBar(
-                                    state = miniPlayer,
-                                    onPlayPause = onPlayPause,
-                                    onOpen = { backStack.add(PlayingKey) },
-                                    onOpenQueue = { showQueue = true },
-                                    animatedVisibilityScope = dockScope,
-                                )
+                                AlbumColorTheme(albumSeed) {
+                                    MiniPlayerBar(
+                                        state = miniPlayer,
+                                        onPlayPause = onPlayPause,
+                                        onOpen = { backStack.add(PlayingKey) },
+                                        onOpenQueue = { showQueue = true },
+                                        animatedVisibilityScope = dockScope,
+                                    )
+                                }
                             }
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
@@ -317,18 +322,20 @@ fun SwirlApp(
                         }
                     },
                 ) {
-                    playingContent(
-                        { backStack.removeLastOrNull() },
-                        { id ->
-                            backStack.removeLastOrNull()
-                            backStack.add(AlbumKey(id))
-                        },
-                        { id ->
-                            backStack.removeLastOrNull()
-                            backStack.add(ArtistKey(id))
-                        },
-                        { showQueue = true },
-                    )
+                    AlbumColorTheme(albumSeed) {
+                        playingContent(
+                            { backStack.removeLastOrNull() },
+                            { id ->
+                                backStack.removeLastOrNull()
+                                backStack.add(AlbumKey(id))
+                            },
+                            { id ->
+                                backStack.removeLastOrNull()
+                                backStack.add(ArtistKey(id))
+                            },
+                            { showQueue = true },
+                        )
+                    }
                 }
             },
         )

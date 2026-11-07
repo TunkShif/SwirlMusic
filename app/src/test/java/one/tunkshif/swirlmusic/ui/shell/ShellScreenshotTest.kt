@@ -44,11 +44,22 @@ class ShellScreenshotTest {
     private val context = RuntimeEnvironment.getApplication()
     private val profile = UserProfile(userId = 1, nickname = "tester", avatarUrl = null, vipType = 0)
 
+    private companion object {
+        /** Same lavender as the ColorPainter artwork, so the scheme matches the drawn cover. */
+        const val ALBUM_SEED = 0xFF9AA0C8.toInt()
+    }
+
     @Test
     fun home_light() = capture("home-light", dark = false)
 
     @Test
     fun home_dark() = capture("home-dark", dark = true)
+
+    @Test
+    fun home_album_light() = capture("home-album-light", dark = false, albumSeed = ALBUM_SEED)
+
+    @Test
+    fun home_album_dark() = capture("home-album-dark", dark = true, albumSeed = ALBUM_SEED)
 
     @Test
     fun library_light() = capture("library-light", dark = false, tab = TopLevelDestination.Library)
@@ -75,9 +86,17 @@ class ShellScreenshotTest {
     }
 
     @Test
-    fun playing_light() {
+    fun playing_light() = capturePlaying("playing-light", dark = false)
+
+    @Test
+    fun playing_album_light() = capturePlaying("playing-album-light", dark = false, albumSeed = ALBUM_SEED)
+
+    @Test
+    fun playing_album_dark() = capturePlaying("playing-album-dark", dark = true, albumSeed = ALBUM_SEED)
+
+    private fun capturePlaying(name: String, dark: Boolean, albumSeed: Int? = null) {
         compose.setContent {
-            SwirlMusicTheme(dynamicColor = false) {
+            SwirlMusicTheme(darkTheme = dark, dynamicColor = false) {
                 CompositionLocalProvider(
                     LocalArtworkPainter provides ColorPainter(Color(0xFF9AA0C8)),
                     one.tunkshif.swirlmusic.ui.playing.LocalPositionClock provides { 0L },
@@ -91,6 +110,7 @@ class ShellScreenshotTest {
                             isPlaying = true,
                             progress = 0.35f,
                         ),
+                        albumSeed = albumSeed,
                         onPlayPause = {},
                         onPlayTracks = { _, _, _ -> },
                         homeContent = { TestHome() },
@@ -112,7 +132,7 @@ class ShellScreenshotTest {
         // The dock slides out behind Playing; capture after the exit has finished.
         compose.mainClock.advanceTimeBy(600)
         compose.waitForIdle()
-        compose.onRoot().captureRoboImage("src/test/screenshots/shell/playing-light.png")
+        compose.onRoot().captureRoboImage("src/test/screenshots/shell/$name.png")
     }
 
     @Test
@@ -142,6 +162,7 @@ class ShellScreenshotTest {
         name: String,
         dark: Boolean,
         tab: TopLevelDestination? = null,
+        albumSeed: Int? = null,
     ) {
         compose.setContent {
             SwirlMusicTheme(darkTheme = dark, dynamicColor = false) {
@@ -154,6 +175,7 @@ class ShellScreenshotTest {
                         isPlaying = true,
                         progress = 0.35f,
                     ),
+                    albumSeed = albumSeed,
                     onPlayPause = {},
                     onPlayTracks = { _, _, _ -> },
                     homeContent = { TestHome() },

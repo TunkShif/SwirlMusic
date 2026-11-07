@@ -39,6 +39,7 @@ fun SwirlRoot(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val playerViewModel: PlayerViewModel = hiltViewModel()
     val miniPlayer by playerViewModel.state.collectAsStateWithLifecycle()
+    val albumSeed by playerViewModel.albumSeed.collectAsStateWithLifecycle()
     val queueViewModel: one.tunkshif.swirlmusic.ui.player.QueueViewModel = hiltViewModel()
     val queue by queueViewModel.queue.collectAsStateWithLifecycle()
 
@@ -51,6 +52,7 @@ fun SwirlRoot(
         SessionBranch(
             state = state,
             miniPlayer = miniPlayer,
+            albumSeed = albumSeed,
             playerViewModel = playerViewModel,
             queue = queue,
             onQueueEvent = queueViewModel::onEvent,
@@ -63,6 +65,7 @@ fun SwirlRoot(
 private fun SessionBranch(
     state: SessionState,
     miniPlayer: one.tunkshif.swirlmusic.ui.player.MiniPlayerUiState,
+    albumSeed: Int?,
     playerViewModel: PlayerViewModel,
     queue: one.tunkshif.swirlmusic.ui.playing.QueueUiState,
     onQueueEvent: (one.tunkshif.swirlmusic.ui.player.QueueEvent) -> Unit,
@@ -80,6 +83,7 @@ private fun SessionBranch(
                 profile = state.profile,
                 onSignOut = onSignOut,
                 miniPlayer = miniPlayer,
+                albumSeed = albumSeed,
                 queue = queue,
                 onQueueEvent = onQueueEvent,
                 onPlayPause = playerViewModel::togglePlayPause,

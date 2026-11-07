@@ -110,6 +110,7 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.materialkolor.material.color.utilities)
     implementation(libs.zxing.core)
     implementation(libs.reorderable)
 
