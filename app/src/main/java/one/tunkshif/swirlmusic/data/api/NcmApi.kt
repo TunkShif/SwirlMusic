@@ -20,6 +20,8 @@ import one.tunkshif.swirlmusic.data.api.dto.QrKeyResponse
 import one.tunkshif.swirlmusic.data.api.dto.AlbumDetailResponse
 import one.tunkshif.swirlmusic.data.api.dto.AlbumDynamicResponse
 import one.tunkshif.swirlmusic.data.api.dto.AlbumSublistResponse
+import one.tunkshif.swirlmusic.data.api.dto.ArtistAlbumsResponse
+import one.tunkshif.swirlmusic.data.api.dto.ArtistDescResponse
 import one.tunkshif.swirlmusic.data.api.dto.ArtistDetailResponse
 import one.tunkshif.swirlmusic.data.api.dto.ArtistDynamicResponse
 import one.tunkshif.swirlmusic.data.api.dto.ArtistProfileResponse
@@ -41,7 +43,9 @@ import one.tunkshif.swirlmusic.data.api.dto.ToplistResponse
 import one.tunkshif.swirlmusic.data.api.dto.UserAccountResponse
 import one.tunkshif.swirlmusic.data.model.AlbumDetail
 import one.tunkshif.swirlmusic.data.model.AlbumSummary
+import one.tunkshif.swirlmusic.data.model.ArtistDescription
 import one.tunkshif.swirlmusic.data.model.ArtistDetail
+import one.tunkshif.swirlmusic.data.model.ArtistRelease
 import one.tunkshif.swirlmusic.data.model.ArtistSummary
 import one.tunkshif.swirlmusic.data.model.ChartSummary
 import one.tunkshif.swirlmusic.data.model.LyricsSource
@@ -219,8 +223,28 @@ class NcmApi @Inject constructor(
                     artworkUrl = (response.artist.picUrl ?: response.artist.img1v1Url)
                         ?.let { sizedArtwork(it, 400) },
                     tracks = response.hotSongs.map { it.toDomain() },
+                    briefDesc = response.artist.briefDesc?.takeIf { it.isNotBlank() },
+                    songCount = response.artist.musicSize.takeIf { it > 0 },
+                    albumCount = response.artist.albumSize.takeIf { it > 0 },
                 )
             }
+
+    override suspend fun artistAlbums(
+        id: Long,
+        limit: Int,
+        offset: Int,
+    ): ApiResult<Page<ArtistRelease>> =
+        request(
+            "/artist/album",
+            ArtistAlbumsResponse.serializer(),
+            mapOf("id" to id.toString(), "limit" to limit.toString(), "offset" to offset.toString()),
+        ).map { response ->
+            Page(response.hotAlbums.mapNotNull { it.toRelease() }, response.more)
+        }
+
+    override suspend fun artistDescription(id: Long): ApiResult<ArtistDescription> =
+        request("/artist/desc", ArtistDescResponse.serializer(), mapOf("id" to id.toString()))
+            .map { it.toDescription() }
 
     override suspend fun search(
         keywords: String,

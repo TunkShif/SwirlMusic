@@ -38,6 +38,8 @@ data class ArtistDto(
     val picUrl: String? = null,
     val img1v1Url: String? = null,
     val albumSize: Int = 0,
+    val musicSize: Int = 0,
+    val briefDesc: String? = null,
 )
 
 @Serializable
@@ -52,6 +54,7 @@ data class AlbumDto(
     val description: String? = null,
     val company: String? = null,
     val subType: String? = null,
+    val type: String? = null,
 )
 
 /** `/recommend/resource` returns the list at the top level, with `playcount` spelled lower case. */

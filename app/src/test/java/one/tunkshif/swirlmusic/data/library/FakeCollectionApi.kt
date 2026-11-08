@@ -5,6 +5,9 @@ import one.tunkshif.swirlmusic.data.api.ApiResult
 import one.tunkshif.swirlmusic.data.api.NcmArtistApi
 import one.tunkshif.swirlmusic.data.api.NcmCollectionApi
 import one.tunkshif.swirlmusic.data.api.WriteOutcome
+import one.tunkshif.swirlmusic.data.model.ArtistDescription
+import one.tunkshif.swirlmusic.data.model.ArtistRelease
+import one.tunkshif.swirlmusic.data.model.Page
 
 /** Canned collection reads/writes; [writeGate] suspends a write for in-flight tests. */
 class FakeCollectionApi : NcmCollectionApi {
@@ -40,13 +43,38 @@ class FakeCollectionApi : NcmCollectionApi {
     }
 }
 
-/** Minimal avatar endpoint for view-model tests. */
+/** Minimal artist endpoints for view-model tests. */
 class FakeArtistApi : NcmArtistApi {
-    val calls = mutableListOf<Long>()
+    val calls = mutableListOf<String>()
     var answers = mutableMapOf<Long, ApiResult<String?>>()
+    var albumPages = mutableMapOf<Int, ApiResult<Page<ArtistRelease>>>()
+    var descriptionResult: ApiResult<ArtistDescription>? = null
 
     override suspend fun artistAvatar(id: Long): ApiResult<String?> {
-        calls += id
+        calls += "avatar:$id"
         return answers[id] ?: ApiResult.Success(null)
+    }
+
+    override suspend fun artistAlbums(
+        id: Long,
+        limit: Int,
+        offset: Int,
+    ): ApiResult<Page<ArtistRelease>> {
+        calls += "albums:$id:$offset"
+        return albumPages[offset]
+            ?: ApiResult.Success(Page(emptyList(), hasMore = false))
+    }
+
+    override suspend fun artistDescription(id: Long): ApiResult<ArtistDescription> {
+        calls += "desc:$id"
+        return descriptionResult
+            ?: ApiResult.Success(ArtistDescription(brief = null, sections = emptyList()))
+    }
+
+    fun setAlbums(pages: List<Pair<Int, List<ArtistRelease>>>) {
+        albumPages.clear()
+        pages.forEachIndexed { index, (offset, releases) ->
+            albumPages[offset] = ApiResult.Success(Page(releases, hasMore = index < pages.size - 1))
+        }
     }
 }

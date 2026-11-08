@@ -69,6 +69,9 @@ data class ArtistDetail(
     val name: String,
     val artworkUrl: String?,
     val tracks: List<Track>,
+    val briefDesc: String? = null,
+    val songCount: Int? = null,
+    val albumCount: Int? = null,
 )
 
 enum class SearchType(val apiValue: Int) {

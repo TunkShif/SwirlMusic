@@ -18,6 +18,12 @@ class ArtistAvatarRepositoryTest {
             calls += id
             return answers.getValue(id)
         }
+
+        override suspend fun artistAlbums(id: Long, limit: Int, offset: Int) =
+            ApiResult.Success(one.tunkshif.swirlmusic.data.model.Page(emptyList<one.tunkshif.swirlmusic.data.model.ArtistRelease>(), false))
+
+        override suspend fun artistDescription(id: Long) =
+            ApiResult.Success(one.tunkshif.swirlmusic.data.model.ArtistDescription(null, emptyList()))
     }
 
     private val api = FakeArtistApi()

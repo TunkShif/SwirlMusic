@@ -111,6 +111,26 @@ data class ArtistDetailResponse(
 )
 
 @Serializable
+data class ArtistAlbumsResponse(
+    val code: Int = 0,
+    val hotAlbums: List<AlbumDto> = emptyList(),
+    val more: Boolean = false,
+)
+
+@Serializable
+data class ArtistDescResponse(
+    val code: Int = 0,
+    val briefDesc: String? = null,
+    val introduction: List<IntroDto> = emptyList(),
+)
+
+@Serializable
+data class IntroDto(
+    val ti: String = "",
+    val txt: String = "",
+)
+
+@Serializable
 data class SearchResponse(
     val code: Int = 0,
     val result: SearchResultDto = SearchResultDto(),

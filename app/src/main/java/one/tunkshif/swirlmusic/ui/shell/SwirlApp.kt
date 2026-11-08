@@ -69,6 +69,7 @@ import one.tunkshif.swirlmusic.ui.home.HomeViewModel
 import one.tunkshif.swirlmusic.ui.library.LibraryRoute
 import one.tunkshif.swirlmusic.ui.library.LibraryViewModel
 import one.tunkshif.swirlmusic.ui.search.SearchRoute
+import one.tunkshif.swirlmusic.ui.artist.ArtistRoute
 import one.tunkshif.swirlmusic.ui.tracks.TrackListRoute
 import one.tunkshif.swirlmusic.ui.theme.Spacing
 import one.tunkshif.swirlmusic.ui.tracks.TrackListSource
@@ -283,10 +284,11 @@ fun SwirlApp(
                 }
                 entry<ArtistKey> { key ->
                     padded {
-                        TrackListRoute(
-                            source = TrackListSource.Artist(key.id),
+                        ArtistRoute(
+                            id = key.id,
                             onBack = { backStack.removeLastOrNull() },
-                            onPlayTracks = onPlayTracks,
+                            onPlayTracks = { tracks, index -> onPlayTracks(tracks, index, null) },
+                            onOpenAlbum = { id -> backStack.add(AlbumKey(id)) },
                         )
                     }
                 }

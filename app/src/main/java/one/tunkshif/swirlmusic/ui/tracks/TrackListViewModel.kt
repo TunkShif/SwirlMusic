@@ -26,7 +26,6 @@ import one.tunkshif.swirlmusic.ui.common.SectionState
 sealed interface TrackListSource {
     data class Playlist(val id: Long) : TrackListSource
     data class Album(val id: Long) : TrackListSource
-    data class Artist(val id: Long) : TrackListSource
 }
 
 data class TrackListUiState(
@@ -101,7 +100,6 @@ class TrackListViewModel @Inject constructor(
             when (source) {
                 is TrackListSource.Playlist -> loadPlaylist(source.id)
                 is TrackListSource.Album -> loadAlbum(source.id)
-                is TrackListSource.Artist -> loadArtist(source.id)
             }
         }
     }
@@ -337,19 +335,6 @@ class TrackListViewModel @Inject constructor(
             _state.value = _state.value.copy(
                 artistAvatars = artists.associate { it.id to fetched[it.id] },
             )
-        }
-    }
-
-    private suspend fun loadArtist(id: Long) {
-        val hadSnapshot = emitCached(TrackListRepository.artistKey(id))
-        when (val result = repository.fetchArtist(id)) {
-            is ApiResult.Success -> result.value.let {
-                emitList(it.title, it.artworkUrl, it.subtitle, it.firstTracks, it.trackCount,
-                    HeaderExtras(it.description, it.dateMillis, it.albumType?.let { DateKind.Released } ?: if (it.dateMillis != null) DateKind.Released else null, it.company, it.albumType, it.tags))
-            }
-
-            is ApiResult.NetworkError -> if (!hadSnapshot) fail(LoadError.Network)
-            is ApiResult.HttpError, is ApiResult.Unauthorized -> if (!hadSnapshot) fail(LoadError.Server)
         }
     }
 

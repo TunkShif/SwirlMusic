@@ -171,17 +171,6 @@ class TrackListViewModelTest {
     }
 
     @Test
-    fun `an artist loads the hot songs`() = runTest {
-        useTestMain()
-
-        viewModel.load(TrackListSource.Artist(1))
-        advanceUntilIdle()
-
-        assertThat(viewModel.state.value.title).isEqualTo("Kavinsky")
-        assertThat((viewModel.state.value.tracks as SectionState.Content).value).hasSize(1)
-    }
-
-    @Test
     fun `loading a different list clears the previous header`() = runTest {
         useTestMain()
 

@@ -41,6 +41,9 @@ data class FetchedList(
     val orderedIds: List<Long>,
     val firstTracks: List<Track>,
     val orderChanged: Boolean,
+    /** `/artists` header counts; not cached. */
+    val songCount: Int? = null,
+    val albumCount: Int? = null,
     val description: String? = null,
     val dateMillis: Long? = null,
     val company: String? = null,
@@ -181,9 +184,12 @@ class TrackListRepository @Inject constructor(
         return when (val result = api.artistDetail(id)) {
             is ApiResult.Success -> {
                 val artist = result.value
-                store(key, artist.name, null, artist.artworkUrl, artist.tracks.size, null, artist.tracks)
+                store(key, artist.name, null, artist.artworkUrl, artist.tracks.size, null, artist.tracks,
+                    description = artist.briefDesc)
                 ApiResult.Success(
-                    FetchedList(artist.name, null, artist.artworkUrl, null, null, artist.tracks.map { it.id }, artist.tracks, true),
+                    FetchedList(artist.name, null, artist.artworkUrl, null, null, artist.tracks.map { it.id }, artist.tracks, true,
+                        description = artist.briefDesc,
+                        songCount = artist.songCount, albumCount = artist.albumCount),
                 )
             }
 

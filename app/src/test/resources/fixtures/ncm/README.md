@@ -17,6 +17,11 @@ Taken from the deployment with the development token, then trimmed.
 - `album_unsub_not_saved.json` — real `/album/sub?t=0` body when the album isn't saved,
   answered as HTTP 404.
 - `artist_sub.json` — real `/artist/sub` success body.
+- `artists.json` — real `/artists?id=6452`, `hotSongs` trimmed to 3.
+- `artist_album.json` — real `/artist/album?id=6452`, `hotAlbums` trimmed to one per
+  `type`/`subType` variant and the `artist` object dropped.
+- `artist_desc.json` — real `/artist/desc?id=6452`, `briefDesc` and `txt` cut to 200 chars,
+  `introduction` trimmed to 2, `topicData`/`count` dropped.
 
 ## Synthetic
 

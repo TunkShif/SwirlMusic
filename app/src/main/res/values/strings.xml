@@ -77,6 +77,25 @@
     <string name="track_list_save_refused_toast">This album can\'t be saved</string>
     <string name="track_list_save_failed_toast">Couldn\'t update your Library</string>
 
+    <!-- Artist -->
+    <string name="artist_tab_top_songs">Top songs</string>
+    <string name="artist_tab_albums">Albums</string>
+    <string name="artist_follow">Follow</string>
+    <string name="artist_following">Following</string>
+    <string name="artist_unfollowed_toast">Unfollowed</string>
+    <string name="artist_empty_albums">No albums yet</string>
+    <string name="artist_kind_album">Album</string>
+    <string name="artist_kind_ep">EP</string>
+    <string name="artist_kind_single">Single</string>
+    <plurals name="artist_song_count">
+        <item quantity="one">%1$d song</item>
+        <item quantity="other">%1$d songs</item>
+    </plurals>
+    <plurals name="artist_album_count">
+        <item quantity="one">%1$d album</item>
+        <item quantity="other">%1$d albums</item>
+    </plurals>
+
     <!-- Search -->
     <string name="search_placeholder">Search</string>
     <string name="search_prompt">Type a keyword and press search</string>

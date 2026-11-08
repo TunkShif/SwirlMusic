@@ -63,6 +63,7 @@ import one.tunkshif.swirlmusic.ui.common.PagedList
 import one.tunkshif.swirlmusic.ui.common.SectionError
 import one.tunkshif.swirlmusic.ui.common.SectionState
 import one.tunkshif.swirlmusic.ui.components.Artwork
+import one.tunkshif.swirlmusic.ui.components.GridCard
 import one.tunkshif.swirlmusic.ui.format.formatCount
 import one.tunkshif.swirlmusic.ui.theme.Spacing
 
@@ -437,7 +438,7 @@ private fun <T> CardGrid(
             verticalArrangement = Arrangement.spacedBy(Spacing.sm),
         ) {
             items(cards, key = { it.id }) { card ->
-                GridCard(card = card, circularArtwork = circularArtwork, onClick = { onOpen(card.id) })
+                GridCard(title = card.title, subtitle = card.subtitle, artworkUrl = card.artworkUrl, circularArtwork = circularArtwork, onClick = { onOpen(card.id) })
             }
             if (paged.hasMore) {
                 item {
@@ -446,53 +447,6 @@ private fun <T> CardGrid(
                         LoadingIndicator(modifier = Modifier.padding(Spacing.md))
                     }
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun GridCard(
-    card: LibraryCard,
-    circularArtwork: Boolean,
-    onClick: () -> Unit,
-) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceContainer,
-    ) {
-        Column(
-            modifier = Modifier.padding(Spacing.md),
-            horizontalAlignment = if (circularArtwork) Alignment.CenterHorizontally else Alignment.Start,
-        ) {
-            Artwork(
-                url = card.artworkUrl,
-                contentDescription = null,
-                shape = if (circularArtwork) CircleShape else MaterialTheme.shapes.large,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1f),
-            )
-            Text(
-                text = card.title,
-                style = MaterialTheme.typography.titleMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = if (circularArtwork) TextAlign.Center else null,
-                modifier = Modifier.padding(top = Spacing.sm),
-            )
-            if (card.subtitle != null) {
-                Text(
-                    text = card.subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    textAlign = if (circularArtwork) TextAlign.Center else null,
-                )
             }
         }
     }
