@@ -60,8 +60,17 @@ class ArtistViewModelTest {
         UnconfinedTestDispatcher(),
         CacheGate(db.trackListDao(), UnconfinedTestDispatcher()),
     )
-    private val viewModel = ArtistViewModel(androidx.lifecycle.SavedStateHandle(), repository, artistApi, CollectionRepository(collectionApi), object : one.tunkshif.swirlmusic.data.media.ArtworkSeedSource {
+    private val nowPlaying = kotlinx.coroutines.flow.MutableStateFlow<Long?>(null)
+    private val viewModel = ArtistViewModel(androidx.lifecycle.SavedStateHandle(), repository, artistApi, CollectionRepository(
+            collectionApi,
+            db.trackListDao(),
+            one.tunkshif.swirlmusic.data.cache.CacheGate(db.trackListDao(), UnconfinedTestDispatcher()),
+            object : TimeSource { override fun nowMillis() = 1_000L },
+            UnconfinedTestDispatcher(),
+        ), object : one.tunkshif.swirlmusic.data.media.ArtworkSeedSource {
             override suspend fun seed(artworkUrl: String): Int? = null
+        }, object : one.tunkshif.swirlmusic.player.CurrentTrackSource {
+            override val currentTrackId = nowPlaying
         })
 
     @Before
@@ -117,14 +126,16 @@ class ArtistViewModelTest {
     }
 
     @Test
-    fun `a failed follow read leaves followed null`() = runTest {
+    fun `a failed follow read keeps the shown value`() = runTest {
         useTestMain()
         collectionApi.artistFollowedResult = ApiResult.NetworkError(IOException("offline"))
 
         viewModel.load(1)
         advanceUntilIdle()
 
-        assertThat(viewModel.state.value.followState).isEqualTo(one.tunkshif.swirlmusic.ui.components.CollectionSlotState.Failed)
+        // D51: a failed read keeps what is shown (unknown paints as not followed).
+        assertThat(viewModel.state.value.followState).isEqualTo(one.tunkshif.swirlmusic.ui.components.CollectionSlotState.Ready)
+        assertThat(viewModel.state.value.followed).isFalse()
     }
 
     @Test
@@ -207,6 +218,28 @@ class ArtistViewModelTest {
     }
 
     @Test
+    fun `release pages record isSub as last-known saves`() = runTest {
+        useTestMain()
+        artistApi.albumPages[0] = ApiResult.Success(
+            Page(
+                listOf(
+                    releases(1, 0).first().copy(saved = true),
+                    releases(1, 1).first().copy(saved = false),
+                ),
+                hasMore = false,
+            ),
+        )
+        viewModel.load(1)
+        advanceUntilIdle()
+        viewModel.showReleases()
+        advanceUntilIdle()
+
+        // The page's isSub flags land in the collection_state cache.
+        assertThat(db.trackListDao().collectionState("album", 0)).isTrue()
+        assertThat(db.trackListDao().collectionState("album", 1)).isFalse()
+    }
+
+    @Test
     fun `the discography pages sequentially until more is false`() = runTest {
         useTestMain()
         artistApi.setAlbums(
@@ -286,9 +319,18 @@ class ArtistViewModelTest {
         val handle = androidx.lifecycle.SavedStateHandle()
         handle["filter"] = ReleaseFilter.Eps
         val restored = ArtistViewModel(handle, repository, artistApi,
-            CollectionRepository(collectionApi),
+            CollectionRepository(
+            collectionApi,
+            db.trackListDao(),
+            one.tunkshif.swirlmusic.data.cache.CacheGate(db.trackListDao(), UnconfinedTestDispatcher()),
+            object : TimeSource { override fun nowMillis() = 1_000L },
+            UnconfinedTestDispatcher(),
+        ),
             object : one.tunkshif.swirlmusic.data.media.ArtworkSeedSource {
                 override suspend fun seed(artworkUrl: String): Int? = null
+            },
+            object : one.tunkshif.swirlmusic.player.CurrentTrackSource {
+                override val currentTrackId = kotlinx.coroutines.flow.MutableStateFlow<Long?>(null)
             })
         assertThat(restored.state.value.filter).isEqualTo(ReleaseFilter.All)
         // Selection flows through selectFilter and persists into the handle.

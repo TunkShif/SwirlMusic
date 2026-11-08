@@ -165,6 +165,32 @@ class TrackListScreenshotTest {
         compose.onRoot().captureRoboImage("src/test/screenshots/tracklist/$name.png")
     }
 
+    /** D50: the first-fetch header is all skeletons — no Play all. */
+    @Test
+    fun album_header_loading_light() =
+        capture("album-header-loading-light", TrackListUiState(), isAlbum = true)
+
+    /** D52: the playing row takes the fully-rounded selected segment. */
+    @Test
+    fun album_now_playing_light() {
+        compose.setContent {
+            CompositionLocalProvider(LocalArtworkPainter provides ColorPainter(Color(0xFF9AA0C8))) {
+                SwirlMusicTheme(darkTheme = false, dynamicColor = false) {
+                    TrackListScreen(
+                        state = albumState().copy(saveState = one.tunkshif.swirlmusic.ui.components.CollectionSlotState.Ready, saved = true),
+                        isAlbum = true,
+                        nowPlayingId = 2L,
+                        onBack = {},
+                        onRetry = {},
+                        onLoadMore = {},
+                        onPlayTracks = { _, _ -> },
+                    )
+                }
+            }
+        }
+        compose.onRoot().captureRoboImage("src/test/screenshots/tracklist/album-now-playing-light.png")
+    }
+
     @Test
     fun playlist_description_light() = capture("playlist-description-light", playlistState())
 

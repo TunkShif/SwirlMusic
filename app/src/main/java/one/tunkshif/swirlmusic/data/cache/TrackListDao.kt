@@ -64,6 +64,16 @@ interface TrackListDao {
     @Query("DELETE FROM track")
     fun clearTracks()
 
+    // Collection state (0012-D51)
+    @Query("SELECT active FROM collection_state WHERE kind = :kind AND id = :id")
+    fun collectionState(kind: String, id: Long): Boolean?
+
+    @Upsert
+    fun upsertCollectionStates(states: List<CollectionStateEntity>)
+
+    @Query("DELETE FROM collection_state")
+    fun clearCollectionStates()
+
     @Transaction
     fun clearAll() {
         clearSnapshots()
@@ -71,6 +81,7 @@ interface TrackListDao {
         clearTracks()
         clearQueue()
         clearResume()
+        clearCollectionStates()
     }
 
     // Resume playback state

@@ -4,10 +4,13 @@ import androidx.room.Room
 import com.google.common.truth.Truth.assertThat
 import java.io.IOException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -43,6 +46,9 @@ class TrackListViewModelTest {
         SwirlDatabase::class.java,
     ).allowMainThreadQueries().build()
 
+    private val nowPlayingSource = object : one.tunkshif.swirlmusic.player.CurrentTrackSource {
+        override val currentTrackId = kotlinx.coroutines.flow.MutableStateFlow<Long?>(null)
+    }
     private val api = FakeLibraryApi()
     private val collectionApi = FakeCollectionApi()
     private val repository = TrackListRepository(api, db.trackListDao(), object : TimeSource { override fun nowMillis() = 1_000L }, kotlinx.coroutines.test.UnconfinedTestDispatcher(), one.tunkshif.swirlmusic.data.cache.CacheGate(db.trackListDao(), kotlinx.coroutines.test.UnconfinedTestDispatcher()))
@@ -51,7 +57,14 @@ class TrackListViewModelTest {
         object : one.tunkshif.swirlmusic.data.media.ArtworkSeedSource {
             override suspend fun seed(artworkUrl: String): Int? = null
         },
-        CollectionRepository(collectionApi),
+        nowPlayingSource,
+        CollectionRepository(
+            collectionApi,
+            db.trackListDao(),
+            one.tunkshif.swirlmusic.data.cache.CacheGate(db.trackListDao(), UnconfinedTestDispatcher()),
+            object : TimeSource { override fun nowMillis() = 1_000L },
+            UnconfinedTestDispatcher(),
+        ),
         ArtistAvatarRepository(FakeArtistApi()),
     )
 
@@ -279,14 +292,16 @@ class TrackListViewModelTest {
     }
 
     @Test
-    fun `a failed saved read leaves saved null`() = runTest {
+    fun `a failed saved read keeps the shown value`() = runTest {
         useTestMain()
         collectionApi.albumSavedResult = ApiResult.NetworkError(IOException("offline"))
 
         viewModel.load(TrackListSource.Album(1))
         advanceUntilIdle()
 
-        assertThat(viewModel.state.value.saveState).isEqualTo(one.tunkshif.swirlmusic.ui.components.CollectionSlotState.Failed)
+        // D51: a failed read keeps what is shown (unknown paints as not saved).
+        assertThat(viewModel.state.value.saveState).isEqualTo(one.tunkshif.swirlmusic.ui.components.CollectionSlotState.Ready)
+        assertThat(viewModel.state.value.saved).isFalse()
         assertThat(viewModel.state.value.title).isEqualTo("OutRun")
     }
 
@@ -431,5 +446,54 @@ class TrackListViewModelTest {
         assertThat(viewModel.state.value.artists).containsExactlyElementsIn(artists).inOrder()
         assertThat(viewModel.state.value.artistAvatars.keys)
             .containsExactly(501L, 502L)
+    }
+    @Test
+    fun `nowPlayingId follows the current track source`() = runTest {
+        useTestMain()
+        viewModel.load(TrackListSource.Playlist(1))
+        advanceUntilIdle()
+
+        (nowPlayingSource.currentTrackId as kotlinx.coroutines.flow.MutableStateFlow).value = 7L
+        val collected = backgroundScope.async { viewModel.nowPlayingId.first { it != null } }
+        advanceUntilIdle()
+        assertThat(collected.await()).isEqualTo(7L)
+    }
+
+    @Test
+    fun `a last-known saved value paints immediately`() = runTest {
+        useTestMain()
+        // Seed the cache: the read records the last-known state.
+        // Seed last-known=true directly in the cache.
+        db.trackListDao().upsertCollectionStates(
+            listOf(one.tunkshif.swirlmusic.data.cache.CollectionStateEntity("album", 1, true, 0)),
+        )
+        collectionApi.albumSavedResult = ApiResult.Success(false)
+
+        viewModel.load(TrackListSource.Album(1))
+        advanceUntilIdle()
+
+        // Last-known paints first; the fresh read then corrects it to false.
+        assertThat(viewModel.state.value.saved).isFalse()
+        assertThat(viewModel.state.value.saveState)
+            .isEqualTo(one.tunkshif.swirlmusic.ui.components.CollectionSlotState.Ready)
+    }
+
+    @Test
+    fun `a stale read landing after a toggle is dropped`() = runTest {
+        useTestMain()
+        collectionApi.albumSavedResult = ApiResult.Success(false)
+        collectionApi.writeGate = kotlinx.coroutines.CompletableDeferred()
+        viewModel.load(TrackListSource.Album(1))
+        advanceUntilIdle()
+
+        // Toggle before the write lands: the read that lands later must not clobber it.
+        viewModel.toggleSave()
+        runCurrent()
+        assertThat(viewModel.state.value.saved).isTrue()
+
+        collectionApi.writeGate!!.complete(Unit)
+        advanceUntilIdle()
+
+        assertThat(viewModel.state.value.saved).isTrue()
     }
 }

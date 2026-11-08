@@ -1,17 +1,20 @@
 package one.tunkshif.swirlmusic.ui.tracks
 
 import androidx.compose.foundation.clickable
+import androidx.compose.animation.Crossfade
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -30,6 +33,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.graphicsLayer
@@ -71,6 +75,10 @@ internal fun CollapsingDetailHeader(
     description: String? = null,
     onDescriptionClick: () -> Unit = {},
     leadingActions: @Composable RowScope.() -> Unit = {},
+    /** Shows skeleton bars/pills instead of text while the first fetch is in flight (D50). */
+    loading: Boolean = false,
+    /** Whether the screen has a collection action at all (albums/artists only). */
+    hasCollectionAction: Boolean = false,
     topInset: androidx.compose.ui.unit.Dp = 0.dp,
 ) {
     val collapsedPlayVisible = remember { derivedStateOf { appBarState.collapsedFraction > 0.5f } }
@@ -105,7 +113,7 @@ internal fun CollapsingDetailHeader(
                 contentDescription = null,
                 modifier = Modifier.layoutId("art"),
             )
-            // "bigText"
+            // "bigText" — skeleton bars while the first fetch is in flight (D50).
             Column(
                 modifier = Modifier
                     .layoutId("bigText")
@@ -113,21 +121,55 @@ internal fun CollapsingDetailHeader(
                         alpha = (1f - appBarState.collapsedFraction / 0.4f).coerceIn(0f, 1f)
                     },
             ) {
-                Text(
-                    text = title.ifBlank { stringResource(R.string.track_list_title) },
-                    style = MaterialTheme.typography.headlineSmall,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                subtitle?.invoke()
-                if (meta != null) {
-                    Text(
-                        text = meta,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                Crossfade(
+                    targetState = loading,
+                    animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
+                ) { isLoading ->
+                    if (isLoading) {
+                        Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(0.70f)
+                                    .height(MaterialTheme.typography.headlineSmall.lineHeight.value.dp)
+                                    .clip(RoundedCornerShape(50))
+                                    .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(0.45f)
+                                    .height(MaterialTheme.typography.headlineSmall.lineHeight.value.dp)
+                                    .clip(RoundedCornerShape(50))
+                                    .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .padding(top = Spacing.sm)
+                                    .fillMaxWidth(0.55f)
+                                    .height(MaterialTheme.typography.bodyMedium.lineHeight.value.dp)
+                                    .clip(RoundedCornerShape(50))
+                                    .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                            )
+                        }
+                    } else {
+                        Column {
+                            Text(
+                                text = title.ifBlank { stringResource(R.string.track_list_title) },
+                                style = MaterialTheme.typography.headlineSmall,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            subtitle?.invoke()
+                            if (meta != null) {
+                                Text(
+                                    text = meta,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        }
+                    }
                 }
             }
             // "barTitle"
@@ -144,7 +186,7 @@ internal fun CollapsingDetailHeader(
                     ,
             )
             // "desc"
-            if (description != null) {
+            if (!loading && description != null) {
                 Column(
                     modifier = Modifier
                         .layoutId("desc")
@@ -191,9 +233,37 @@ internal fun CollapsingDetailHeader(
                         alpha = (1f - appBarState.collapsedFraction / 0.35f).coerceIn(0f, 1f)
                     },
             ) {
-                leadingActions()
-                Spacer(Modifier.weight(1f).widthIn(min = Spacing.sm))
-                Button(
+                Crossfade(
+                    targetState = loading,
+                    animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
+                    modifier = Modifier.weight(1f),
+                ) { isLoading ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (isLoading) {
+                            if (hasCollectionAction) {
+                                Box(
+                                    modifier = Modifier
+                                        .width(104.dp)
+                                        .height(40.dp)
+                                        .clip(RoundedCornerShape(50))
+                                        .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                                )
+                            }
+                        } else {
+                            leadingActions()
+                        }
+                        Spacer(Modifier.weight(1f).widthIn(min = Spacing.sm))
+                    }
+                }
+                if (loading) {
+                    Box(
+                        modifier = Modifier
+                            .width(104.dp)
+                            .height(40.dp)
+                            .clip(RoundedCornerShape(50))
+                            .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                    )
+                } else Button(
                     onClick = onPlayAll,
                     shape = MaterialTheme.shapes.extraLarge,
                 ) {
@@ -292,15 +362,17 @@ internal fun CollapsingDetailHeader(
                     artExpY + offset.roundToInt(),
                 )
             }
-            barTitle?.place(
-                barTitleX,
-                inset + (barH - barTitle.height) / 2,
-            )
+            if (!loading) {
+                barTitle?.takeIf { f > 0.3f }?.place(
+                    barTitleX,
+                    inset + (barH - barTitle.height) / 2,
+                )
+            }
             if (g.contentAlpha > 0f) {
                 desc?.place(padH, descTop + offset.roundToInt())
                 playAll?.place(padH, playAllTop + offset.roundToInt())
             }
-            if (g.playButtonEnabled) {
+            if (!loading && g.playButtonEnabled) {
                 playCollapsed?.place(
                     collapsedPlayX,
                     inset + (barH - playCollapsed.height) / 2,

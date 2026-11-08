@@ -68,6 +68,7 @@ enum class TrackListMessage { Saved, Removed, AlbumLocked, SaveFailed }
 class TrackListViewModel @Inject constructor(
     private val repository: TrackListRepository,
     artworkSeedSource: ArtworkSeedSource,
+    private val currentTrack: one.tunkshif.swirlmusic.player.CurrentTrackSource,
     private val collection: CollectionRepository,
     private val artistAvatars: ArtistAvatarRepository,
 ) : ViewModel() {
@@ -77,6 +78,12 @@ class TrackListViewModel @Inject constructor(
 
     private val _messages = Channel<TrackListMessage>(Channel.BUFFERED)
     val messages = _messages.receiveAsFlow()
+
+    /** The playing track's id for row selection (0012-D52). Lazy dispatcher gotcha. */
+    val nowPlayingId: StateFlow<Long?> by lazy {
+        currentTrack.currentTrackId
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    }
 
     /** Artwork seed for the screen's colour theme (0011-D47). Lazy so the
      *  view-model scope binds after tests install their dispatcher. */
@@ -293,12 +300,14 @@ class TrackListViewModel @Inject constructor(
      * [TrackListUiState.saved] null and the button stays hidden. No retry, no cache.
      */
     private var savedJob: Job? = null
+    private var toggleGeneration = 0
 
     fun toggleSave() {
         if (_state.value.saveState != one.tunkshif.swirlmusic.ui.components.CollectionSlotState.Ready) return
         val current = _state.value.saved
         if (_state.value.savePending) return
         val albumId = (source as? TrackListSource.Album)?.id ?: return
+        toggleGeneration++
         _state.value = _state.value.copy(saved = !current, savePending = true)
         viewModelScope.launch {
             when (val result = collection.setAlbumSaved(albumId, !current)) {
@@ -323,19 +332,23 @@ class TrackListViewModel @Inject constructor(
     private suspend fun loadAlbum(id: Long) {
         savedJob?.cancel()
         savedJob = viewModelScope.launch {
+            // Last-known paints immediately (0012-D51); the fresh read only corrects it.
+            if (!_state.value.savePending) {
+                _state.value = _state.value.copy(
+                    saveState = one.tunkshif.swirlmusic.ui.components.CollectionSlotState.Ready,
+                    saved = collection.lastKnownAlbumSaved(id) ?: false,
+                )
+            }
+            val readGen = toggleGeneration
             when (val result = collection.albumSaved(id)) {
-                // A toggle already in flight owns `saved` now; don't clobber it.
                 is ApiResult.Success ->
-                    if (!_state.value.savePending) {
+                    if (readGen == toggleGeneration && !_state.value.savePending) {
                         _state.value = _state.value.copy(
                             saveState = one.tunkshif.swirlmusic.ui.components.CollectionSlotState.Ready,
                             saved = result.value,
                         )
                     }
-                else ->
-                    _state.value = _state.value.copy(
-                        saveState = one.tunkshif.swirlmusic.ui.components.CollectionSlotState.Failed,
-                    )
+                else -> Unit // A failed read keeps what is shown.
             }
         }
         val hadSnapshot = emitCached(TrackListRepository.albumKey(id))

@@ -14,6 +14,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -115,20 +116,22 @@ fun SwirlApp(
      * The home destination. A parameter, not a hard reference, so shell tests can render the shell
      * without Hilt or a network. Production uses the default.
      */
-    homeContent: @Composable () -> Unit = {
+    homeContent: @Composable (contentPadding: PaddingValues) -> Unit = { contentPadding ->
         HomeRoute(
             nickname = profile?.nickname,
             onPlayTracks = { t, i -> onPlayTracks(t, i, null) },
+            contentPadding = contentPadding,
             viewModel = homeViewModel ?: hiltViewModel(),
         )
     },
-    libraryContent: @Composable (openPlaylist: (Long) -> Unit, openAlbum: (Long) -> Unit, openArtist: (Long) -> Unit, openSearch: () -> Unit) -> Unit = { openPlaylist, openAlbum, openArtist, openSearch ->
+    libraryContent: @Composable (contentPadding: PaddingValues, openPlaylist: (Long) -> Unit, openAlbum: (Long) -> Unit, openArtist: (Long) -> Unit, openSearch: () -> Unit) -> Unit = { contentPadding, openPlaylist, openAlbum, openArtist, openSearch ->
         LibraryRoute(
             onOpenSearch = openSearch,
             onOpenPlaylist = openPlaylist,
             onOpenAlbum = openAlbum,
             onOpenArtist = openArtist,
             onPlayTracks = { t, i -> onPlayTracks(t, i, null) },
+            contentPadding = contentPadding,
             viewModel = libraryViewModel ?: hiltViewModel(),
         )
     },
@@ -252,16 +255,15 @@ fun SwirlApp(
                 rememberViewModelStoreNavEntryDecorator(),
             ),
             entryProvider = entryProvider {
-                entry<HomeKey> { padded { homeContent() } }
+                entry<HomeKey> { homeContent(innerPadding) }
                 entry<LibraryKey> {
-                    padded {
-                        libraryContent(
-                            { id -> backStack.add(PlaylistKey(id)) },
-                            { id -> backStack.add(AlbumKey(id)) },
-                            { id -> backStack.add(ArtistKey(id)) },
-                            { backStack.add(SearchKey) },
-                        )
-                    }
+                    libraryContent(
+                        innerPadding,
+                        { id -> backStack.add(PlaylistKey(id)) },
+                        { id -> backStack.add(AlbumKey(id)) },
+                        { id -> backStack.add(ArtistKey(id)) },
+                        { backStack.add(SearchKey) },
+                    )
                 }
                 entry<PlaylistKey> { key ->
                     TrackListRoute(
@@ -290,18 +292,21 @@ fun SwirlApp(
                     )
                 }
                 entry<SearchKey> {
-                    padded {
-                        SearchRoute(
-                            onBack = { backStack.removeLastOrNull() },
-                            onOpenPlaylist = { id -> backStack.add(PlaylistKey(id)) },
-                            onOpenAlbum = { id -> backStack.add(AlbumKey(id)) },
-                            onOpenArtist = { id -> backStack.add(ArtistKey(id)) },
-                            onPlayTracks = { t, i -> onPlayTracks(t, i, null) },
-                        )
-                    }
+                    SearchRoute(
+                        onBack = { backStack.removeLastOrNull() },
+                        onOpenPlaylist = { id -> backStack.add(PlaylistKey(id)) },
+                        onOpenAlbum = { id -> backStack.add(AlbumKey(id)) },
+                        onOpenArtist = { id -> backStack.add(ArtistKey(id)) },
+                        onPlayTracks = { t, i -> onPlayTracks(t, i, null) },
+                        contentPadding = innerPadding,
+                    )
                 }
                 entry<ProfileKey> {
-                    padded { ProfileScreen(profile = profile, onSignOut = onSignOut) }
+                    ProfileScreen(
+                        profile = profile,
+                        onSignOut = onSignOut,
+                        contentPadding = innerPadding,
+                    )
                 }
                 entry<PlayingKey>(
                     // Not a composable context, so the default easing specs are used.

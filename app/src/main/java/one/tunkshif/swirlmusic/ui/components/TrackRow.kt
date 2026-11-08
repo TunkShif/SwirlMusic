@@ -24,6 +24,8 @@ fun TrackRow(
     index: Int,
     count: Int,
     modifier: Modifier = Modifier,
+    /** Highlights the row with the fully-rounded selected segment (0012-D52). */
+    selected: Boolean = false,
     onClick: () -> Unit,
     leading: (@Composable () -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
@@ -32,6 +34,7 @@ fun TrackRow(
     ),
 ) {
     SegmentedListItem(
+        selected = selected,
         onClick = onClick,
         shapes = ListItemDefaults.segmentedShapes(index, count),
         modifier = modifier,

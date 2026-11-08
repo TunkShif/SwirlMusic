@@ -8,6 +8,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -51,6 +54,7 @@ fun ProfileScreen(
     profile: UserProfile?,
     onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues(),
 ) {
     var confirmSignOut by remember { mutableStateOf(false) }
 
@@ -62,7 +66,12 @@ fun ProfileScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(Spacing.xl),
+                .padding(
+                    top = contentPadding.calculateTopPadding() + Spacing.xl,
+                    start = contentPadding.calculateStartPadding(androidx.compose.ui.platform.LocalLayoutDirection.current) + Spacing.xl,
+                    end = contentPadding.calculateEndPadding(androidx.compose.ui.platform.LocalLayoutDirection.current) + Spacing.xl,
+                    bottom = contentPadding.calculateBottomPadding() + Spacing.xl,
+                ),
             verticalArrangement = Arrangement.spacedBy(Spacing.lg),
         ) {
             Text(

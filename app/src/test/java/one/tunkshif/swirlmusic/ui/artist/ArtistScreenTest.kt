@@ -95,6 +95,12 @@ class ArtistScreenTest {
     }
 
     @Test
+    fun `a loading header shows no play-all`() {
+        setContent(ArtistUiState())
+        compose.onNodeWithText(res(R.string.track_list_play_all)).assertDoesNotExist()
+    }
+
+    @Test
     fun `tapping the Albums tab switches pages`() {
         setContent(state())
         compose.onNodeWithText(res(R.string.artist_tab_albums)).performClick()
@@ -132,15 +138,6 @@ class ArtistScreenTest {
     @Test
     fun `a null followed state hides the button`() {
         setContent(state(followed = null))
-        compose.onNodeWithText(res(R.string.artist_follow)).assertDoesNotExist()
-        compose.onNodeWithText(res(R.string.artist_following)).assertDoesNotExist()
-    }
-
-    @Test
-    fun `a failed follow read hides the toggle`() {
-        setContent(state().copy(
-            followState = one.tunkshif.swirlmusic.ui.components.CollectionSlotState.Failed,
-        ))
         compose.onNodeWithText(res(R.string.artist_follow)).assertDoesNotExist()
         compose.onNodeWithText(res(R.string.artist_following)).assertDoesNotExist()
     }

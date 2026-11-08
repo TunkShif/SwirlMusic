@@ -28,7 +28,7 @@ import androidx.compose.ui.unit.dp
 import one.tunkshif.swirlmusic.ui.theme.Spacing
 
 /** The header's collection action while its state is unknown, known, or unreadable (D45). */
-enum class CollectionSlotState { Loading, Ready, Failed }
+enum class CollectionSlotState { Loading, Ready }
 
 private val CollectionPillHeight = 40.dp
 private val CollectionSkeletonWidth = 104.dp
@@ -94,7 +94,6 @@ fun CollectionAction(
                     .background(MaterialTheme.colorScheme.surfaceContainerHigh),
             )
             CollectionSlotState.Ready -> content()
-            CollectionSlotState.Failed -> Box(Modifier.size(0.dp))
         }
     }
 }

@@ -107,6 +107,7 @@ fun ArtistRoute(
     LaunchedEffect(id) { viewModel.load(id) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val seed by viewModel.seed.collectAsStateWithLifecycle()
+    val nowPlayingId by viewModel.nowPlayingId.collectAsStateWithLifecycle()
     val toastState = rememberToastPillState()
 
     LaunchedEffect(Unit) {
@@ -136,6 +137,7 @@ fun ArtistRoute(
         onPlayTracks = onPlayTracks,
         onOpenDescription = viewModel::loadDescription,
         toastState = toastState,
+        nowPlayingId = nowPlayingId,
         onSelectFilter = viewModel::selectFilter,
         modifier = modifier,
     )
@@ -159,6 +161,7 @@ fun ArtistScreen(
     onRetryReleases: () -> Unit = {},
     onOpenAlbum: (Long) -> Unit = {},
     onOpenDescription: () -> Unit = {},
+    nowPlayingId: Long? = null,
     onSelectFilter: (ReleaseFilter) -> Unit = {},
     onPlayTracks: (List<Track>, Int) -> Unit,
 ) {
@@ -192,6 +195,8 @@ fun ArtistScreen(
                     },
                     circularArtwork = true,
                     topInset = contentPadding.calculateTopPadding(),
+                    loading = state.name.isBlank() && state.topSongs is SectionState.Loading,
+                    hasCollectionAction = true,
                     meta = artistMeta(state),
                     description = state.briefDesc,
                     onDescriptionClick = {
@@ -250,6 +255,7 @@ fun ArtistScreen(
                     0 -> TopSongsPage(
                         state = state.topSongs,
                         contentPadding = innerPadding,
+                        nowPlayingId = nowPlayingId,
                         outerPadding = contentPadding,
                         onRetry = onRetry,
                         onPlayTracks = onPlayTracks,
@@ -295,6 +301,7 @@ private fun artistMeta(state: ArtistUiState): String? {
 private fun TopSongsPage(
     state: SectionState<List<Track>>,
     contentPadding: PaddingValues,
+    nowPlayingId: Long? = null,
     outerPadding: PaddingValues = PaddingValues(),
     onRetry: () -> Unit,
     onPlayTracks: (List<Track>, Int) -> Unit,
@@ -319,6 +326,7 @@ private fun TopSongsPage(
                         track = track,
                         index = index,
                         count = state.value.size,
+                        selected = track.id == nowPlayingId,
                         onClick = { onPlayTracks(state.value, index) },
                         leading = {
                             Text(

@@ -11,6 +11,8 @@ data class ArtistRelease(
     val publishedAt: Long?,
     val kind: ReleaseKind,
     val trackCount: Int,
+    /** `/artist/album` `isSub`: the album is in the library (0012-D51). */
+    val saved: Boolean = false,
 )
 
 data class ArtistDescription(

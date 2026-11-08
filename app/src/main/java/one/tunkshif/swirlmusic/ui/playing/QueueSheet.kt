@@ -224,7 +224,13 @@ private fun QueueRow(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .clip(ListItemDefaults.segmentedShapes(index, count).shape)
+                    .clip(
+                        if (isCurrent) {
+                            ListItemDefaults.segmentedShapes(index, count).selectedShape
+                        } else {
+                            ListItemDefaults.segmentedShapes(index, count).shape
+                        },
+                    )
                     .background(MaterialTheme.colorScheme.errorContainer)
                     .padding(horizontal = Spacing.xl),
                 contentAlignment = Alignment.CenterEnd,
@@ -241,7 +247,13 @@ private fun QueueRow(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(ListItemDefaults.segmentedShapes(index, count).shape)
+                .clip(
+                    if (isCurrent) {
+                        ListItemDefaults.segmentedShapes(index, count).selectedShape
+                    } else {
+                        ListItemDefaults.segmentedShapes(index, count).shape
+                    },
+                )
                 .background(
                     if (isCurrent) {
                         MaterialTheme.colorScheme.secondaryContainer

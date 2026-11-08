@@ -90,6 +90,7 @@ fun TrackListRoute(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val toastState = rememberToastPillState()
     val seedValue by viewModel.seed.collectAsStateWithLifecycle()
+    val nowPlayingId by viewModel.nowPlayingId.collectAsStateWithLifecycle()
     val seed = seedValue
 
     LaunchedEffect(Unit) {
@@ -116,6 +117,7 @@ fun TrackListRoute(
         onBack = onBack,
         onRetry = viewModel::retry,
         onLoadMore = viewModel::loadMore,
+        nowPlayingId = nowPlayingId,
         onToggleSave = viewModel::toggleSave,
         onOpenArtist = onOpenArtist,
         onPlayTracks = { tracks, index ->
@@ -142,6 +144,7 @@ fun TrackListScreen(
     onLoadMore: () -> Unit,
     onToggleSave: () -> Unit = {},
     onOpenArtist: (Long) -> Unit = {},
+    nowPlayingId: Long? = null,
     onPlayTracks: (List<Track>, Int) -> Unit,
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
@@ -163,6 +166,8 @@ fun TrackListScreen(
                 appBarState = appBarState,
                 onBack = onBack,
                 topInset = contentPadding.calculateTopPadding(),
+                loading = state.title.isBlank() && state.tracks is SectionState.Loading,
+                hasCollectionAction = isAlbum,
                 onPlayAll = {
                     (state.tracks as? SectionState.Content)?.let { onPlayTracks(it.value, 0) }
                 },
@@ -274,6 +279,7 @@ fun TrackListScreen(
                                             track = row.track,
                                             index = pos,
                                             count = count,
+                                            selected = row.track.id == nowPlayingId,
                                             onClick = { onPlayTracks(list, row.index) },
                                             leading = if (isAlbum) {
                                                 { Text(row.number.toString(), style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"), color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center, modifier = Modifier.width(40.dp)) }

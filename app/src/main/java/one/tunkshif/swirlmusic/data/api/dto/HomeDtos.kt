@@ -55,6 +55,7 @@ data class AlbumDto(
     val company: String? = null,
     val subType: String? = null,
     val type: String? = null,
+    val isSub: Boolean = false,
 )
 
 /** `/recommend/resource` returns the list at the top level, with `playcount` spelled lower case. */

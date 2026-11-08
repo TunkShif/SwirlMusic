@@ -67,8 +67,8 @@ class ShellBehaviorTest {
                     ),
                     onPlayPause = {},
                     onPlayTracks = { _, _, _ -> },
-                    homeContent = { TestHome() },
-                    libraryContent = { _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
+                    homeContent = { _ -> TestHome() },
+                    libraryContent = { _, _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
                 )
             }
         }
@@ -91,8 +91,8 @@ class ShellBehaviorTest {
                     ),
                     onPlayPause = {},
                     onPlayTracks = { _, _, _ -> },
-                    homeContent = { TestHome() },
-                    libraryContent = { _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
+                    homeContent = { _ -> TestHome() },
+                    libraryContent = { _, _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
                 )
             }
         }
@@ -119,8 +119,8 @@ class ShellBehaviorTest {
                     ),
                     onPlayPause = {},
                     onPlayTracks = { _, _, _ -> },
-                    homeContent = { TestHome() },
-                    libraryContent = { _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
+                    homeContent = { _ -> TestHome() },
+                    libraryContent = { _, _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
                     playingContent = { onBack, _, _, _ -> PlayingStub(onBack) },
                 )
             }
@@ -150,8 +150,8 @@ class ShellBehaviorTest {
                     ),
                     onPlayPause = {},
                     onPlayTracks = { _, _, _ -> },
-                    homeContent = { TestHome() },
-                    libraryContent = { _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
+                    homeContent = { _ -> TestHome() },
+                    libraryContent = { _, _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
                     playingContent = { onBack, _, _, _ -> PlayingStub(onBack) },
                 )
             }
@@ -186,8 +186,8 @@ class ShellBehaviorTest {
                     ),
                     onPlayPause = {},
                     onPlayTracks = { _, _, _ -> },
-                    homeContent = { TestHome() },
-                    libraryContent = { _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
+                    homeContent = { _ -> TestHome() },
+                    libraryContent = { _, _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
                 )
             }
         }
@@ -241,8 +241,8 @@ class ShellBehaviorTest {
                         ),
                     ),
                     onQueueEvent = {},
-                    homeContent = { TestHome() },
-                    libraryContent = { _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
+                    homeContent = { _ -> TestHome() },
+                    libraryContent = { _, _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
                     playingContent = { _, _, _, _ -> androidx.compose.material3.Text("Playing stub") },
                 )
             }
@@ -272,8 +272,8 @@ class ShellBehaviorTest {
                     onPlayTracks = { _, _, _ -> },
                     queue = queue.value,
                     onQueueEvent = {},
-                    homeContent = { TestHome() },
-                    libraryContent = { _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
+                    homeContent = { _ -> TestHome() },
+                    libraryContent = { _, _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
                     playingContent = { _, _, _, onOpenQueue ->
                         androidx.compose.foundation.layout.Column {
                             androidx.compose.material3.Text("Playing stub")
@@ -303,8 +303,8 @@ class ShellBehaviorTest {
                     miniPlayer = MiniPlayerUiState(title = "Nightcall", subtitle = "Kavinsky"),
                     onPlayPause = {},
                     onPlayTracks = { _, _, _ -> },
-                    homeContent = { TestHome() },
-                    libraryContent = { _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
+                    homeContent = { _ -> TestHome() },
+                    libraryContent = { _, _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
                     playingContent = { onBack, _, _, _ -> PlayingStub(onBack) },
                 )
             }
@@ -340,8 +340,8 @@ class ShellBehaviorTest {
                     miniPlayer = MiniPlayerUiState(title = "Nightcall", subtitle = "Kavinsky"),
                     onPlayPause = {},
                     onPlayTracks = { _, _, _ -> },
-                    homeContent = { TestHome() },
-                    libraryContent = { _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
+                    homeContent = { _ -> TestHome() },
+                    libraryContent = { _, _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
                     playingContent = { onBack, _, _, _ -> PlayingStub(onBack) },
                 )
             }
@@ -383,8 +383,8 @@ class ShellBehaviorTest {
                     miniPlayer = MiniPlayerUiState(title = "Nightcall", subtitle = "Kavinsky"),
                     onPlayPause = {},
                     onPlayTracks = { _, _, _ -> },
-                    homeContent = { TestHome() },
-                    libraryContent = { _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
+                    homeContent = { _ -> TestHome() },
+                    libraryContent = { _, _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
                     playingContent = { onBack, _, _, _ ->
                         NowPlayingScreen(
                             state = coverState,
@@ -428,8 +428,8 @@ class ShellBehaviorTest {
                     miniPlayer = MiniPlayerUiState(title = "Nightcall", subtitle = "Kavinsky"),
                     onPlayPause = {},
                     onPlayTracks = { _, _, _ -> },
-                    homeContent = { TestHome() },
-                    libraryContent = { _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
+                    homeContent = { _ -> TestHome() },
+                    libraryContent = { _, _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
                     playingContent = { onBack, _, _, _ ->
                         NowPlayingScreen(
                             state = coverState,

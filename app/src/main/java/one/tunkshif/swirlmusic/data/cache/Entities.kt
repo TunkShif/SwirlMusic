@@ -111,3 +111,12 @@ data class SnapshotTrackEntity(
     val position: Int,
     val trackId: Long,
 )
+
+/** Last-known save/follow state per collection item (0012-D51). Account-scoped. */
+@Entity(tableName = "collection_state", primaryKeys = ["kind", "id"])
+data class CollectionStateEntity(
+    val kind: String,
+    val id: Long,
+    val active: Boolean,
+    val updatedAt: Long,
+)

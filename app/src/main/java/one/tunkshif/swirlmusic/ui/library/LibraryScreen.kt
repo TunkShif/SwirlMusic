@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -52,6 +54,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -85,9 +88,11 @@ fun LibraryRoute(
     onOpenArtist: (Long) -> Unit,
     onPlayTracks: (List<Track>, Int) -> Unit,
     modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues(),
     viewModel: LibraryViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val nowPlayingId by viewModel.nowPlayingId.collectAsStateWithLifecycle()
     LibraryScreen(
         state = state,
         onSelectTab = viewModel::selectTab,
@@ -98,6 +103,8 @@ fun LibraryRoute(
         onOpenAlbum = onOpenAlbum,
         onOpenArtist = onOpenArtist,
         onPlayTracks = onPlayTracks,
+        contentPadding = contentPadding,
+        nowPlayingId = nowPlayingId,
         modifier = modifier,
     )
 }
@@ -114,6 +121,8 @@ fun LibraryScreen(
     onOpenArtist: (Long) -> Unit,
     onPlayTracks: (List<Track>, Int) -> Unit,
     modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues(),
+    nowPlayingId: Long? = null,
 ) {
     Surface(
         modifier = modifier.fillMaxSize(),
@@ -121,6 +130,8 @@ fun LibraryScreen(
     ) {
         LibraryContent(
             state = state,
+            contentPadding = contentPadding,
+            nowPlayingId = nowPlayingId,
             onSelectTab = onSelectTab,
             onRetry = onRetry,
             onLoadMore = onLoadMore,
@@ -144,8 +155,18 @@ private fun LibraryContent(
     onOpenAlbum: (Long) -> Unit,
     onOpenArtist: (Long) -> Unit,
     onPlayTracks: (List<Track>, Int) -> Unit,
+    contentPadding: PaddingValues = PaddingValues(),
+    nowPlayingId: Long? = null,
 ) {
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(
+                top = contentPadding.calculateTopPadding(),
+                start = contentPadding.calculateStartPadding(LocalLayoutDirection.current),
+                end = contentPadding.calculateEndPadding(LocalLayoutDirection.current),
+            ),
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -177,12 +198,14 @@ private fun LibraryContent(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f),
+                .weight(1f)
+                .padding(bottom = 0.dp),
             shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
             color = MaterialTheme.colorScheme.surfaceContainerLow,
         ) {
             when (state.tab) {
                 LibraryTab.Playlists -> PlaylistList(
+                    bottomPad = contentPadding.calculateBottomPadding(),
                     paged = state.playlists,
                     onOpen = onOpenPlaylist,
                     onRetry = { onRetry(LibraryTab.Playlists) },
@@ -190,6 +213,7 @@ private fun LibraryContent(
                 )
 
                 LibraryTab.Albums -> CardGrid(
+                    bottomPad = contentPadding.calculateBottomPadding(),
                     paged = state.albums,
                     cards = state.albums.items.map {
                         LibraryCard(it.id, it.name, it.artistLine, it.artworkUrl)
@@ -202,6 +226,7 @@ private fun LibraryContent(
                 )
 
                 LibraryTab.Artists -> CardGrid(
+                    bottomPad = contentPadding.calculateBottomPadding(),
                     paged = state.artists,
                     cards = state.artists.items.map {
                         LibraryCard(it.id, it.name, null, it.artworkUrl)
@@ -214,6 +239,8 @@ private fun LibraryContent(
                 )
 
                 LibraryTab.Recent -> RecentList(
+                    bottomPad = contentPadding.calculateBottomPadding(),
+                    nowPlayingId = nowPlayingId,
                     state = state.recent,
                     onRetry = { onRetry(LibraryTab.Recent) },
                     onPlayTracks = onPlayTracks,
@@ -302,14 +329,17 @@ private fun ListCard(
     onClick: () -> Unit,
     index: Int = 0,
     count: Int = 1,
+    /** Selected rows take the fully-rounded segment + secondaryContainer (0012-D52). */
+    selected: Boolean = false,
     trailing: (@Composable () -> Unit)? = null,
 ) {
+    val shapes = ListItemDefaults.segmentedShapes(index, count)
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        shape = ListItemDefaults.segmentedShapes(index, count).shape,
-        color = MaterialTheme.colorScheme.surfaceContainer,
+        shape = if (selected) shapes.selectedShape else shapes.shape,
+        color = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer,
     ) {
         Row(
             modifier = Modifier.padding(Spacing.md),
@@ -351,6 +381,7 @@ private fun PlaylistList(
     onOpen: (Long) -> Unit,
     onRetry: () -> Unit,
     onLoadMore: () -> Unit,
+    bottomPad: androidx.compose.ui.unit.Dp = 0.dp,
 ) {
     when {
         paged.isFirstLoad -> ListSkeleton()
@@ -366,7 +397,10 @@ private fun PlaylistList(
         else -> {
             val sections = playlistSections(paged.items, complete = !paged.hasMore)
             LazyColumn(
-                contentPadding = PaddingValues(horizontal = Spacing.md, vertical = Spacing.md),
+                contentPadding = PaddingValues(
+                    start = Spacing.md, top = Spacing.md, end = Spacing.md,
+                    bottom = Spacing.md + bottomPad,
+                ),
                 verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
             ) {
                 sections.liked?.let { liked ->
@@ -427,6 +461,7 @@ private fun <T> CardGrid(
     onLoadMore: () -> Unit,
     emptyRes: Int,
     circularArtwork: Boolean,
+    bottomPad: androidx.compose.ui.unit.Dp = 0.dp,
 ) {
     when {
         paged.isFirstLoad -> GridSkeleton(circular = circularArtwork)
@@ -439,7 +474,10 @@ private fun <T> CardGrid(
 
         else -> LazyVerticalGrid(
             columns = GridCells.Adaptive(minSize = 152.dp),
-            contentPadding = PaddingValues(horizontal = Spacing.md, vertical = Spacing.md),
+            contentPadding = PaddingValues(
+                start = Spacing.md, top = Spacing.md, end = Spacing.md,
+                bottom = Spacing.md + bottomPad,
+            ),
             horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
             verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
         ) {
@@ -464,6 +502,8 @@ private fun RecentList(
     state: SectionState<List<PlayedEntry>>,
     onRetry: () -> Unit,
     onPlayTracks: (List<Track>, Int) -> Unit,
+    nowPlayingId: Long? = null,
+    bottomPad: androidx.compose.ui.unit.Dp = 0.dp,
 ) {
     when (state) {
         is SectionState.Loading -> ListSkeleton()
@@ -479,7 +519,10 @@ private fun RecentList(
                 val entries = state.value
                 val tracks = entries.map { it.track }
                 LazyColumn(
-                    contentPadding = PaddingValues(horizontal = Spacing.md, vertical = Spacing.md),
+                    contentPadding = PaddingValues(
+                        start = Spacing.md, top = Spacing.md, end = Spacing.md,
+                        bottom = Spacing.md + bottomPad,
+                    ),
                     verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
                 ) {
                     item {
@@ -502,6 +545,7 @@ private fun RecentList(
                     }
                     itemsIndexed(tracks, key = { _, track -> track.id }) { index, track ->
                         ListCard(index = index, count = tracks.size,
+                            selected = track.id == nowPlayingId,
                             title = track.title,
                             subtitle = track.artistLine,
                             artworkUrl = track.artworkUrl,

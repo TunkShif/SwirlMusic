@@ -34,7 +34,13 @@ class SearchViewModelTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
     }
 
-    private fun viewModel(): SearchViewModel = SearchViewModel(api = api, history = history)
+    private fun viewModel(): SearchViewModel = SearchViewModel(
+        api = api,
+        history = history,
+        currentTrack = object : one.tunkshif.swirlmusic.player.CurrentTrackSource {
+            override val currentTrackId = kotlinx.coroutines.flow.MutableStateFlow<Long?>(null)
+        },
+    )
 
     private class InMemorySearchHistory : SearchHistory {
         private val entries = mutableListOf<String>()

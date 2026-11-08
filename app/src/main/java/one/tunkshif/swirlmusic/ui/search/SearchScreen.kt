@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -38,6 +40,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -63,9 +66,11 @@ fun SearchRoute(
     onOpenArtist: (Long) -> Unit,
     onPlayTracks: (List<Track>, Int) -> Unit,
     modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues(),
     viewModel: SearchViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val nowPlayingId by viewModel.nowPlayingId.collectAsStateWithLifecycle()
     SearchScreen(
         state = state,
         onQueryChange = viewModel::onQueryChange,
@@ -78,6 +83,8 @@ fun SearchRoute(
         onOpenAlbum = onOpenAlbum,
         onOpenArtist = onOpenArtist,
         onPlayTracks = onPlayTracks,
+        nowPlayingId = nowPlayingId,
+        contentPadding = contentPadding,
         modifier = modifier,
     )
 }
@@ -97,9 +104,17 @@ fun SearchScreen(
     onOpenArtist: (Long) -> Unit,
     onPlayTracks: (List<Track>, Int) -> Unit,
     modifier: Modifier = Modifier,
+    nowPlayingId: Long? = null,
+    contentPadding: PaddingValues = PaddingValues(),
 ) {
     Scaffold(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier
+            .fillMaxSize()
+            .padding(
+                top = contentPadding.calculateTopPadding(),
+                start = contentPadding.calculateStartPadding(LocalLayoutDirection.current),
+                end = contentPadding.calculateEndPadding(LocalLayoutDirection.current),
+            ),
         topBar = {
             TopAppBar(
                 title = {
@@ -156,6 +171,7 @@ fun SearchScreen(
                     )
 
                     !state.submitted -> History(
+                        contentPadding = contentPadding,
                         history = state.history,
                         onSelect = onSelectHistory,
                         onClear = onClearHistory,
@@ -183,6 +199,7 @@ private fun History(
     history: List<String>,
     onSelect: (String) -> Unit,
     onClear: () -> Unit,
+    contentPadding: PaddingValues = PaddingValues(),
 ) {
     if (history.isEmpty()) {
         EmptyMessage(text = stringResource(R.string.search_prompt))
@@ -206,7 +223,9 @@ private fun History(
             }
         }
         Column(
-            modifier = Modifier.padding(horizontal = Spacing.md),
+            modifier = Modifier
+                .padding(horizontal = Spacing.md)
+                .padding(bottom = contentPadding.calculateBottomPadding()),
             verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
         ) {
             history.forEachIndexed { index, query ->
@@ -238,6 +257,8 @@ private fun Results(
     onOpenAlbum: (Long) -> Unit,
     onOpenArtist: (Long) -> Unit,
     onPlayTracks: (List<Track>, Int) -> Unit,
+    nowPlayingId: Long? = null,
+    contentPadding: PaddingValues = PaddingValues(),
 ) {
     when (type) {
         SearchType.Songs -> {
@@ -246,11 +267,16 @@ private fun Results(
             } else {
                 val songs = results.songs
                 LazyColumn(
-                    contentPadding = PaddingValues(start = Spacing.md, top = 0.dp, end = Spacing.md, bottom = Spacing.xxl),
+                    contentPadding = PaddingValues(
+                        start = Spacing.md,
+                        top = 0.dp,
+                        end = Spacing.md,
+                        bottom = contentPadding.calculateBottomPadding() + Spacing.xxl,
+                    ),
                     verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
                 ) {
                     itemsIndexed(songs, key = { _, track -> track.id }) { index, track ->
-                        TrackRow(track = track, index = index, count = songs.size, onClick = { onPlayTracks(songs, index) })
+                        TrackRow(track = track, index = index, count = songs.size, selected = track.id == nowPlayingId, onClick = { onPlayTracks(songs, index) })
                     }
                 }
             }
@@ -311,6 +337,7 @@ private fun ResultGrid(
     count: Int,
     query: String,
     emptyRes: Int,
+    contentPadding: PaddingValues = PaddingValues(),
     content: androidx.compose.foundation.lazy.grid.LazyGridScope.() -> Unit,
 ) {
     if (count == 0) {

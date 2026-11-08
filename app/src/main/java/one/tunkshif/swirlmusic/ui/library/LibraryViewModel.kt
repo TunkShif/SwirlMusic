@@ -6,6 +6,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -38,8 +40,15 @@ data class LibraryUiState(
 class LibraryViewModel @Inject constructor(
     private val api: NcmLibraryApi,
     session: SessionRepository,
-    collection: CollectionRepository,
+    private val collection: CollectionRepository,
+    private val currentTrack: one.tunkshif.swirlmusic.player.CurrentTrackSource,
 ) : ViewModel() {
+
+    /** The playing track's id for row selection (0012-D52). */
+    val nowPlayingId: StateFlow<Long?> by lazy {
+        currentTrack.currentTrackId
+            .stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5_000), null)
+    }
 
     private val _state = MutableStateFlow(LibraryUiState())
     val state: StateFlow<LibraryUiState> = _state.asStateFlow()

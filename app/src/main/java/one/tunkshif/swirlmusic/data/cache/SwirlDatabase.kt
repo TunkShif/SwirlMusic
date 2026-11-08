@@ -18,13 +18,15 @@ import androidx.room.RoomDatabase
         QueueItemEntity::class,
         PlaybackResumeEntity::class,
         LyricsEntity::class,
+        CollectionStateEntity::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 4, to = 5),
         AutoMigration(from = 5, to = 6),
         AutoMigration(from = 6, to = 7),
+        AutoMigration(from = 7, to = 8),
     ],
 )
 abstract class SwirlDatabase : RoomDatabase() {

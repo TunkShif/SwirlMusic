@@ -43,6 +43,7 @@ internal fun one.tunkshif.swirlmusic.data.api.dto.AlbumDto.toRelease(): ArtistRe
         publishedAt = publishTime.takeIf { it > 0 },
         kind = releaseKindOf(type),
         trackCount = size,
+        saved = isSub,
     )
 }
 

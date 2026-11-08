@@ -170,6 +170,24 @@ class ArtistScreenshotTest {
         compose.onRoot().captureRoboImage("src/test/screenshots/artist/top-songs-edge-to-edge-light.png")
     }
 
+    /** D50: the first-fetch artist header is all skeletons. */
+    @Test
+    fun header_loading_light() {
+        compose.setContent {
+            CompositionLocalProvider(LocalArtworkPainter provides ColorPainter(Color(0xFF9AA0C8))) {
+                SwirlMusicTheme(darkTheme = false, dynamicColor = false) {
+                    ArtistScreen(
+                        state = ArtistUiState(),
+                        onBack = {},
+                        onRetry = {},
+                        onPlayTracks = { _, _ -> },
+                    )
+                }
+            }
+        }
+        compose.onRoot().captureRoboImage("src/test/screenshots/artist/header-loading-light.png")
+    }
+
     /** The description sheet, a popup: capture the whole screen. */
     @Test
     fun description_sheet_light() {

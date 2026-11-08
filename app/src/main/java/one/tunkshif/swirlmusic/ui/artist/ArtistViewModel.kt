@@ -89,6 +89,7 @@ class ArtistViewModel @Inject constructor(
     private val api: NcmArtistApi,
     private val collection: CollectionRepository,
     artworkSeedSource: ArtworkSeedSource,
+    private val currentTrack: one.tunkshif.swirlmusic.player.CurrentTrackSource,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ArtistUiState())
@@ -105,6 +106,12 @@ class ArtistViewModel @Inject constructor(
         _state.value = _state.value.copy(filter = f)
     }
 
+    /** The playing track's id for row selection (0012-D52). Lazy dispatcher gotcha. */
+    val nowPlayingId: StateFlow<Long?> by lazy {
+        currentTrack.currentTrackId
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    }
+
     /** Artwork seed for the screen's colour theme (0011-D47). Lazy so the
      *  view-model scope binds after tests install their dispatcher. */
     val seed: StateFlow<Int?> by lazy {
@@ -115,6 +122,7 @@ class ArtistViewModel @Inject constructor(
     }
     private var artistId = 0L
     private var followJob: Job? = null
+    private var toggleGeneration = 0
     private var releasesJob: Job? = null
     private var descriptionJob: Job? = null
 
@@ -130,18 +138,23 @@ class ArtistViewModel @Inject constructor(
         _state.value = ArtistUiState(filter = filterState.value)
         viewModelScope.launch { loadDetail(id) }
         followJob = viewModelScope.launch {
+            // Last-known paints immediately (0012-D51); the fresh read only corrects it.
+            if (!_state.value.followPending) {
+                _state.value = _state.value.copy(
+                    followState = one.tunkshif.swirlmusic.ui.components.CollectionSlotState.Ready,
+                    followed = collection.lastKnownArtistFollowed(id) ?: false,
+                )
+            }
+            val readGen = toggleGeneration
             when (val result = collection.artistFollowed(id)) {
                 is ApiResult.Success ->
-                    if (!_state.value.followPending) {
+                    if (readGen == toggleGeneration && !_state.value.followPending) {
                         _state.value = _state.value.copy(
                             followState = one.tunkshif.swirlmusic.ui.components.CollectionSlotState.Ready,
                             followed = result.value,
                         )
                     }
-                else ->
-                    _state.value = _state.value.copy(
-                        followState = one.tunkshif.swirlmusic.ui.components.CollectionSlotState.Failed,
-                    )
+                else -> Unit // A failed read keeps what is shown.
             }
         }
     }
@@ -184,6 +197,7 @@ class ArtistViewModel @Inject constructor(
         if (_state.value.followState != one.tunkshif.swirlmusic.ui.components.CollectionSlotState.Ready) return
         val current = _state.value.followed
         if (_state.value.followPending) return
+        toggleGeneration++
         _state.value = _state.value.copy(followed = !current, followPending = true)
         viewModelScope.launch {
             when (collection.setArtistFollowed(artistId, !current)) {
@@ -226,6 +240,8 @@ class ArtistViewModel @Inject constructor(
             when (val result = api.artistAlbums(artistId, PAGE_SIZE, next)) {
                 is ApiResult.Success -> {
                     val items = result.value.items
+                    // Record the page's isSub flags as last-known saves (0012-D51).
+                    collection.rememberAlbums(items.associate { it.id to it.saved })
                     _state.value = _state.value.copy(
                         releases = (_state.value.releases + items).distinctBy { it.id },
                     )

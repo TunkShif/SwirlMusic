@@ -7,6 +7,8 @@ import javax.inject.Inject
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import one.tunkshif.swirlmusic.data.api.ApiResult
@@ -31,7 +33,14 @@ data class SearchUiState(
 class SearchViewModel @Inject constructor(
     private val api: NcmLibraryApi,
     private val history: SearchHistory,
+    private val currentTrack: one.tunkshif.swirlmusic.player.CurrentTrackSource,
 ) : ViewModel() {
+
+    /** The playing track's id for row selection (0012-D52). */
+    val nowPlayingId: StateFlow<Long?> by lazy {
+        currentTrack.currentTrackId
+            .stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5_000), null)
+    }
 
     private val _state = MutableStateFlow(SearchUiState())
     val state: StateFlow<SearchUiState> = _state.asStateFlow()

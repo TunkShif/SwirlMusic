@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -41,6 +43,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -62,6 +65,7 @@ fun HomeRoute(
     nickname: String?,
     onPlayTracks: (List<Track>, Int) -> Unit,
     modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues(),
     now: LocalTime = LocalTime.now(),
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
@@ -72,6 +76,7 @@ fun HomeRoute(
         onRefresh = viewModel::refresh,
         onRetry = viewModel::retry,
         onPlayTracks = onPlayTracks,
+        contentPadding = contentPadding,
         modifier = modifier,
         now = now,
     )
@@ -84,6 +89,7 @@ fun HomeScreen(
     onRefresh: () -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues(),
     now: LocalTime = LocalTime.now(),
     onPlayTracks: (List<Track>, Int) -> Unit = { _, _ -> },
 ) {
@@ -93,7 +99,7 @@ fun HomeScreen(
         modifier = modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background,
     ) {
-        HomeContent(nickname, state, onRefresh, onRetry, now, onPlayTracks)
+        HomeContent(nickname, state, onRefresh, onRetry, now, onPlayTracks, contentPadding)
     }
 }
 
@@ -106,6 +112,7 @@ private fun HomeContent(
     onRetry: () -> Unit,
     now: LocalTime,
     onPlayTracks: (List<Track>, Int) -> Unit,
+    contentPadding: PaddingValues,
 ) {
     PullToRefreshBox(
         isRefreshing = state.isRefreshing,
@@ -113,8 +120,16 @@ private fun HomeContent(
         modifier = Modifier.fillMaxSize(),
     ) {
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = Spacing.xxl),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(
+                    top = contentPadding.calculateTopPadding(),
+                    start = contentPadding.calculateStartPadding(LocalLayoutDirection.current),
+                    end = contentPadding.calculateEndPadding(LocalLayoutDirection.current),
+                ),
+            contentPadding = PaddingValues(
+                bottom = contentPadding.calculateBottomPadding() + Spacing.xxl,
+            ),
             verticalArrangement = Arrangement.spacedBy(Spacing.lg),
         ) {
             item { Greeting(nickname = nickname, dayPart = dayPartFor(now.hour)) }
