@@ -310,7 +310,7 @@ private fun TopSongsPage(
         modifier = Modifier.fillMaxSize(),
         state = rememberLazyListState(),
         contentPadding = PaddingValues(
-            top = contentPadding.calculateTopPadding(),
+            top = contentPadding.calculateTopPadding() + Spacing.md,
             bottom = contentPadding.calculateBottomPadding() + outerPadding.calculateBottomPadding() + Spacing.xxl,
             start = Spacing.md,
             end = Spacing.md,
