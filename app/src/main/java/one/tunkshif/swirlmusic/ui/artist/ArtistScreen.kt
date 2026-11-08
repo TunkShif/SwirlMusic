@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -25,20 +27,23 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -58,6 +63,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -77,12 +83,15 @@ import one.tunkshif.swirlmusic.ui.common.LoadError
 import one.tunkshif.swirlmusic.ui.common.LoadingRows
 import one.tunkshif.swirlmusic.ui.common.SectionError
 import one.tunkshif.swirlmusic.ui.common.SectionState
+import one.tunkshif.swirlmusic.ui.components.CollectionAction
+import one.tunkshif.swirlmusic.ui.components.CollectionToggle
 import one.tunkshif.swirlmusic.ui.components.GridCard
 import one.tunkshif.swirlmusic.ui.components.ToastPillHost
 import one.tunkshif.swirlmusic.ui.components.ToastPillState
 import one.tunkshif.swirlmusic.ui.components.TrackRow
 import one.tunkshif.swirlmusic.ui.components.rememberToastPillState
 import one.tunkshif.swirlmusic.ui.theme.Spacing
+import one.tunkshif.swirlmusic.ui.theme.AlbumColorTheme
 import one.tunkshif.swirlmusic.ui.tracks.CollapsingDetailHeader
 
 @Composable
@@ -92,10 +101,12 @@ fun ArtistRoute(
     onPlayTracks: (List<Track>, Int) -> Unit,
     onOpenAlbum: (Long) -> Unit,
     modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues(),
     viewModel: ArtistViewModel = hiltViewModel(),
 ) {
     LaunchedEffect(id) { viewModel.load(id) }
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val seed by viewModel.seed.collectAsStateWithLifecycle()
     val toastState = rememberToastPillState()
 
     LaunchedEffect(Unit) {
@@ -111,8 +122,11 @@ fun ArtistRoute(
         }
     }
 
+    AlbumColorTheme(seed = seed) {
     ArtistScreen(
         state = state,
+        seed = seed,
+        contentPadding = contentPadding,
         onBack = onBack,
         onRetry = viewModel::retry,
         onToggleFollow = viewModel::toggleFollow,
@@ -122,8 +136,10 @@ fun ArtistRoute(
         onPlayTracks = onPlayTracks,
         onOpenDescription = viewModel::loadDescription,
         toastState = toastState,
+        onSelectFilter = viewModel::selectFilter,
         modifier = modifier,
     )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -131,6 +147,8 @@ fun ArtistRoute(
 fun ArtistScreen(
     state: ArtistUiState,
     modifier: Modifier = Modifier,
+    seed: Int? = null,
+    contentPadding: PaddingValues = PaddingValues(),
     appBarState: TopAppBarState = rememberTopAppBarState(),
     pagerState: PagerState = rememberPagerState(pageCount = { 2 }),
     toastState: ToastPillState = rememberToastPillState(),
@@ -141,6 +159,7 @@ fun ArtistScreen(
     onRetryReleases: () -> Unit = {},
     onOpenAlbum: (Long) -> Unit = {},
     onOpenDescription: () -> Unit = {},
+    onSelectFilter: (ReleaseFilter) -> Unit = {},
     onPlayTracks: (List<Track>, Int) -> Unit,
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
@@ -153,7 +172,9 @@ fun ArtistScreen(
     val tabSurface = MaterialTheme.colorScheme.surface
     val tabSurfaceContainer = MaterialTheme.colorScheme.surfaceContainer
 
+    Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {
     Scaffold(
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
         modifier = modifier
             .fillMaxSize()
             .nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -170,15 +191,23 @@ fun ArtistScreen(
                         }
                     },
                     circularArtwork = true,
+                    topInset = contentPadding.calculateTopPadding(),
                     meta = artistMeta(state),
                     description = state.briefDesc,
                     onDescriptionClick = {
                         showSheet = true
                         onOpenDescription()
                     },
-                    actions = {
-                        if (state.followed != null) {
-                            FollowButton(followed = state.followed, onToggle = onToggleFollow)
+                    leadingActions = {
+                        CollectionAction(state = state.followState) {
+                            CollectionToggle(
+                                checked = state.followed,
+                                onCheckedChange = { onToggleFollow() },
+                                checkedIcon = R.drawable.ic_check,
+                                uncheckedIcon = R.drawable.ic_person_add,
+                                checkedLabel = R.string.artist_following,
+                                uncheckedLabel = R.string.artist_follow,
+                            )
                         }
                     },
                 )
@@ -205,7 +234,14 @@ fun ArtistScreen(
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
     ) { innerPadding ->
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(
+                    start = contentPadding.calculateStartPadding(LocalLayoutDirection.current),
+                    end = contentPadding.calculateEndPadding(LocalLayoutDirection.current),
+                ),
+        ) {
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize(),
@@ -214,12 +250,15 @@ fun ArtistScreen(
                     0 -> TopSongsPage(
                         state = state.topSongs,
                         contentPadding = innerPadding,
+                        outerPadding = contentPadding,
                         onRetry = onRetry,
                         onPlayTracks = onPlayTracks,
                     )
                     else -> AlbumsPage(
                         state = state,
                         contentPadding = innerPadding,
+                        outerPadding = contentPadding,
+                        onSelectFilter = onSelectFilter,
                         onShowReleases = onShowReleases,
                         onRetryReleases = onRetryReleases,
                         onOpenAlbum = onOpenAlbum,
@@ -230,9 +269,10 @@ fun ArtistScreen(
                 state = toastState,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = Spacing.lg),
+                    .padding(bottom = contentPadding.calculateBottomPadding() + Spacing.lg),
             )
         }
+    }
     }
     if (showSheet) {
         ModalBottomSheet(onDismissRequest = { showSheet = false }) {
@@ -250,31 +290,12 @@ private fun artistMeta(state: ArtistUiState): String? {
     return parts.takeIf { it.isNotEmpty() }?.joinToString(" · ")
 }
 
-@Composable
-private fun FollowButton(followed: Boolean, onToggle: () -> Unit) {
-    if (followed) {
-        OutlinedButton(onClick = onToggle) {
-            Icon(painterResource(R.drawable.ic_check), contentDescription = null)
-            Text(
-                text = stringResource(R.string.artist_following),
-                modifier = Modifier.padding(start = Spacing.sm),
-            )
-        }
-    } else {
-        FilledTonalButton(onClick = onToggle) {
-            Icon(painterResource(R.drawable.ic_person_add), contentDescription = null)
-            Text(
-                text = stringResource(R.string.artist_follow),
-                modifier = Modifier.padding(start = Spacing.sm),
-            )
-        }
-    }
-}
 
 @Composable
 private fun TopSongsPage(
     state: SectionState<List<Track>>,
     contentPadding: PaddingValues,
+    outerPadding: PaddingValues = PaddingValues(),
     onRetry: () -> Unit,
     onPlayTracks: (List<Track>, Int) -> Unit,
 ) {
@@ -283,8 +304,11 @@ private fun TopSongsPage(
         state = rememberLazyListState(),
         contentPadding = PaddingValues(
             top = contentPadding.calculateTopPadding(),
-            bottom = contentPadding.calculateBottomPadding() + Spacing.xxl,
+            bottom = contentPadding.calculateBottomPadding() + outerPadding.calculateBottomPadding() + Spacing.xxl,
+            start = Spacing.md,
+            end = Spacing.md,
         ),
+        verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
     ) {
         when (state) {
             is SectionState.Loading -> item { LoadingRows() }
@@ -293,6 +317,8 @@ private fun TopSongsPage(
                 itemsIndexed(state.value, key = { _, t -> t.id }) { index, track ->
                     TrackRow(
                         track = track,
+                        index = index,
+                        count = state.value.size,
                         onClick = { onPlayTracks(state.value, index) },
                         leading = {
                             Text(
@@ -315,22 +341,76 @@ private fun TopSongsPage(
 private fun AlbumsPage(
     state: ArtistUiState,
     contentPadding: PaddingValues,
+    outerPadding: PaddingValues = PaddingValues(),
     onShowReleases: () -> Unit,
+    onSelectFilter: (ReleaseFilter) -> Unit = {},
     onRetryReleases: () -> Unit,
     onOpenAlbum: (Long) -> Unit,
 ) {
     LaunchedEffect(Unit) { onShowReleases() }
-    when {
-        state.releases.isEmpty() && state.releasesLoading -> ReleasesSkeleton(contentPadding)
+    val filtered = state.filteredReleases()
+    Column(modifier = Modifier.fillMaxSize()) {
+        // Pinned single-select filter row (0011-D49), above the scrolling grid.
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = contentPadding.calculateTopPadding())
+                .horizontalScroll(androidx.compose.foundation.rememberScrollState())
+                .padding(horizontal = Spacing.md, vertical = Spacing.sm),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+        ) {
+            state.availableFilters().forEach { f ->
+                FilterChip(
+                    selected = state.filter == f,
+                    onClick = { onSelectFilter(f) },
+                    shape = CircleShape,
+                    label = {
+                        Text(
+                            stringResource(
+                                when (f) {
+                                    ReleaseFilter.All -> R.string.artist_filter_all
+                                    ReleaseFilter.Albums -> R.string.artist_filter_albums
+                                    ReleaseFilter.Eps -> R.string.artist_filter_eps
+                                    ReleaseFilter.Singles -> R.string.artist_filter_singles
+                                },
+                            ),
+                        )
+                    },
+                    leadingIcon = if (state.filter == f) {
+                        { Icon(painterResource(R.drawable.ic_check), contentDescription = null, modifier = Modifier.size(16.dp)) }
+                    } else null,
+                )
+            }
+        }
+        when {
+        state.releases.isEmpty() && state.releasesLoading -> ReleasesSkeleton()
         state.releases.isEmpty() && state.releasesError != null -> Column(
-            modifier = Modifier.padding(contentPadding),
+            modifier = Modifier.padding(bottom = outerPadding.calculateBottomPadding()),
         ) {
             SectionError(error = state.releasesError, onRetry = onRetryReleases)
+        }
+        filtered.isEmpty() && state.releasesLoading -> Row(
+            modifier = Modifier.fillMaxWidth().padding(Spacing.xl),
+            horizontalArrangement = Arrangement.Center,
+        ) { LoadingIndicator(modifier = Modifier.size(32.dp)) }
+        filtered.isEmpty() && state.releasesComplete -> Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = outerPadding.calculateBottomPadding())
+                .padding(Spacing.xl),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = stringResource(R.string.artist_empty_filtered),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
         }
         state.releases.isEmpty() && state.releasesComplete -> Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(contentPadding)
+                .padding(bottom = outerPadding.calculateBottomPadding())
                 .padding(Spacing.xl),
             contentAlignment = Alignment.Center,
         ) {
@@ -343,17 +423,18 @@ private fun AlbumsPage(
         }
         else -> LazyVerticalGrid(
             columns = GridCells.Adaptive(minSize = 152.dp),
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            // Top inset is already carried by the pinned filter row above.
             contentPadding = PaddingValues(
-                top = contentPadding.calculateTopPadding() + Spacing.md,
-                bottom = contentPadding.calculateBottomPadding() + Spacing.md,
+                top = Spacing.md,
+                bottom = contentPadding.calculateBottomPadding() + outerPadding.calculateBottomPadding() + Spacing.md,
                 start = Spacing.md,
                 end = Spacing.md,
             ),
             horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
             verticalArrangement = Arrangement.spacedBy(Spacing.sm),
         ) {
-            items(state.releases, key = { it.id }) { release ->
+            items(filtered, key = { it.id }) { release ->
                 GridCard(
                     title = release.name,
                     subtitle = releaseSubtitle(release),
@@ -392,6 +473,7 @@ private fun AlbumsPage(
                 }
             }
         }
+        }
     }
 }
 
@@ -410,10 +492,9 @@ private fun releaseSubtitle(release: ArtistRelease): String? {
 }
 
 @Composable
-private fun ReleasesSkeleton(contentPadding: PaddingValues) {
+private fun ReleasesSkeleton() {
     Column(
         modifier = Modifier
-            .padding(contentPadding)
             .padding(horizontal = Spacing.md, vertical = Spacing.md),
         verticalArrangement = Arrangement.spacedBy(Spacing.sm),
     ) {

@@ -15,7 +15,12 @@ import one.tunkshif.swirlmusic.data.api.ApiResult
 import one.tunkshif.swirlmusic.data.api.NcmArtistApi
 import one.tunkshif.swirlmusic.data.library.CollectionRepository
 import one.tunkshif.swirlmusic.data.library.ToggleResult
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import one.tunkshif.swirlmusic.data.library.TrackListRepository
+import one.tunkshif.swirlmusic.data.media.ArtworkSeedSource
+import one.tunkshif.swirlmusic.ui.player.toAlbumSeeds
 import one.tunkshif.swirlmusic.data.model.ArtistDescription
 import one.tunkshif.swirlmusic.data.model.ArtistRelease
 import one.tunkshif.swirlmusic.data.model.Track
@@ -29,9 +34,12 @@ data class ArtistUiState(
     val songCount: Int? = null,
     val albumCount: Int? = null,
     val topSongs: SectionState<List<Track>> = SectionState.Loading,
-    /** Null until the fresh `/artist/detail/dynamic` read lands (or fails). */
-    val followed: Boolean? = null,
+    /** The fresh `/artist/detail/dynamic` read (0011-D45). */
+    val followState: one.tunkshif.swirlmusic.ui.components.CollectionSlotState =
+        one.tunkshif.swirlmusic.ui.components.CollectionSlotState.Loading,
+    val followed: Boolean = false,
     val followPending: Boolean = false,
+    val filter: ReleaseFilter = ReleaseFilter.All,
     val releases: List<ArtistRelease> = emptyList(),
     val releasesLoading: Boolean = false,
     val releasesComplete: Boolean = false,
@@ -48,15 +56,39 @@ sealed interface DescriptionState {
 
 enum class ArtistMessage { Followed, Unfollowed, FollowFailed }
 
+/** The albums-tab type filter (0010-D43/0011-D49). */
+enum class ReleaseFilter { All, Albums, Eps, Singles }
+
+private fun ReleaseFilter.kind() = when (this) {
+    ReleaseFilter.All -> null
+    ReleaseFilter.Albums -> one.tunkshif.swirlmusic.data.model.ReleaseKind.Album
+    ReleaseFilter.Eps -> one.tunkshif.swirlmusic.data.model.ReleaseKind.Ep
+    ReleaseFilter.Singles -> one.tunkshif.swirlmusic.data.model.ReleaseKind.Single
+}
+
+fun ArtistUiState.availableFilters(): List<ReleaseFilter> =
+    if (!releasesComplete) {
+        ReleaseFilter.entries
+    } else {
+        ReleaseFilter.entries.filter { f ->
+            f == ReleaseFilter.All || releases.any { it.kind == f.kind() }
+        }
+    }
+
+fun ArtistUiState.filteredReleases() =
+    releases.filter { filter.kind() == null || it.kind == filter.kind() }
+
 /**
  * The artist screen (0010-D40): `/artists` paints the header and 50 hot songs
  * stale-while-revalidate on the `artist:<id>` snapshot; the discography pages on demand.
  */
 @HiltViewModel
 class ArtistViewModel @Inject constructor(
+    private val savedStateHandle: androidx.lifecycle.SavedStateHandle,
     private val repository: TrackListRepository,
     private val api: NcmArtistApi,
     private val collection: CollectionRepository,
+    artworkSeedSource: ArtworkSeedSource,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ArtistUiState())
@@ -66,6 +98,21 @@ class ArtistViewModel @Inject constructor(
     val messages = _messages.receiveAsFlow()
 
     private var loadedFor: Long? = null
+    private val filterState = savedStateHandle.getStateFlow("filter", ReleaseFilter.All)
+
+    fun selectFilter(f: ReleaseFilter) {
+        savedStateHandle["filter"] = f
+        _state.value = _state.value.copy(filter = f)
+    }
+
+    /** Artwork seed for the screen's colour theme (0011-D47). Lazy so the
+     *  view-model scope binds after tests install their dispatcher. */
+    val seed: StateFlow<Int?> by lazy {
+        state
+            .map { it.avatarUrl }
+            .toAlbumSeeds(artworkSeedSource)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    }
     private var artistId = 0L
     private var followJob: Job? = null
     private var releasesJob: Job? = null
@@ -80,15 +127,21 @@ class ArtistViewModel @Inject constructor(
         descriptionJob?.cancel()
         releasesOffset = 0
         releasePages = 0
-        _state.value = ArtistUiState()
+        _state.value = ArtistUiState(filter = filterState.value)
         viewModelScope.launch { loadDetail(id) }
         followJob = viewModelScope.launch {
             when (val result = collection.artistFollowed(id)) {
                 is ApiResult.Success ->
                     if (!_state.value.followPending) {
-                        _state.value = _state.value.copy(followed = result.value)
+                        _state.value = _state.value.copy(
+                            followState = one.tunkshif.swirlmusic.ui.components.CollectionSlotState.Ready,
+                            followed = result.value,
+                        )
                     }
-                else -> Unit
+                else ->
+                    _state.value = _state.value.copy(
+                        followState = one.tunkshif.swirlmusic.ui.components.CollectionSlotState.Failed,
+                    )
             }
         }
     }
@@ -128,7 +181,8 @@ class ArtistViewModel @Inject constructor(
     }
 
     fun toggleFollow() {
-        val current = _state.value.followed ?: return
+        if (_state.value.followState != one.tunkshif.swirlmusic.ui.components.CollectionSlotState.Ready) return
+        val current = _state.value.followed
         if (_state.value.followPending) return
         _state.value = _state.value.copy(followed = !current, followPending = true)
         viewModelScope.launch {

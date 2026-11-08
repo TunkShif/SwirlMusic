@@ -46,7 +46,8 @@ class TrackListScreenTest {
         title = "Back To Basics",
         subtitle = "Kavinsky",
         trackCount = 1,
-        saved = saved,
+        saveState = if (saved == null) one.tunkshif.swirlmusic.ui.components.CollectionSlotState.Loading else one.tunkshif.swirlmusic.ui.components.CollectionSlotState.Ready,
+        saved = saved ?: false,
         artists = artists,
         tracks = SectionState.Content(
             listOf(Track(1, "Song", "Someone Else", null, 180_000)),
@@ -78,9 +79,9 @@ class TrackListScreenTest {
     fun `an unknown saved state hides the button`() {
         setAlbumContent(albumState(saved = null))
 
-        compose.onNodeWithContentDescription(res(R.string.track_list_save_album))
+        compose.onNodeWithText(res(R.string.track_list_save))
             .assertDoesNotExist()
-        compose.onNodeWithContentDescription(res(R.string.track_list_remove_album))
+        compose.onNodeWithText(res(R.string.track_list_saved))
             .assertDoesNotExist()
     }
 
@@ -88,7 +89,7 @@ class TrackListScreenTest {
     fun `an unsaved album offers save and toggles`() {
         setAlbumContent(albumState(saved = false))
 
-        compose.onNodeWithContentDescription(res(R.string.track_list_save_album))
+        compose.onNodeWithText(res(R.string.track_list_save))
             .assertIsDisplayed()
             .performClick()
         assertThat(toggled).isTrue()
@@ -98,7 +99,7 @@ class TrackListScreenTest {
     fun `a saved album offers removal`() {
         setAlbumContent(albumState(saved = true))
 
-        compose.onNodeWithContentDescription(res(R.string.track_list_remove_album))
+        compose.onNodeWithText(res(R.string.track_list_saved))
             .assertIsDisplayed()
     }
 

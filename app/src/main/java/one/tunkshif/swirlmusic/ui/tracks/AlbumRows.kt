@@ -37,6 +37,28 @@ internal fun albumRows(tracks: List<Track>): List<AlbumRow> {
     return rows
 }
 
+/**
+ * Segment index/count per [AlbumRow] position for `segmentedShapes`: per-disc groups on
+ * albums (index 0 = first row of a disc, count = the disc's songs); [null] for disc
+ * headers, which sit outside the groups.
+ */
+internal fun segmentIndexOf(rows: List<AlbumRow>): List<Pair<Int, Int>?> {
+    val counts = rows.mapNotNull { (it as? AlbumRow.Song)?.track?.discNumber }
+        .groupingBy { it }.eachCount()
+    val pos = mutableMapOf<Int?, Int>()
+    return rows.map { row ->
+        when (row) {
+            is AlbumRow.Disc -> null
+            is AlbumRow.Song -> {
+                val disc = row.track.discNumber
+                val i = pos.getOrDefault(disc, 0)
+                pos[disc] = i + 1
+                i to (counts[disc] ?: rows.count { it is AlbumRow.Song })
+            }
+        }
+    }
+}
+
 /** Line-2 date under a detail header. */
 enum class DateKind { Created, Released }
 

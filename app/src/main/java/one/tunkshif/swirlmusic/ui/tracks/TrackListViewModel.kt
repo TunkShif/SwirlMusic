@@ -15,7 +15,12 @@ import one.tunkshif.swirlmusic.data.api.ApiResult
 import one.tunkshif.swirlmusic.data.library.ArtistAvatarRepository
 import one.tunkshif.swirlmusic.data.library.CollectionRepository
 import one.tunkshif.swirlmusic.data.library.ToggleResult
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import one.tunkshif.swirlmusic.data.library.TrackListRepository
+import one.tunkshif.swirlmusic.data.media.ArtworkSeedSource
+import one.tunkshif.swirlmusic.ui.player.toAlbumSeeds
 import one.tunkshif.swirlmusic.data.model.ArtistRef
 import one.tunkshif.swirlmusic.data.model.Track
 import one.tunkshif.swirlmusic.player.PlayerController
@@ -46,8 +51,10 @@ data class TrackListUiState(
     val loadingMore: Boolean = false,
     /** A failed chunk keeps its rows; the footer shows retry. */
     val moreError: LoadError? = null,
-    /** Albums only: null until the fresh `/album/detail/dynamic` read lands (or fails). */
-    val saved: Boolean? = null,
+    /** Albums only: the fresh `/album/detail/dynamic` read (0011-D45). */
+    val saveState: one.tunkshif.swirlmusic.ui.components.CollectionSlotState =
+        one.tunkshif.swirlmusic.ui.components.CollectionSlotState.Loading,
+    val saved: Boolean = false,
     val savePending: Boolean = false,
     /** Album header artists (0010-D39); a menu at 2+, a direct link at 1. */
     val artists: List<ArtistRef> = emptyList(),
@@ -60,6 +67,7 @@ enum class TrackListMessage { Saved, Removed, AlbumLocked, SaveFailed }
 @HiltViewModel
 class TrackListViewModel @Inject constructor(
     private val repository: TrackListRepository,
+    artworkSeedSource: ArtworkSeedSource,
     private val collection: CollectionRepository,
     private val artistAvatars: ArtistAvatarRepository,
 ) : ViewModel() {
@@ -69,6 +77,15 @@ class TrackListViewModel @Inject constructor(
 
     private val _messages = Channel<TrackListMessage>(Channel.BUFFERED)
     val messages = _messages.receiveAsFlow()
+
+    /** Artwork seed for the screen's colour theme (0011-D47). Lazy so the
+     *  view-model scope binds after tests install their dispatcher. */
+    val seed: StateFlow<Int?> by lazy {
+        state
+            .map { it.artworkUrl }
+            .toAlbumSeeds(artworkSeedSource)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    }
 
     private var loadedFor: TrackListSource? = null
     private var source: TrackListSource = TrackListSource.Playlist(0)
@@ -184,6 +201,7 @@ class TrackListViewModel @Inject constructor(
             albumType = extras.albumType,
             tags = extras.tags,
             artists = artists,
+            saveState = _state.value.saveState,
             saved = _state.value.saved,
             savePending = _state.value.savePending,
             artistAvatars = _state.value.artistAvatars,
@@ -277,7 +295,8 @@ class TrackListViewModel @Inject constructor(
     private var savedJob: Job? = null
 
     fun toggleSave() {
-        val current = _state.value.saved ?: return
+        if (_state.value.saveState != one.tunkshif.swirlmusic.ui.components.CollectionSlotState.Ready) return
+        val current = _state.value.saved
         if (_state.value.savePending) return
         val albumId = (source as? TrackListSource.Album)?.id ?: return
         _state.value = _state.value.copy(saved = !current, savePending = true)
@@ -308,9 +327,15 @@ class TrackListViewModel @Inject constructor(
                 // A toggle already in flight owns `saved` now; don't clobber it.
                 is ApiResult.Success ->
                     if (!_state.value.savePending) {
-                        _state.value = _state.value.copy(saved = result.value)
+                        _state.value = _state.value.copy(
+                            saveState = one.tunkshif.swirlmusic.ui.components.CollectionSlotState.Ready,
+                            saved = result.value,
+                        )
                     }
-                else -> Unit
+                else ->
+                    _state.value = _state.value.copy(
+                        saveState = one.tunkshif.swirlmusic.ui.components.CollectionSlotState.Failed,
+                    )
             }
         }
         val hadSnapshot = emitCached(TrackListRepository.albumKey(id))

@@ -54,7 +54,8 @@ class ArtistScreenTest {
         songCount = 387,
         albumCount = 48,
         topSongs = SectionState.Content(listOf(track(1), track(2), track(3))),
-        followed = followed,
+        followState = if (followed == null) one.tunkshif.swirlmusic.ui.components.CollectionSlotState.Loading else one.tunkshif.swirlmusic.ui.components.CollectionSlotState.Ready,
+        followed = followed ?: false,
         releases = releases,
         releasesComplete = releases.isNotEmpty(),
         description = description,
@@ -131,6 +132,15 @@ class ArtistScreenTest {
     @Test
     fun `a null followed state hides the button`() {
         setContent(state(followed = null))
+        compose.onNodeWithText(res(R.string.artist_follow)).assertDoesNotExist()
+        compose.onNodeWithText(res(R.string.artist_following)).assertDoesNotExist()
+    }
+
+    @Test
+    fun `a failed follow read hides the toggle`() {
+        setContent(state().copy(
+            followState = one.tunkshif.swirlmusic.ui.components.CollectionSlotState.Failed,
+        ))
         compose.onNodeWithText(res(R.string.artist_follow)).assertDoesNotExist()
         compose.onNodeWithText(res(R.string.artist_following)).assertDoesNotExist()
     }

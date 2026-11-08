@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.ColorPainter
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
@@ -61,15 +62,15 @@ class TrackListScreenshotTest {
     )
 
     @Test
-    fun album_two_discs_light() = capture("album-two-discs-light", albumState(), isAlbum = true)
+    fun album_two_discs_light() = capture("album-two-discs-light", albumState().copy(saveState = one.tunkshif.swirlmusic.ui.components.CollectionSlotState.Ready, saved = false), isAlbum = true)
 
     @Test
     fun album_saved_light() =
-        capture("album-saved-light", albumState().copy(saved = true), isAlbum = true)
+        capture("album-saved-light", albumState().copy(saveState = one.tunkshif.swirlmusic.ui.components.CollectionSlotState.Ready, saved = true), isAlbum = true)
 
     @Test
     fun album_saved_dark() =
-        capture("album-saved-dark", albumState().copy(saved = true), dark = true, isAlbum = true)
+        capture("album-saved-dark", albumState().copy(saveState = one.tunkshif.swirlmusic.ui.components.CollectionSlotState.Ready, saved = true), dark = true, isAlbum = true)
 
     /** The album subtitle's choose-artist menu, open (popup, so capture the whole screen). */
     @Test
@@ -105,6 +106,63 @@ class TrackListScreenshotTest {
         compose.onNodeWithText("Kavinsky / M83").performClick()
         compose.waitForIdle()
         captureScreenRoboImage("src/test/screenshots/tracklist/album-artist-menu-light.png")
+    }
+
+    /** The action slot mid-read: a skeleton stadium, not the pill. */
+    @Test
+    fun album_loading_action_light() =
+        capture("album-loading-action-light", albumState().copy(saveState = one.tunkshif.swirlmusic.ui.components.CollectionSlotState.Loading), isAlbum = true)
+
+    /** Artwork colour over the whole screen (fixed saturated-orange seed). */
+    @Test
+    fun album_themed_light() {
+        themedCapture("album-themed-light", seed = 0xFFE07A1F.toInt())
+    }
+
+    @Test
+    fun album_themed_dark() {
+        themedCapture("album-themed-dark", seed = 0xFFE07A1F.toInt(), dark = true)
+    }
+
+    /** Edge to edge: the bar colour covers a 24 dp status-bar inset; dock padding bottom. */
+    @Test
+    fun playlist_edge_to_edge_light() {
+        compose.setContent {
+            CompositionLocalProvider(LocalArtworkPainter provides ColorPainter(Color(0xFF9AA0C8))) {
+                SwirlMusicTheme(darkTheme = false, dynamicColor = false) {
+                    TrackListScreen(
+                        state = playlistState(),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                            top = 24.dp,
+                            bottom = 120.dp,
+                        ),
+                        onBack = {},
+                        onRetry = {},
+                        onLoadMore = {},
+                        onPlayTracks = { _, _ -> },
+                    )
+                }
+            }
+        }
+        compose.onRoot().captureRoboImage("src/test/screenshots/tracklist/playlist-edge-to-edge-light.png")
+    }
+
+    private fun themedCapture(name: String, seed: Int, dark: Boolean = false) {
+        compose.setContent {
+            CompositionLocalProvider(LocalArtworkPainter provides ColorPainter(Color(seed))) {
+                one.tunkshif.swirlmusic.ui.theme.AlbumColorTheme(seed = seed) {
+                    TrackListScreen(
+                        state = albumState().copy(saveState = one.tunkshif.swirlmusic.ui.components.CollectionSlotState.Ready, saved = true),
+                        isAlbum = true,
+                        onBack = {},
+                        onRetry = {},
+                        onLoadMore = {},
+                        onPlayTracks = { _, _ -> },
+                    )
+                }
+            }
+        }
+        compose.onRoot().captureRoboImage("src/test/screenshots/tracklist/$name.png")
     }
 
     @Test

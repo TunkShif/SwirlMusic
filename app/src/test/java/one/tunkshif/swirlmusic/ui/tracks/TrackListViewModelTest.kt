@@ -48,6 +48,9 @@ class TrackListViewModelTest {
     private val repository = TrackListRepository(api, db.trackListDao(), object : TimeSource { override fun nowMillis() = 1_000L }, kotlinx.coroutines.test.UnconfinedTestDispatcher(), one.tunkshif.swirlmusic.data.cache.CacheGate(db.trackListDao(), kotlinx.coroutines.test.UnconfinedTestDispatcher()))
     private val viewModel = TrackListViewModel(
         repository,
+        object : one.tunkshif.swirlmusic.data.media.ArtworkSeedSource {
+            override suspend fun seed(artworkUrl: String): Int? = null
+        },
         CollectionRepository(collectionApi),
         ArtistAvatarRepository(FakeArtistApi()),
     )
@@ -283,7 +286,7 @@ class TrackListViewModelTest {
         viewModel.load(TrackListSource.Album(1))
         advanceUntilIdle()
 
-        assertThat(viewModel.state.value.saved).isNull()
+        assertThat(viewModel.state.value.saveState).isEqualTo(one.tunkshif.swirlmusic.ui.components.CollectionSlotState.Failed)
         assertThat(viewModel.state.value.title).isEqualTo("OutRun")
     }
 

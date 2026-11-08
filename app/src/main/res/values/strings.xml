@@ -70,8 +70,8 @@
     <string name="track_list_title">Tracks</string>
     <string name="track_list_play_all">Play all</string>
     <string name="track_list_empty">This list is empty</string>
-    <string name="track_list_save_album">Save album to Library</string>
-    <string name="track_list_remove_album">Remove album from Library</string>
+    <string name="track_list_save">Save</string>
+    <string name="track_list_saved">Saved</string>
     <string name="track_list_saved_toast">Saved to Library</string>
     <string name="track_list_removed_toast">Removed from Library</string>
     <string name="track_list_save_refused_toast">This album can\'t be saved</string>
@@ -84,6 +84,11 @@
     <string name="artist_following">Following</string>
     <string name="artist_unfollowed_toast">Unfollowed</string>
     <string name="artist_empty_albums">No albums yet</string>
+    <string name="artist_empty_filtered">No releases of this type</string>
+    <string name="artist_filter_all">All</string>
+    <string name="artist_filter_albums">Albums</string>
+    <string name="artist_filter_eps">EPs</string>
+    <string name="artist_filter_singles">Singles</string>
     <string name="artist_kind_album">Album</string>
     <string name="artist_kind_ep">EP</string>
     <string name="artist_kind_single">Single</string>

@@ -33,6 +33,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -63,6 +64,7 @@ import one.tunkshif.swirlmusic.ui.common.PagedList
 import one.tunkshif.swirlmusic.ui.common.SectionError
 import one.tunkshif.swirlmusic.ui.common.SectionState
 import one.tunkshif.swirlmusic.ui.components.Artwork
+import one.tunkshif.swirlmusic.ui.components.GridCard
 import one.tunkshif.swirlmusic.ui.components.GridCard
 import one.tunkshif.swirlmusic.ui.format.formatCount
 import one.tunkshif.swirlmusic.ui.theme.Spacing
@@ -298,13 +300,15 @@ private fun ListCard(
     subtitle: String?,
     artworkUrl: String?,
     onClick: () -> Unit,
+    index: Int = 0,
+    count: Int = 1,
     trailing: (@Composable () -> Unit)? = null,
 ) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        shape = MaterialTheme.shapes.large,
+        shape = ListItemDefaults.segmentedShapes(index, count).shape,
         color = MaterialTheme.colorScheme.surfaceContainer,
     ) {
         Row(
@@ -363,25 +367,27 @@ private fun PlaylistList(
             val sections = playlistSections(paged.items, complete = !paged.hasMore)
             LazyColumn(
                 contentPadding = PaddingValues(horizontal = Spacing.md, vertical = Spacing.md),
-                verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+                verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
             ) {
                 sections.liked?.let { liked ->
-                    item(key = "liked") { LikedCard(liked, onOpen) }
+                    item(key = "liked") {
+                        Box(Modifier.clip(ListItemDefaults.segmentedShapes(0, 1).shape)) { LikedCard(liked, onOpen) }
+                    }
                 }
                 if (sections.created.isNotEmpty()) {
                     item(key = "h-created") {
                         SectionHeader(stringResource(R.string.library_section_created), sections.createdCount)
                     }
-                    itemsIndexed(sections.created, key = { _, it -> it.id }) { _, playlist ->
-                        PlaylistCard(playlist, onOpen)
+                    itemsIndexed(sections.created, key = { _, it -> it.id }) { i, playlist ->
+                        PlaylistCard(playlist, onOpen, index = i, count = sections.created.size)
                     }
                 }
                 if (sections.saved.isNotEmpty()) {
                     item(key = "h-saved") {
                         SectionHeader(stringResource(R.string.library_section_saved), sections.savedCount)
                     }
-                    itemsIndexed(sections.saved, key = { _, it -> it.id }) { _, playlist ->
-                        ListCard(
+                    itemsIndexed(sections.saved, key = { _, it -> it.id }) { i, playlist ->
+                        ListCard(index = i, count = sections.saved.size,
                             title = playlist.name,
                             subtitle = listOfNotNull(
                                 playlist.creatorName?.let {
@@ -435,7 +441,7 @@ private fun <T> CardGrid(
             columns = GridCells.Adaptive(minSize = 152.dp),
             contentPadding = PaddingValues(horizontal = Spacing.md, vertical = Spacing.md),
             horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
-            verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+            verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
         ) {
             items(cards, key = { it.id }) { card ->
                 GridCard(title = card.title, subtitle = card.subtitle, artworkUrl = card.artworkUrl, circularArtwork = circularArtwork, onClick = { onOpen(card.id) })
@@ -474,7 +480,7 @@ private fun RecentList(
                 val tracks = entries.map { it.track }
                 LazyColumn(
                     contentPadding = PaddingValues(horizontal = Spacing.md, vertical = Spacing.md),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+                    verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
                 ) {
                     item {
                         Button(
@@ -495,7 +501,7 @@ private fun RecentList(
                         }
                     }
                     itemsIndexed(tracks, key = { _, track -> track.id }) { index, track ->
-                        ListCard(
+                        ListCard(index = index, count = tracks.size,
                             title = track.title,
                             subtitle = track.artistLine,
                             artworkUrl = track.artworkUrl,
@@ -552,7 +558,7 @@ private fun ListSkeleton() {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(MaterialTheme.shapes.large)
+                    .clip(ListItemDefaults.segmentedShapes(it, 4).shape)
                     .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                     .padding(Spacing.md),
                 horizontalArrangement = Arrangement.spacedBy(Spacing.md),
@@ -633,6 +639,8 @@ private fun LibraryTab.labelRes(): Int = when (this) {
 private fun PlaylistCard(
     playlist: one.tunkshif.swirlmusic.data.model.PlaylistSummary,
     onOpen: (Long) -> Unit,
+    index: Int = 0,
+    count: Int = 1,
 ) {
     ListCard(
         title = playlist.name,
@@ -642,6 +650,8 @@ private fun PlaylistCard(
             playlist.trackCount,
         ),
         artworkUrl = playlist.artworkUrl,
+        index = index,
+        count = count,
         onClick = { onOpen(playlist.id) },
     )
 }

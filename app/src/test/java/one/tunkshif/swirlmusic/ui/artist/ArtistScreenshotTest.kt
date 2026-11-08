@@ -8,6 +8,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.unit.dp
 import com.github.takahirom.roborazzi.captureRoboImage
 import com.github.takahirom.roborazzi.captureScreenRoboImage
 import one.tunkshif.swirlmusic.data.model.ArtistDescription
@@ -95,8 +96,78 @@ class ArtistScreenshotTest {
 
     @Test
     fun following_light() {
-        show(state().copy(followed = true), dark = false)
+        show(state().copy(followState = one.tunkshif.swirlmusic.ui.components.CollectionSlotState.Ready, followed = true), dark = false)
         compose.onRoot().captureRoboImage("src/test/screenshots/artist/following-light.png")
+    }
+
+    @Test
+    fun albums_filter_light() {
+        show(
+            state().copy(
+                filter = ReleaseFilter.Eps,
+                releases = releases(),
+                releasesComplete = true,
+            ),
+            dark = false,
+            page = 1,
+        )
+        compose.onRoot().captureRoboImage("src/test/screenshots/artist/albums-filter-light.png")
+    }
+
+    @Test
+    fun albums_filter_dark() {
+        show(
+            state().copy(
+                filter = ReleaseFilter.Eps,
+                releases = releases(),
+                releasesComplete = true,
+            ),
+            dark = true,
+            page = 1,
+        )
+        compose.onRoot().captureRoboImage("src/test/screenshots/artist/albums-filter-dark.png")
+    }
+
+    /** Artwork colour over the artist screen (fixed orange seed). */
+    @Test
+    fun themed_light() {
+        compose.setContent {
+            CompositionLocalProvider(LocalArtworkPainter provides ColorPainter(Color(0xFFE07A1F))) {
+                one.tunkshif.swirlmusic.ui.theme.AlbumColorTheme(seed = 0xFFE07A1F.toInt()) {
+                    ArtistScreen(
+                        state = state().copy(
+                            followState = one.tunkshif.swirlmusic.ui.components.CollectionSlotState.Ready,
+                        ),
+                        onBack = {},
+                        onRetry = {},
+                        onPlayTracks = { _, _ -> },
+                    )
+                }
+            }
+        }
+        compose.onRoot().captureRoboImage("src/test/screenshots/artist/themed-light.png")
+    }
+
+    /** Edge to edge: header colour covers a 24 dp inset; rows run behind the dock. */
+    @Test
+    fun top_songs_edge_to_edge_light() {
+        compose.setContent {
+            CompositionLocalProvider(LocalArtworkPainter provides ColorPainter(Color(0xFF9AA0C8))) {
+                SwirlMusicTheme(darkTheme = false, dynamicColor = false) {
+                    ArtistScreen(
+                        state = state(),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                            top = 24.dp,
+                            bottom = 120.dp,
+                        ),
+                        onBack = {},
+                        onRetry = {},
+                        onPlayTracks = { _, _ -> },
+                    )
+                }
+            }
+        }
+        compose.onRoot().captureRoboImage("src/test/screenshots/artist/top-songs-edge-to-edge-light.png")
     }
 
     /** The description sheet, a popup: capture the whole screen. */

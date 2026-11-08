@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -25,6 +27,7 @@ import androidx.compose.material3.FilledTonalIconToggleButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
@@ -49,6 +52,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -63,6 +67,9 @@ import one.tunkshif.swirlmusic.ui.common.LoadingRows
 import one.tunkshif.swirlmusic.ui.common.SectionError
 import one.tunkshif.swirlmusic.ui.common.SectionState
 import one.tunkshif.swirlmusic.ui.components.ArtistLine
+import one.tunkshif.swirlmusic.ui.components.CollectionAction
+import one.tunkshif.swirlmusic.ui.components.CollectionToggle
+import one.tunkshif.swirlmusic.ui.theme.AlbumColorTheme
 import one.tunkshif.swirlmusic.ui.components.ToastPillHost
 import one.tunkshif.swirlmusic.ui.components.TrackRow
 import one.tunkshif.swirlmusic.ui.components.ToastPillState
@@ -75,12 +82,15 @@ fun TrackListRoute(
     onBack: () -> Unit,
     onPlayTracks: (List<Track>, Int, PlayerController.TrackPager?) -> Unit,
     modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues(),
     onOpenArtist: (Long) -> Unit = {},
     viewModel: TrackListViewModel = hiltViewModel(),
 ) {
     LaunchedEffect(source) { viewModel.load(source) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val toastState = rememberToastPillState()
+    val seedValue by viewModel.seed.collectAsStateWithLifecycle()
+    val seed = seedValue
 
     LaunchedEffect(Unit) {
         viewModel.messages.collect { message ->
@@ -97,9 +107,12 @@ fun TrackListRoute(
         }
     }
 
+    AlbumColorTheme(seed = seed) {
     TrackListScreen(
         state = state,
+        seed = seedValue,
         isAlbum = source is TrackListSource.Album,
+        contentPadding = contentPadding,
         onBack = onBack,
         onRetry = viewModel::retry,
         onLoadMore = viewModel::loadMore,
@@ -111,6 +124,7 @@ fun TrackListRoute(
         toastState = toastState,
         modifier = modifier,
     )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -118,6 +132,8 @@ fun TrackListRoute(
 fun TrackListScreen(
     state: TrackListUiState,
     modifier: Modifier = Modifier,
+    seed: Int? = null,
+    contentPadding: PaddingValues = PaddingValues(),
     isAlbum: Boolean = false,
     appBarState: TopAppBarState = rememberTopAppBarState(),
     toastState: ToastPillState = rememberToastPillState(),
@@ -134,7 +150,9 @@ fun TrackListScreen(
         flingAnimationSpec = rememberSplineBasedDecay(),
     )
     var showSheet by remember { mutableStateOf(false) }
+    Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {
     Scaffold(
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
         modifier = modifier
             .fillMaxSize()
             .nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -144,6 +162,7 @@ fun TrackListScreen(
                 artworkUrl = state.artworkUrl,
                 appBarState = appBarState,
                 onBack = onBack,
+                topInset = contentPadding.calculateTopPadding(),
                 onPlayAll = {
                     (state.tracks as? SectionState.Content)?.let { onPlayTracks(it.value, 0) }
                 },
@@ -173,16 +192,32 @@ fun TrackListScreen(
                 meta = headerMeta(state),
                 description = state.description,
                 onDescriptionClick = { showSheet = true },
-                actions = {
-                    if (isAlbum && state.saved != null) {
-                        SaveAlbumButton(saved = state.saved, onToggle = onToggleSave)
+                leadingActions = {
+                    if (isAlbum) {
+                        CollectionAction(state = state.saveState) {
+                            CollectionToggle(
+                                checked = state.saved,
+                                onCheckedChange = { onToggleSave() },
+                                checkedIcon = R.drawable.ic_favorite_fill,
+                                uncheckedIcon = R.drawable.ic_favorite,
+                                checkedLabel = R.string.track_list_saved,
+                                uncheckedLabel = R.string.track_list_save,
+                            )
+                        }
                     }
                 },
             )
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
     ) { innerPadding ->
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(
+                    start = contentPadding.calculateStartPadding(LocalLayoutDirection.current),
+                    end = contentPadding.calculateEndPadding(LocalLayoutDirection.current),
+                ),
+        ) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 state = rememberLazyListState().also { listState ->
@@ -200,8 +235,11 @@ fun TrackListScreen(
                 },
                 contentPadding = PaddingValues(
                     top = innerPadding.calculateTopPadding(),
-                    bottom = innerPadding.calculateBottomPadding() + Spacing.xxl,
+                    bottom = innerPadding.calculateBottomPadding() + contentPadding.calculateBottomPadding() + Spacing.xxl,
+                    start = Spacing.md,
+                    end = Spacing.md,
                 ),
+            verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
             ) {
                 when (val tracks = state.tracks) {
                     is SectionState.Loading -> item { LoadingRows() }
@@ -219,7 +257,9 @@ fun TrackListScreen(
                         } else {
                             val list = tracks.value
                             val rows = if (isAlbum) albumRows(list) else list.mapIndexed { i, t -> AlbumRow.Song(t, i, t.trackNumber ?: (i + 1)) }
-                            itemsIndexed(rows, key = { i, row -> (row as? AlbumRow.Song)?.track?.id ?: -i.toLong() }) { _, row ->
+                            // Per-segment index/count: per disc on albums, the whole list otherwise.
+                            val segments = segmentIndexOf(rows).map { it ?: (0 to list.size) }
+                            itemsIndexed(rows, key = { i, row -> (row as? AlbumRow.Song)?.track?.id ?: -i.toLong() }) { i, row ->
                                 when (row) {
                                     is AlbumRow.Disc -> Row(
                                         modifier = Modifier.padding(start = Spacing.lg, top = Spacing.sm, bottom = Spacing.xs),
@@ -228,13 +268,18 @@ fun TrackListScreen(
                                         Icon(painterResource(R.drawable.ic_album), contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
                                         Text(stringResource(R.string.track_list_disc_fmt, row.number), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
                                     }
-                                    is AlbumRow.Song -> TrackRow(
-                                        track = row.track,
-                                        onClick = { onPlayTracks(list, row.index) },
-                                        leading = if (isAlbum) {
-                                            { Text(row.number.toString(), style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"), color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center, modifier = Modifier.width(40.dp)) }
-                                        } else null,
-                                    )
+                                    is AlbumRow.Song -> {
+                                        val (pos, count) = segments[i]
+                                        TrackRow(
+                                            track = row.track,
+                                            index = pos,
+                                            count = count,
+                                            onClick = { onPlayTracks(list, row.index) },
+                                            leading = if (isAlbum) {
+                                                { Text(row.number.toString(), style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"), color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center, modifier = Modifier.width(40.dp)) }
+                                            } else null,
+                                        )
+                                    }
                                 }
                             }
                             if (state.canLoadMore || state.loadingMore || state.moreError != null) {
@@ -254,9 +299,10 @@ fun TrackListScreen(
                 state = toastState,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = Spacing.lg),
+                    .padding(bottom = contentPadding.calculateBottomPadding() + Spacing.lg),
             )
         }
+    }
     }
     if (showSheet) {
         ModalBottomSheet(onDismissRequest = { showSheet = false }) {
@@ -283,31 +329,6 @@ private fun headerMeta(state: TrackListUiState): String? {
     return metaParts.takeIf { it.isNotEmpty() }?.joinToString(" · ")
 }
 
-/** Round tonal toggle in the header's action row; both states carry explicit colours. */
-@Composable
-private fun SaveAlbumButton(saved: Boolean, onToggle: () -> Unit) {
-    FilledTonalIconToggleButton(
-        checked = saved,
-        onCheckedChange = { onToggle() },
-        shape = CircleShape,
-        colors = IconButtonDefaults.filledTonalIconToggleButtonColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            checkedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-            checkedContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-        ),
-        modifier = Modifier.size(40.dp),
-    ) {
-        Icon(
-            painter = painterResource(
-                if (saved) R.drawable.ic_library_add_check else R.drawable.ic_library_add,
-            ),
-            contentDescription = stringResource(
-                if (saved) R.string.track_list_remove_album else R.string.track_list_save_album,
-            ),
-        )
-    }
-}
 
 @Composable
 internal fun DetailSheetContent(state: TrackListUiState) {

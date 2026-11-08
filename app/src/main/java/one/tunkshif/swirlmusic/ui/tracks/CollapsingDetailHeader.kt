@@ -4,8 +4,12 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -32,6 +36,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.layoutId
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
@@ -65,7 +70,8 @@ internal fun CollapsingDetailHeader(
     meta: String? = null,
     description: String? = null,
     onDescriptionClick: () -> Unit = {},
-    actions: @Composable RowScope.() -> Unit = {},
+    leadingActions: @Composable RowScope.() -> Unit = {},
+    topInset: androidx.compose.ui.unit.Dp = 0.dp,
 ) {
     val collapsedPlayVisible = remember { derivedStateOf { appBarState.collapsedFraction > 0.5f } }
     val colorSchemeSurface = MaterialTheme.colorScheme.surface
@@ -74,6 +80,7 @@ internal fun CollapsingDetailHeader(
     Layout(
         modifier = modifier
             .fillMaxWidth()
+            .testTag("detailHeader")
             .clipToBounds()
             .drawBehind {
                 drawRect(
@@ -174,16 +181,18 @@ internal fun CollapsingDetailHeader(
                     }
                 }
             }
-            // "playAll" — expanded pill plus the action row (comments slot, 0010-D38)
+            // "playAll" — collection action first, Play all pinned at the end (0011-D44)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
                 modifier = Modifier
                     .layoutId("playAll")
+                    .fillMaxWidth()
                     .graphicsLayer {
                         alpha = (1f - appBarState.collapsedFraction / 0.35f).coerceIn(0f, 1f)
                     },
             ) {
+                leadingActions()
+                Spacer(Modifier.weight(1f).widthIn(min = Spacing.sm))
                 Button(
                     onClick = onPlayAll,
                     shape = MaterialTheme.shapes.extraLarge,
@@ -194,7 +203,6 @@ internal fun CollapsingDetailHeader(
                         modifier = Modifier.padding(start = Spacing.sm),
                     )
                 }
-                actions()
             }
             // "playCollapsed" — round 40dp button in the bar
             FilledIconButton(
@@ -222,7 +230,9 @@ internal fun CollapsingDetailHeader(
         // Layout phase: state reads here never recompose.
         val f = appBarState.collapsedFraction
         val offset = appBarState.heightOffset
+        val inset = topInset.roundToPx()
         val barH = 64.dp.roundToPx()
+        val collapsedH = inset + barH
         val padH = Spacing.xl.roundToPx()
         val gap = Spacing.md.roundToPx()
 
@@ -234,9 +244,9 @@ internal fun CollapsingDetailHeader(
         val artExpSize = 112.dp.roundToPx()
         val artColSize = 40.dp.roundToPx()
         val artExpX = padH
-        val artExpY = barH + 8.dp.roundToPx()
+        val artExpY = collapsedH + 8.dp.roundToPx()
         val artColX = padH + 48.dp.roundToPx() + 8.dp.roundToPx()
-        val artColY = (barH - artColSize) / 2
+        val artColY = inset + (barH - artColSize) / 2
 
         val back = byId["back"]?.measure(constraints.copy(minWidth = 0, minHeight = 0))
         val bigText = place("bigText", constraints.maxWidth - (artExpX + artExpSize + gap) - padH)
@@ -251,11 +261,11 @@ internal fun CollapsingDetailHeader(
         val playAllTop = descTop + (desc?.height ?: 0) + if (desc != null) gap else 0
         val expandedHeight = playAllTop + (playAll?.height ?: 0) + gap
 
-        appBarState.heightOffsetLimit = barH - expandedHeight.toFloat()
+        appBarState.heightOffsetLimit = collapsedH - expandedHeight.toFloat()
 
-        val height = (expandedHeight + offset).roundToInt().coerceAtLeast(barH)
+        val height = (expandedHeight + offset).roundToInt().coerceAtLeast(collapsedH)
         val dims = HeaderDims(
-            barHeight = barH.toFloat(),
+            barHeight = collapsedH.toFloat(),
             artworkExpandedSize = artExpSize.toFloat(),
             artworkExpandedX = artExpX.toFloat(),
             artworkExpandedY = artExpY.toFloat(),
@@ -284,7 +294,7 @@ internal fun CollapsingDetailHeader(
             }
             barTitle?.place(
                 barTitleX,
-                (barH - barTitle.height) / 2,
+                inset + (barH - barTitle.height) / 2,
             )
             if (g.contentAlpha > 0f) {
                 desc?.place(padH, descTop + offset.roundToInt())
@@ -293,11 +303,11 @@ internal fun CollapsingDetailHeader(
             if (g.playButtonEnabled) {
                 playCollapsed?.place(
                     collapsedPlayX,
-                    (barH - playCollapsed.height) / 2,
+                    inset + (barH - playCollapsed.height) / 2,
                 )
             }
             // Back is placed last so it always wins hit-testing in the bar row.
-            back?.place(padH, (barH - back.height) / 2)
+            back?.place(padH, inset + (barH - back.height) / 2)
         }
     }
 }

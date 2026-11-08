@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -93,16 +94,16 @@ fun LoadingRows(
     count: Int = 6,
 ) {
     Column(
-        modifier = modifier.padding(horizontal = Spacing.xl),
-        verticalArrangement = Arrangement.spacedBy(Spacing.md),
+        modifier = modifier.padding(horizontal = Spacing.md),
+        verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
     ) {
         repeat(count) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp)
-                    .clip(MaterialTheme.shapes.small)
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                    .clip(ListItemDefaults.segmentedShapes(it, count).shape)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh),
             )
         }
     }

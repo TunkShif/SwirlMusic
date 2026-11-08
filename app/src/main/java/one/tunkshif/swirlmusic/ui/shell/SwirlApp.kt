@@ -264,33 +264,30 @@ fun SwirlApp(
                     }
                 }
                 entry<PlaylistKey> { key ->
-                    padded {
-                        TrackListRoute(
-                            source = TrackListSource.Playlist(key.id),
-                            onBack = { backStack.removeLastOrNull() },
-                            onPlayTracks = onPlayTracks,
-                        )
-                    }
+                    TrackListRoute(
+                        source = TrackListSource.Playlist(key.id),
+                        onBack = { backStack.removeLastOrNull() },
+                        onPlayTracks = onPlayTracks,
+                        contentPadding = innerPadding,
+                    )
                 }
                 entry<AlbumKey> { key ->
-                    padded {
-                        TrackListRoute(
-                            source = TrackListSource.Album(key.id),
-                            onBack = { backStack.removeLastOrNull() },
-                            onPlayTracks = onPlayTracks,
-                            onOpenArtist = { id -> backStack.add(ArtistKey(id)) },
-                        )
-                    }
+                    TrackListRoute(
+                        source = TrackListSource.Album(key.id),
+                        onBack = { backStack.removeLastOrNull() },
+                        onPlayTracks = onPlayTracks,
+                        contentPadding = innerPadding,
+                        onOpenArtist = { id -> backStack.add(ArtistKey(id)) },
+                    )
                 }
                 entry<ArtistKey> { key ->
-                    padded {
-                        ArtistRoute(
-                            id = key.id,
-                            onBack = { backStack.removeLastOrNull() },
-                            onPlayTracks = { tracks, index -> onPlayTracks(tracks, index, null) },
-                            onOpenAlbum = { id -> backStack.add(AlbumKey(id)) },
-                        )
-                    }
+                    ArtistRoute(
+                        id = key.id,
+                        onBack = { backStack.removeLastOrNull() },
+                        onPlayTracks = { tracks, index -> onPlayTracks(tracks, index, null) },
+                        onOpenAlbum = { id -> backStack.add(AlbumKey(id)) },
+                        contentPadding = innerPadding,
+                    )
                 }
                 entry<SearchKey> {
                     padded {

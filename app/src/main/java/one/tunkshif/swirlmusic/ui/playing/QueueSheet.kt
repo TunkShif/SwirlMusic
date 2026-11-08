@@ -20,9 +20,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
@@ -135,12 +137,13 @@ fun QueueSheetContent(
                 end = Spacing.xl - QueueDimens.rowPaddingHorizontal,
                 bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + Spacing.md,
             ),
-            verticalArrangement = Arrangement.spacedBy(Spacing.xxs),
+            verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
         ) {
-            items(localItems, key = { it.uid }) { item ->
+            itemsIndexed(localItems, key = { _, it -> it.uid }) { index, item ->
                 val originalIndex = queue.items.indexOfFirst { it.uid == item.uid }
                 ReorderableItem(reorderState, key = item.uid) { isDragging ->
                     QueueRow(
+                        index = index, count = localItems.size,
                         item = item,
                         isCurrent = item.uid == queue.currentUid,
                         isDragging = isDragging,
@@ -192,6 +195,8 @@ private fun QueueRow(
     isCurrent: Boolean,
     isDragging: Boolean,
     canReorder: Boolean,
+    index: Int,
+    count: Int,
     originalIndex: Int,
     originalItems: List<QueueItemUi>,
     onEvent: (QueueEvent) -> Unit,
@@ -219,7 +224,7 @@ private fun QueueRow(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .clip(MaterialTheme.shapes.large)
+                    .clip(ListItemDefaults.segmentedShapes(index, count).shape)
                     .background(MaterialTheme.colorScheme.errorContainer)
                     .padding(horizontal = Spacing.xl),
                 contentAlignment = Alignment.CenterEnd,
@@ -236,12 +241,12 @@ private fun QueueRow(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(MaterialTheme.shapes.large)
+                .clip(ListItemDefaults.segmentedShapes(index, count).shape)
                 .background(
                     if (isCurrent) {
                         MaterialTheme.colorScheme.secondaryContainer
                     } else {
-                        MaterialTheme.colorScheme.surface
+                        MaterialTheme.colorScheme.surfaceContainer
                     },
                 )
                 .clickable { onEvent(QueueEvent.SkipTo(item.uid)) }

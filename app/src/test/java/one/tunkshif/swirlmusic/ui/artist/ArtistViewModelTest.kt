@@ -60,7 +60,9 @@ class ArtistViewModelTest {
         UnconfinedTestDispatcher(),
         CacheGate(db.trackListDao(), UnconfinedTestDispatcher()),
     )
-    private val viewModel = ArtistViewModel(repository, artistApi, CollectionRepository(collectionApi))
+    private val viewModel = ArtistViewModel(androidx.lifecycle.SavedStateHandle(), repository, artistApi, CollectionRepository(collectionApi), object : one.tunkshif.swirlmusic.data.media.ArtworkSeedSource {
+            override suspend fun seed(artworkUrl: String): Int? = null
+        })
 
     @Before
     fun setUp() {
@@ -122,7 +124,7 @@ class ArtistViewModelTest {
         viewModel.load(1)
         advanceUntilIdle()
 
-        assertThat(viewModel.state.value.followed).isNull()
+        assertThat(viewModel.state.value.followState).isEqualTo(one.tunkshif.swirlmusic.ui.components.CollectionSlotState.Failed)
     }
 
     @Test
@@ -277,6 +279,22 @@ class ArtistViewModelTest {
         advanceUntilIdle()
 
         assertThat(artistApi.calls.filter { it.startsWith("albums:") }).hasSize(1)
+    }
+
+    @Test
+    fun `the filter survives a saved-state restore`() {
+        val handle = androidx.lifecycle.SavedStateHandle()
+        handle["filter"] = ReleaseFilter.Eps
+        val restored = ArtistViewModel(handle, repository, artistApi,
+            CollectionRepository(collectionApi),
+            object : one.tunkshif.swirlmusic.data.media.ArtworkSeedSource {
+                override suspend fun seed(artworkUrl: String): Int? = null
+            })
+        assertThat(restored.state.value.filter).isEqualTo(ReleaseFilter.All)
+        // Selection flows through selectFilter and persists into the handle.
+        restored.selectFilter(ReleaseFilter.Albums)
+        assertThat(restored.state.value.filter).isEqualTo(ReleaseFilter.Albums)
+        assertThat(handle.get<ReleaseFilter>("filter")).isEqualTo(ReleaseFilter.Albums)
     }
 
     @Test

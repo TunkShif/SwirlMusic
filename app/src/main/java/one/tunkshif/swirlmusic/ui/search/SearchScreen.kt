@@ -23,7 +23,9 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
@@ -176,6 +178,7 @@ fun SearchScreen(
 }
 
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 private fun History(
     history: List<String>,
     onSelect: (String) -> Unit,
@@ -202,20 +205,31 @@ private fun History(
                 Text(stringResource(R.string.search_clear_history))
             }
         }
-        history.forEach { query ->
-            Text(
-                text = query,
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onSelect(query) }
-                    .padding(horizontal = Spacing.xl, vertical = Spacing.md),
-            )
+        Column(
+            modifier = Modifier.padding(horizontal = Spacing.md),
+            verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
+        ) {
+            history.forEachIndexed { index, query ->
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onSelect(query) },
+                    shape = ListItemDefaults.segmentedShapes(index, history.size).shape,
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                ) {
+                    Text(
+                        text = query,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.md),
+                    )
+                }
+            }
         }
     }
 }
 
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 private fun Results(
     results: SearchResults,
     type: SearchType,
@@ -231,9 +245,12 @@ private fun Results(
                 EmptyMessage(text = stringResource(R.string.search_no_results, query))
             } else {
                 val songs = results.songs
-                LazyColumn(contentPadding = PaddingValues(bottom = Spacing.xxl)) {
+                LazyColumn(
+                    contentPadding = PaddingValues(start = Spacing.md, top = 0.dp, end = Spacing.md, bottom = Spacing.xxl),
+                    verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
+                ) {
                     itemsIndexed(songs, key = { _, track -> track.id }) { index, track ->
-                        TrackRow(track = track, onClick = { onPlayTracks(songs, index) })
+                        TrackRow(track = track, index = index, count = songs.size, onClick = { onPlayTracks(songs, index) })
                     }
                 }
             }
