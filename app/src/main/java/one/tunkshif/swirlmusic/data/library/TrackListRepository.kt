@@ -11,6 +11,7 @@ import one.tunkshif.swirlmusic.data.api.inIdOrder
 import one.tunkshif.swirlmusic.data.cache.SnapshotEntity
 import one.tunkshif.swirlmusic.data.cache.TrackEntity
 import one.tunkshif.swirlmusic.data.cache.TrackListDao
+import one.tunkshif.swirlmusic.data.model.ArtistRef
 import one.tunkshif.swirlmusic.data.model.Track
 
 /** A cached detail list: header fields plus its ordered ids and the resolved head rows. */
@@ -27,6 +28,7 @@ data class CachedList(
     val company: String? = null,
     val albumType: String? = null,
     val tags: List<String> = emptyList(),
+    val artists: List<ArtistRef> = emptyList(),
 )
 
 /** A fresh fetch: header, ordered ids, the bundled tracks, and whether the order was rewritten. */
@@ -44,6 +46,7 @@ data class FetchedList(
     val company: String? = null,
     val albumType: String? = null,
     val tags: List<String> = emptyList(),
+    val artists: List<ArtistRef> = emptyList(),
 )
 
 /**
@@ -84,6 +87,7 @@ class TrackListRepository @Inject constructor(
             company = snapshot.company,
             albumType = snapshot.albumType,
             tags = snapshot.tags?.split("\n")?.filter { it.isNotBlank() } ?: emptyList(),
+            artists = snapshot.artistRefs(),
             orderedIds = ids,
             firstTracks = resolved.map { it.toTrack() },
         )
@@ -158,11 +162,11 @@ class TrackListRepository @Inject constructor(
                 val subtitle = album.artistLine.takeIf { it.isNotBlank() }
                 store(key, album.name, subtitle, album.artworkUrl, album.tracks.size, null, album.tracks,
                     description = album.description, dateMillis = album.releasedAt,
-                    company = album.company, albumType = album.albumType)
+                    company = album.company, albumType = album.albumType, artists = album.artists)
                 ApiResult.Success(
                     FetchedList(album.name, subtitle, album.artworkUrl, null, album.tracks.size, album.tracks.map { it.id }, album.tracks, true,
                         description = album.description, dateMillis = album.releasedAt,
-                        company = album.company, albumType = album.albumType),
+                        company = album.company, albumType = album.albumType, artists = album.artists),
                 )
             }
 
@@ -202,6 +206,7 @@ class TrackListRepository @Inject constructor(
         dateMillis: Long? = null,
         company: String? = null,
         albumType: String? = null,
+        artists: List<ArtistRef> = emptyList(),
     ) {
         val now = timeSource.nowMillis()
         val generation = gate.generation
@@ -209,7 +214,8 @@ class TrackListRepository @Inject constructor(
             upsertTracks(tracks.map { TrackEntity.of(it, now) })
             replaceSnapshot(
                 SnapshotEntity(key, title, subtitle, artworkUrl, trackCount, version, now, now,
-                    description = description, dateMillis = dateMillis, company = company, albumType = albumType),
+                    description = description, dateMillis = dateMillis, company = company,
+                    albumType = albumType, artists = SnapshotEntity.encodedArtists(artists)),
                 tracks.map { it.id },
             )
             touch(key, now)

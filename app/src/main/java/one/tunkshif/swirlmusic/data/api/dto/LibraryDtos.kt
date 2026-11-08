@@ -79,6 +79,24 @@ data class AlbumDetailResponse(
 )
 
 @Serializable
+data class AlbumDynamicResponse(
+    val code: Int = 0,
+    val isSub: Boolean = false,
+)
+
+@Serializable
+data class ArtistDynamicResponse(
+    val code: Int = 0,
+    val followed: Boolean = false,
+)
+
+/** `/album/sub`, `/artist/sub` and friends answer `{"code":200}` on success. */
+@Serializable
+data class WriteResponse(
+    val code: Int = 0,
+)
+
+@Serializable
 data class ArtistSublistResponse(
     val code: Int = 0,
     val data: List<ArtistDto> = emptyList(),

@@ -61,6 +61,7 @@ data class AlbumDetail(
     val releasedAt: Long? = null,
     val company: String? = null,
     val albumType: String? = null,
+    val artists: List<ArtistRef> = emptyList(),
 )
 
 data class ArtistDetail(

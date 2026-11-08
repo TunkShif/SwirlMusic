@@ -277,6 +277,7 @@ fun SwirlApp(
                             source = TrackListSource.Album(key.id),
                             onBack = { backStack.removeLastOrNull() },
                             onPlayTracks = onPlayTracks,
+                            onOpenArtist = { id -> backStack.add(ArtistKey(id)) },
                         )
                     }
                 }

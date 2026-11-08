@@ -32,6 +32,8 @@ import kotlinx.coroutines.runBlocking
 class FakeLibraryApi : NcmLibraryApi {
 
     val calls = mutableListOf<String>()
+    /** Calls that asked for a fresh (timestamped) response, same format as [calls]. */
+    val freshCalls = mutableListOf<String>()
     var failWith: ApiResult<Nothing>? = null
 
     var playlists: List<PlaylistSummary> = List(3) { playlist((it + 1).toLong()) }
@@ -114,8 +116,13 @@ class FakeLibraryApi : NcmLibraryApi {
         return ApiResult.Success(recent)
     }
 
-    override suspend fun followedAlbums(limit: Int, offset: Int): ApiResult<Page<AlbumSummary>> {
+    override suspend fun followedAlbums(
+        limit: Int,
+        offset: Int,
+        fresh: Boolean,
+    ): ApiResult<Page<AlbumSummary>> {
         calls += "albums:$offset"
+        if (fresh) freshCalls += "albums:$offset"
         failWith?.let { return it }
         return ApiResult.Success(Page(albums, hasMore = false))
     }
@@ -126,8 +133,13 @@ class FakeLibraryApi : NcmLibraryApi {
         return ApiResult.Success(albumDetail)
     }
 
-    override suspend fun followedArtists(limit: Int, offset: Int): ApiResult<Page<ArtistSummary>> {
+    override suspend fun followedArtists(
+        limit: Int,
+        offset: Int,
+        fresh: Boolean,
+    ): ApiResult<Page<ArtistSummary>> {
         calls += "artists:$offset"
+        if (fresh) freshCalls += "artists:$offset"
         failWith?.let { return it }
         return ApiResult.Success(Page(artists, hasMore = false))
     }

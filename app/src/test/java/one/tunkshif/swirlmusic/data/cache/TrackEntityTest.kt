@@ -46,4 +46,29 @@ class TrackEntityTest {
 
         assertThat(entity.toTrack().artists).isEmpty()
     }
+
+    @Test
+    fun `snapshot artists use the same round trip`() {
+        val artists = listOf(ArtistRef(501, "Kavinsky"))
+
+        assertThat(SnapshotEntity.encodedArtists(artists)).isNotNull()
+        assertThat(SnapshotEntity.encodedArtists(emptyList())).isNull()
+
+        val snapshot = snapshot(artists = SnapshotEntity.encodedArtists(artists))
+        assertThat(snapshot.artistRefs()).containsExactlyElementsIn(artists)
+        assertThat(snapshot(artists = null).artistRefs()).isEmpty()
+        assertThat(snapshot(artists = "not json").artistRefs()).isEmpty()
+    }
+
+    private fun snapshot(artists: String?) = SnapshotEntity(
+        sourceKey = "album:1",
+        title = "Album",
+        subtitle = null,
+        artworkUrl = null,
+        trackCount = 1,
+        version = null,
+        fetchedAt = 1_000,
+        lastOpenedAt = 1_000,
+        artists = artists,
+    )
 }

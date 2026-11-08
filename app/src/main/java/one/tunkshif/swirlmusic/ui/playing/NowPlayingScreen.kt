@@ -5,7 +5,6 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,13 +19,10 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconToggleButton
 import androidx.compose.material3.FilledTonalIconButton
@@ -64,9 +60,13 @@ import one.tunkshif.swirlmusic.R
 import one.tunkshif.swirlmusic.player.LoopMode
 import one.tunkshif.swirlmusic.player.next
 import one.tunkshif.swirlmusic.player.PlaybackError
+import one.tunkshif.swirlmusic.ui.components.ArtistLine
 import one.tunkshif.swirlmusic.ui.components.Artwork
 import one.tunkshif.swirlmusic.ui.components.EmptyState
 import one.tunkshif.swirlmusic.ui.components.LocalSharedTransitionScope
+import one.tunkshif.swirlmusic.ui.components.ToastPillHost
+import one.tunkshif.swirlmusic.ui.components.ToastPillState
+import one.tunkshif.swirlmusic.ui.components.rememberToastPillState
 import one.tunkshif.swirlmusic.ui.components.nowPlayingArtwork
 import one.tunkshif.swirlmusic.ui.format.formatDuration
 import one.tunkshif.swirlmusic.ui.theme.Spacing
@@ -86,9 +86,6 @@ internal object NowPlayingDimens {
     val seekGap = 8.dp
     /** Matches `shapes.extraLarge`: the resting cover corner. */
     val coverCorner = 32.dp
-    val toastIcon = 18.dp
-    val artistAvatar = 32.dp
-    val artistAvatarIcon = 20.dp
 }
 
 /** The entry point wired into the shell's nav graph. */
@@ -131,7 +128,7 @@ fun NowPlayingScreen(
     lyrics: LyricsUiState = LyricsUiState.Loading,
     showLyrics: Boolean = false,
     onToggleLyrics: () -> Unit = {},
-    toastState: PlayerToastState = rememberPlayerToastState(),
+    toastState: ToastPillState = rememberToastPillState(),
 ) {
     // One shared position source for the seek bar, the elapsed label and the lyrics pane.
     val displayed = rememberDisplayedPosition(state.positionMs, state.durationMs, state.isPlaying)
@@ -233,7 +230,7 @@ fun NowPlayingScreen(
                             )
                         }
                     }
-                    PlayerToastHost(
+                    ToastPillHost(
                         state = toastState,
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
@@ -312,86 +309,6 @@ private fun TopRow(
 }
 
 @Composable
-private fun ArtistLine(track: NowPlayingTrack, onOpenArtist: (Long) -> Unit) {
-    val text = @Composable { m: Modifier ->
-        Text(
-            text = track.artistLine,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = m,
-        )
-    }
-    when (track.artists.size) {
-        0 -> text(Modifier)
-        1 -> text(
-            Modifier.clickable(
-                onClickLabel = stringResource(R.string.playing_open_artist),
-                role = Role.Button,
-            ) { onOpenArtist(track.artists[0].id) },
-        )
-        else -> {
-            var expanded by rememberSaveable(track.artists) { mutableStateOf(false) }
-            Box {
-                text(
-                    Modifier.clickable(
-                        onClickLabel = stringResource(R.string.playing_choose_artist),
-                        role = Role.Button,
-                    ) { expanded = true },
-                )
-                DropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false },
-                    shape = MaterialTheme.shapes.large,
-                ) {
-                    track.artists.forEach { artist ->
-                        DropdownMenuItem(
-                            text = { Text(artist.name) },
-                            leadingIcon = {
-                                ArtistAvatar(avatarUrl = track.artistAvatars[artist.id])
-                            },
-                            onClick = {
-                                expanded = false
-                                onOpenArtist(artist.id)
-                            },
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-/** Menu leading slot: the artist's avatar, or a person glyph on surfaceVariant. */
-@Composable
-private fun ArtistAvatar(avatarUrl: String?) {
-    if (avatarUrl != null) {
-        Artwork(
-            url = avatarUrl,
-            contentDescription = null,
-            shape = CircleShape,
-            modifier = Modifier.size(NowPlayingDimens.artistAvatar),
-        )
-    } else {
-        Box(
-            modifier = Modifier
-                .size(NowPlayingDimens.artistAvatar)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_person),
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(NowPlayingDimens.artistAvatarIcon),
-            )
-        }
-    }
-}
-
-@Composable
 private fun TrackText(
     track: NowPlayingTrack,
     onOpenAlbum: (Long) -> Unit,
@@ -411,7 +328,15 @@ private fun TrackText(
             // A later slice draws a like button here; the space is already reserved.
             Spacer(Modifier.width(NowPlayingDimens.actionSmall))
         }
-        ArtistLine(track, onOpenArtist)
+        ArtistLine(
+            text = track.artistLine,
+            artists = track.artists,
+            avatars = track.artistAvatars,
+            onOpenArtist = onOpenArtist,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+        )
         val albumName = track.albumName
         if (!albumName.isNullOrBlank()) {
             val albumId = track.albumId
@@ -487,7 +412,7 @@ private fun TransportRow(
     state: NowPlayingUiState,
     onEvent: (NowPlayingEvent) -> Unit,
     onOpenQueue: () -> Unit,
-    toastState: PlayerToastState,
+    toastState: ToastPillState,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),

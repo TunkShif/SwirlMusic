@@ -12,6 +12,7 @@ import one.tunkshif.swirlmusic.data.model.SearchType
 import one.tunkshif.swirlmusic.data.model.Track
 import one.tunkshif.swirlmusic.data.api.dto.AlbumDetailResponse
 import one.tunkshif.swirlmusic.data.model.AlbumDetail
+import one.tunkshif.swirlmusic.data.model.ArtistRef
 import one.tunkshif.swirlmusic.data.model.ArtistDetail
 
 /**
@@ -29,11 +30,12 @@ interface NcmLibraryApi {
 
     suspend fun recentlyPlayed(uid: Long, limit: Int): ApiResult<List<PlayedEntry>>
 
-    suspend fun followedAlbums(limit: Int, offset: Int): ApiResult<Page<AlbumSummary>>
+    /** `fresh` adds a timestamp so a write isn't hidden by the server's URL cache. */
+    suspend fun followedAlbums(limit: Int, offset: Int, fresh: Boolean = false): ApiResult<Page<AlbumSummary>>
 
     suspend fun albumDetail(id: Long): ApiResult<AlbumDetail>
 
-    suspend fun followedArtists(limit: Int, offset: Int): ApiResult<Page<ArtistSummary>>
+    suspend fun followedArtists(limit: Int, offset: Int, fresh: Boolean = false): ApiResult<Page<ArtistSummary>>
 
     suspend fun artistDetail(id: Long): ApiResult<ArtistDetail>
 
@@ -59,6 +61,10 @@ internal fun AlbumDetailResponse.toDomain(): AlbumDetail = AlbumDetail(
     id = album.id,
     name = album.name,
     artistLine = album.artists.orEmpty().joinToString(" / ") { it.name },
+    artists = album.artists.orEmpty()
+        .filter { it.id > 0 && it.name.isNotBlank() }
+        .distinctBy { it.id }
+        .map { ArtistRef(it.id, it.name) },
     artworkUrl = album.picUrl?.let { sizedArtwork(it, 400) },
     publishYear = album.publishTime.takeIf { it > 0 }?.let { publishYearOf(it) },
     // `/album` songs may come without `al`; the album header is the album they belong to.

@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import one.tunkshif.swirlmusic.data.api.ApiResult
 import one.tunkshif.swirlmusic.data.api.NcmLibraryApi
+import one.tunkshif.swirlmusic.data.library.CollectionRepository
+import one.tunkshif.swirlmusic.data.library.LibraryChange
 import one.tunkshif.swirlmusic.data.model.AlbumSummary
 import one.tunkshif.swirlmusic.data.model.ArtistSummary
 import one.tunkshif.swirlmusic.data.model.Page
@@ -36,6 +38,7 @@ data class LibraryUiState(
 class LibraryViewModel @Inject constructor(
     private val api: NcmLibraryApi,
     session: SessionRepository,
+    collection: CollectionRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(LibraryUiState())
@@ -49,6 +52,15 @@ class LibraryViewModel @Inject constructor(
         loadAlbums(reset = true)
         loadArtists(reset = true)
         loadRecent()
+        // A save/follow elsewhere reloads exactly that tab, bypassing the server cache.
+        viewModelScope.launch {
+            collection.changes.collect { change ->
+                when (change) {
+                    LibraryChange.Albums -> loadAlbums(reset = true, fresh = true)
+                    LibraryChange.Artists -> loadArtists(reset = true, fresh = true)
+                }
+            }
+        }
     }
 
     fun selectTab(tab: LibraryTab) {
@@ -80,18 +92,18 @@ class LibraryViewModel @Inject constructor(
         fetch = { uid, offset -> api.userPlaylists(uid, PAGE_SIZE, offset) },
     )
 
-    private fun loadAlbums(reset: Boolean) = loadPage(
+    private fun loadAlbums(reset: Boolean, fresh: Boolean = false) = loadPage(
         reset = reset,
         current = { _state.value.albums },
         update = { paged -> _state.update { it.copy(albums = paged) } },
-        fetch = { _, offset -> api.followedAlbums(PAGE_SIZE, offset) },
+        fetch = { _, offset -> api.followedAlbums(PAGE_SIZE, offset, fresh = fresh) },
     )
 
-    private fun loadArtists(reset: Boolean) = loadPage(
+    private fun loadArtists(reset: Boolean, fresh: Boolean = false) = loadPage(
         reset = reset,
         current = { _state.value.artists },
         update = { paged -> _state.update { it.copy(artists = paged) } },
-        fetch = { _, offset -> api.followedArtists(PAGE_SIZE, offset) },
+        fetch = { _, offset -> api.followedArtists(PAGE_SIZE, offset, fresh = fresh) },
     )
 
     private fun <T> loadPage(

@@ -70,6 +70,12 @@
     <string name="track_list_title">Tracks</string>
     <string name="track_list_play_all">Play all</string>
     <string name="track_list_empty">This list is empty</string>
+    <string name="track_list_save_album">Save album to Library</string>
+    <string name="track_list_remove_album">Remove album from Library</string>
+    <string name="track_list_saved_toast">Saved to Library</string>
+    <string name="track_list_removed_toast">Removed from Library</string>
+    <string name="track_list_save_refused_toast">This album can\'t be saved</string>
+    <string name="track_list_save_failed_toast">Couldn\'t update your Library</string>
 
     <!-- Search -->
     <string name="search_placeholder">Search</string>

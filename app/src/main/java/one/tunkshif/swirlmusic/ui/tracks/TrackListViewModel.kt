@@ -4,13 +4,19 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import one.tunkshif.swirlmusic.data.api.ApiResult
+import one.tunkshif.swirlmusic.data.library.ArtistAvatarRepository
+import one.tunkshif.swirlmusic.data.library.CollectionRepository
+import one.tunkshif.swirlmusic.data.library.ToggleResult
 import one.tunkshif.swirlmusic.data.library.TrackListRepository
+import one.tunkshif.swirlmusic.data.model.ArtistRef
 import one.tunkshif.swirlmusic.data.model.Track
 import one.tunkshif.swirlmusic.player.PlayerController
 import one.tunkshif.swirlmusic.ui.common.LoadError
@@ -41,15 +47,29 @@ data class TrackListUiState(
     val loadingMore: Boolean = false,
     /** A failed chunk keeps its rows; the footer shows retry. */
     val moreError: LoadError? = null,
+    /** Albums only: null until the fresh `/album/detail/dynamic` read lands (or fails). */
+    val saved: Boolean? = null,
+    val savePending: Boolean = false,
+    /** Album header artists (0010-D39); a menu at 2+, a direct link at 1. */
+    val artists: List<ArtistRef> = emptyList(),
+    val artistAvatars: Map<Long, String?> = emptyMap(),
 )
+
+/** One-shot messages for the toast pill. */
+enum class TrackListMessage { Saved, Removed, AlbumLocked, SaveFailed }
 
 @HiltViewModel
 class TrackListViewModel @Inject constructor(
     private val repository: TrackListRepository,
+    private val collection: CollectionRepository,
+    private val artistAvatars: ArtistAvatarRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(TrackListUiState())
     val state: StateFlow<TrackListUiState> = _state.asStateFlow()
+
+    private val _messages = Channel<TrackListMessage>(Channel.BUFFERED)
+    val messages = _messages.receiveAsFlow()
 
     private var loadedFor: TrackListSource? = null
     private var source: TrackListSource = TrackListSource.Playlist(0)
@@ -74,6 +94,7 @@ class TrackListViewModel @Inject constructor(
         // A reload invalidates any in-flight chunk: it would append to the wrong list.
         loadGeneration++
         moreJob?.cancel()
+        savedJob?.cancel()
         val source = this.source
         _state.value = _state.value.copy(tracks = SectionState.Loading)
         viewModelScope.launch {
@@ -148,7 +169,10 @@ class TrackListViewModel @Inject constructor(
         tracks: List<Track>,
         trackCount: Int? = null,
         extras: HeaderExtras = HeaderExtras(),
+        artists: List<ArtistRef> = emptyList(),
     ) {
+        // A fresh list resets the content fields (footer state must not linger); the album
+        // collection fields live outside it and carry over.
         _state.value = TrackListUiState(
             title = title,
             artworkUrl = artworkUrl,
@@ -161,6 +185,10 @@ class TrackListViewModel @Inject constructor(
             company = extras.company,
             albumType = extras.albumType,
             tags = extras.tags,
+            artists = artists,
+            saved = _state.value.saved,
+            savePending = _state.value.savePending,
+            artistAvatars = _state.value.artistAvatars,
         )
     }
 
@@ -244,16 +272,71 @@ class TrackListViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Albums read their saved state fresh alongside the content (0010-D36); a failure leaves
+     * [TrackListUiState.saved] null and the button stays hidden. No retry, no cache.
+     */
+    private var savedJob: Job? = null
+
+    fun toggleSave() {
+        val current = _state.value.saved ?: return
+        if (_state.value.savePending) return
+        val albumId = (source as? TrackListSource.Album)?.id ?: return
+        _state.value = _state.value.copy(saved = !current, savePending = true)
+        viewModelScope.launch {
+            when (val result = collection.setAlbumSaved(albumId, !current)) {
+                ToggleResult.Done -> {
+                    _state.value = _state.value.copy(savePending = false)
+                    _messages.send(
+                        if (!current) TrackListMessage.Saved else TrackListMessage.Removed,
+                    )
+                }
+                ToggleResult.Refused -> {
+                    _state.value = _state.value.copy(saved = current, savePending = false)
+                    _messages.send(TrackListMessage.AlbumLocked)
+                }
+                is ToggleResult.Failed -> {
+                    _state.value = _state.value.copy(saved = current, savePending = false)
+                    _messages.send(TrackListMessage.SaveFailed)
+                }
+            }
+        }
+    }
+
     private suspend fun loadAlbum(id: Long) {
+        savedJob?.cancel()
+        savedJob = viewModelScope.launch {
+            when (val result = collection.albumSaved(id)) {
+                // A toggle already in flight owns `saved` now; don't clobber it.
+                is ApiResult.Success ->
+                    if (!_state.value.savePending) {
+                        _state.value = _state.value.copy(saved = result.value)
+                    }
+                else -> Unit
+            }
+        }
         val hadSnapshot = emitCached(TrackListRepository.albumKey(id))
         when (val result = repository.fetchAlbum(id)) {
             is ApiResult.Success -> result.value.let {
                 emitList(it.title, it.artworkUrl, it.subtitle, it.firstTracks, it.trackCount,
-                    HeaderExtras(it.description, it.dateMillis, it.albumType?.let { DateKind.Released } ?: if (it.dateMillis != null) DateKind.Released else null, it.company, it.albumType, it.tags))
+                    HeaderExtras(it.description, it.dateMillis, it.albumType?.let { DateKind.Released } ?: if (it.dateMillis != null) DateKind.Released else null, it.company, it.albumType, it.tags),
+                    artists = it.artists)
+                loadArtistAvatars(it.artists)
             }
 
             is ApiResult.NetworkError -> if (!hadSnapshot) fail(LoadError.Network)
             is ApiResult.HttpError, is ApiResult.Unauthorized -> if (!hadSnapshot) fail(LoadError.Server)
+        }
+    }
+
+    /** Menu avatars are only needed when the header can show the choose-artist menu. */
+    private fun loadArtistAvatars(artists: List<ArtistRef>) {
+        if (artists.size < 2) return
+        viewModelScope.launch {
+            val fetched = artistAvatars.avatars(artists.map { it.id })
+            _state.value = _state.value.copy(
+                artistAvatars = artists.associate { it.id to fetched[it.id] },
+            )
         }
     }
 
@@ -276,7 +359,8 @@ class TrackListViewModel @Inject constructor(
         emitList(cached.title, cached.artworkUrl, cached.subtitle, cached.firstTracks, cached.trackCount,
                 HeaderExtras(cached.description, cached.dateMillis,
                     if (cached.company == null) DateKind.Created else DateKind.Released,
-                    cached.company, cached.albumType, cached.tags))
+                    cached.company, cached.albumType, cached.tags),
+                artists = cached.artists)
         return true
     }
 

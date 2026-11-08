@@ -20,6 +20,8 @@ import com.github.takahirom.roborazzi.captureScreenRoboImage
 import com.github.takahirom.roborazzi.ExperimentalRoborazziApi
 import one.tunkshif.swirlmusic.data.model.ArtistRef
 import one.tunkshif.swirlmusic.ui.components.LocalArtworkPainter
+import one.tunkshif.swirlmusic.ui.components.ToastPillState
+import one.tunkshif.swirlmusic.ui.components.rememberToastPillState
 import one.tunkshif.swirlmusic.ui.theme.SwirlMusicTheme
 import org.junit.Rule
 import org.junit.Test
@@ -98,7 +100,7 @@ class NowPlayingScreenshotTest {
         dark: Boolean,
         lyrics: LyricsUiState = LyricsUiState.Loading,
         showLyrics: Boolean = false,
-        toast: PlayerToastState? = null,
+        toast: ToastPillState? = null,
     ) {
         compose.mainClock.autoAdvance = false
         compose.setContent {
@@ -115,7 +117,7 @@ class NowPlayingScreenshotTest {
                         onOpenQueue = {},
                         lyrics = lyrics,
                         showLyrics = showLyrics,
-                        toastState = toast ?: rememberPlayerToastState(),
+                        toastState = toast ?: rememberToastPillState(),
                     )
                 }
             }
@@ -150,7 +152,7 @@ class NowPlayingScreenshotTest {
     @Test
     fun playing_toast_light() = capture(
         "playing-toast-light", PlayingStatePlaying, dark = false,
-        toast = PlayerToastState().apply {
+        toast = ToastPillState().apply {
             show(R.drawable.ic_shuffle, R.string.playing_loop_shuffle)
         },
     )
@@ -159,7 +161,7 @@ class NowPlayingScreenshotTest {
     fun lyrics_toast_dark() = capture(
         "lyrics-toast-dark", PlayingStatePlaying, dark = true,
         lyrics = LyricsSynced, showLyrics = true,
-        toast = PlayerToastState().apply {
+        toast = ToastPillState().apply {
             show(R.drawable.ic_translate, R.string.playing_lyrics_showing_translation)
         },
     )

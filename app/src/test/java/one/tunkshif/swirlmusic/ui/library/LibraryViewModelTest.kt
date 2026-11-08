@@ -11,6 +11,8 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import one.tunkshif.swirlmusic.data.api.ApiResult
+import one.tunkshif.swirlmusic.data.library.CollectionRepository
+import one.tunkshif.swirlmusic.data.library.FakeCollectionApi
 import one.tunkshif.swirlmusic.ui.common.LoadError
 import one.tunkshif.swirlmusic.ui.common.SectionState
 import org.junit.After
@@ -20,6 +22,8 @@ import org.junit.Test
 class LibraryViewModelTest {
 
     private val api = FakeLibraryApi()
+    private val collectionApi = FakeCollectionApi()
+    private val collection = CollectionRepository(collectionApi)
 
     @After
     fun tearDown() {
@@ -33,7 +37,7 @@ class LibraryViewModelTest {
     @Test
     fun `all four sections load`() = runTest {
         useTestMain()
-        val viewModel = LibraryViewModel(api, signedInSession())
+        val viewModel = LibraryViewModel(api, signedInSession(), collection)
 
         advanceUntilIdle()
 
@@ -48,7 +52,7 @@ class LibraryViewModelTest {
     fun `a first page failure is shown for that tab only`() = runTest {
         useTestMain()
         api.failWith = ApiResult.NetworkError(IOException("offline"))
-        val viewModel = LibraryViewModel(api, signedInSession())
+        val viewModel = LibraryViewModel(api, signedInSession(), collection)
 
         advanceUntilIdle()
 
@@ -59,7 +63,7 @@ class LibraryViewModelTest {
     @Test
     fun `load more asks for the next offset and appends`() = runTest {
         useTestMain()
-        val viewModel = LibraryViewModel(api, signedInSession())
+        val viewModel = LibraryViewModel(api, signedInSession(), collection)
         advanceUntilIdle()
         api.playlists = listOf(playlist(4))
 
@@ -72,10 +76,34 @@ class LibraryViewModelTest {
     }
 
     @Test
+    fun `a collection change reloads only that tab, fresh`() = runTest {
+        useTestMain()
+        val viewModel = LibraryViewModel(api, signedInSession(), collection)
+        advanceUntilIdle()
+        api.calls.clear()
+
+        collection.setAlbumSaved(9, saved = true)
+        advanceUntilIdle()
+
+        assertThat(api.calls).contains("albums:0")
+        assertThat(api.freshCalls).containsExactly("albums:0")
+        assertThat(api.calls.filter { it.startsWith("artists:") }).isEmpty()
+
+        api.calls.clear()
+        api.freshCalls.clear()
+
+        collection.setArtistFollowed(9, followed = true)
+        advanceUntilIdle()
+
+        assertThat(api.freshCalls).containsExactly("artists:0")
+        assertThat(api.calls.filter { it.startsWith("albums:") }).isEmpty()
+    }
+
+    @Test
     fun `load more does nothing when there is no next page`() = runTest {
         useTestMain()
         api.hasMorePlaylists = false
-        val viewModel = LibraryViewModel(api, signedInSession())
+        val viewModel = LibraryViewModel(api, signedInSession(), collection)
         advanceUntilIdle()
 
         viewModel.loadMore(LibraryTab.Playlists)
@@ -87,7 +115,7 @@ class LibraryViewModelTest {
     @Test
     fun `switching tabs does not reload a loaded tab`() = runTest {
         useTestMain()
-        val viewModel = LibraryViewModel(api, signedInSession())
+        val viewModel = LibraryViewModel(api, signedInSession(), collection)
         advanceUntilIdle()
 
         viewModel.selectTab(LibraryTab.Albums)
@@ -102,7 +130,7 @@ class LibraryViewModelTest {
     fun `retry reloads the failed tab`() = runTest {
         useTestMain()
         api.failWith = ApiResult.HttpError(500, "boom")
-        val viewModel = LibraryViewModel(api, signedInSession())
+        val viewModel = LibraryViewModel(api, signedInSession(), collection)
         advanceUntilIdle()
         api.failWith = null
 

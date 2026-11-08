@@ -1,4 +1,4 @@
-package one.tunkshif.swirlmusic.ui.playing
+package one.tunkshif.swirlmusic.ui.components
 
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -13,16 +13,16 @@ import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36])
-class PlayerToastTest {
+class ToastPillTest {
 
     @get:Rule
     val compose = createComposeRule()
 
     private val context = RuntimeEnvironment.getApplication()
 
-    private fun show(state: PlayerToastState) {
+    private fun show(state: ToastPillState) {
         compose.setContent {
-            PlayerToastHost(state)
+            ToastPillHost(state)
         }
     }
 
@@ -31,7 +31,7 @@ class PlayerToastTest {
 
     @Test
     fun `shows then auto-dismisses`() {
-        val state = PlayerToastState()
+        val state = ToastPillState()
         show(state)
 
         state.show(R.drawable.ic_translate, R.string.playing_lyrics_showing_translation)
@@ -45,7 +45,7 @@ class PlayerToastTest {
 
     @Test
     fun `a second show replaces and restarts the timer`() {
-        val state = PlayerToastState()
+        val state = ToastPillState()
         show(state)
 
         state.show(R.drawable.ic_translate, R.string.playing_lyrics_showing_translation)
@@ -67,7 +67,7 @@ class PlayerToastTest {
 
     @Test
     fun `same text twice gets a new id and stays displayed`() {
-        val state = PlayerToastState()
+        val state = ToastPillState()
         show(state)
 
         state.show(R.drawable.ic_translate, R.string.playing_lyrics_showing_translation)

@@ -1,89 +1,73 @@
 package one.tunkshif.swirlmusic.ui.tracks
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.Button
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.LoadingIndicator
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalIconToggleButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.TopAppBarState
+import androidx.compose.material3.rememberTopAppBarState
+import androidx.compose.animation.rememberSplineBasedDecay
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.snapshotFlow
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.pluralStringResource
-import java.util.Locale
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Surface
-import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.semantics.Role
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import java.util.Locale
 import one.tunkshif.swirlmusic.R
 import one.tunkshif.swirlmusic.data.model.Track
+import one.tunkshif.swirlmusic.player.PlayerController
 import one.tunkshif.swirlmusic.ui.common.LoadError
 import one.tunkshif.swirlmusic.ui.common.LoadingRows
 import one.tunkshif.swirlmusic.ui.common.SectionError
-import one.tunkshif.swirlmusic.player.PlayerController
 import one.tunkshif.swirlmusic.ui.common.SectionState
-import one.tunkshif.swirlmusic.ui.components.Artwork
+import one.tunkshif.swirlmusic.ui.components.ArtistLine
+import one.tunkshif.swirlmusic.ui.components.ToastPillHost
 import one.tunkshif.swirlmusic.ui.components.TrackRow
+import one.tunkshif.swirlmusic.ui.components.ToastPillState
+import one.tunkshif.swirlmusic.ui.components.rememberToastPillState
 import one.tunkshif.swirlmusic.ui.theme.Spacing
-import androidx.compose.material3.FilledIconButton
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.TopAppBarState
-import androidx.compose.material3.rememberTopAppBarState
-import androidx.compose.animation.rememberSplineBasedDecay
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.ui.layout.Layout
-import androidx.compose.ui.layout.layoutId
-import androidx.compose.ui.layout.Placeable
-import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.lerp
-import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.semantics.invisibleToUser
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.foundation.shape.RoundedCornerShape
-import kotlin.math.roundToInt
 
 @Composable
 fun TrackListRoute(
@@ -91,10 +75,27 @@ fun TrackListRoute(
     onBack: () -> Unit,
     onPlayTracks: (List<Track>, Int, PlayerController.TrackPager?) -> Unit,
     modifier: Modifier = Modifier,
+    onOpenArtist: (Long) -> Unit = {},
     viewModel: TrackListViewModel = hiltViewModel(),
 ) {
     LaunchedEffect(source) { viewModel.load(source) }
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val toastState = rememberToastPillState()
+
+    LaunchedEffect(Unit) {
+        viewModel.messages.collect { message ->
+            when (message) {
+                TrackListMessage.Saved ->
+                    toastState.show(R.drawable.ic_library_add_check, R.string.track_list_saved_toast)
+                TrackListMessage.Removed ->
+                    toastState.show(R.drawable.ic_library_add, R.string.track_list_removed_toast)
+                TrackListMessage.AlbumLocked ->
+                    toastState.show(R.drawable.ic_error, R.string.track_list_save_refused_toast)
+                TrackListMessage.SaveFailed ->
+                    toastState.show(R.drawable.ic_error, R.string.track_list_save_failed_toast)
+            }
+        }
+    }
 
     TrackListScreen(
         state = state,
@@ -102,9 +103,12 @@ fun TrackListRoute(
         onBack = onBack,
         onRetry = viewModel::retry,
         onLoadMore = viewModel::loadMore,
+        onToggleSave = viewModel::toggleSave,
+        onOpenArtist = onOpenArtist,
         onPlayTracks = { tracks, index ->
             onPlayTracks(tracks, index, viewModel.playPager())
         },
+        toastState = toastState,
         modifier = modifier,
     )
 }
@@ -116,9 +120,12 @@ fun TrackListScreen(
     modifier: Modifier = Modifier,
     isAlbum: Boolean = false,
     appBarState: TopAppBarState = rememberTopAppBarState(),
+    toastState: ToastPillState = rememberToastPillState(),
     onBack: () -> Unit,
     onRetry: () -> Unit,
     onLoadMore: () -> Unit,
+    onToggleSave: () -> Unit = {},
+    onOpenArtist: (Long) -> Unit = {},
     onPlayTracks: (List<Track>, Int) -> Unit,
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
@@ -126,359 +133,182 @@ fun TrackListScreen(
         snapAnimationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
         flingAnimationSpec = rememberSplineBasedDecay(),
     )
+    var showSheet by remember { mutableStateOf(false) }
     Scaffold(
         modifier = modifier
             .fillMaxSize()
             .nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            CollapsingTrackListHeader(
-                state = state,
+            CollapsingDetailHeader(
+                title = state.title,
+                artworkUrl = state.artworkUrl,
                 appBarState = appBarState,
                 onBack = onBack,
                 onPlayAll = {
                     (state.tracks as? SectionState.Content)?.let { onPlayTracks(it.value, 0) }
                 },
+                subtitle = state.subtitle?.let { line ->
+                    {
+                        if (isAlbum) {
+                            ArtistLine(
+                                text = line,
+                                artists = state.artists,
+                                avatars = state.artistAvatars,
+                                onOpenArtist = onOpenArtist,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 2,
+                            )
+                        } else {
+                            Text(
+                                text = line,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                },
+                meta = headerMeta(state),
+                description = state.description,
+                onDescriptionClick = { showSheet = true },
+                actions = {
+                    if (isAlbum && state.saved != null) {
+                        SaveAlbumButton(saved = state.saved, onToggle = onToggleSave)
+                    }
+                },
             )
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
     ) { innerPadding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            state = rememberLazyListState().also { listState ->
-                val tracks = (state.tracks as? SectionState.Content)?.value
-                if (tracks != null) {
-                    LaunchedEffect(listState, tracks.size) {
-                        snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
-                            .collect { last ->
-                                if (state.canLoadMore && last != null && last >= tracks.size - 20) {
-                                    onLoadMore()
+        Box(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                state = rememberLazyListState().also { listState ->
+                    val tracks = (state.tracks as? SectionState.Content)?.value
+                    if (tracks != null) {
+                        LaunchedEffect(listState, tracks.size) {
+                            snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
+                                .collect { last ->
+                                    if (state.canLoadMore && last != null && last >= tracks.size - 20) {
+                                        onLoadMore()
+                                    }
                                 }
-                            }
+                        }
                     }
-                }
-            },
-            contentPadding = PaddingValues(
-                top = innerPadding.calculateTopPadding(),
-                bottom = innerPadding.calculateBottomPadding() + Spacing.xxl,
-            ),
-        ) {
-            when (val tracks = state.tracks) {
-                is SectionState.Loading -> item { LoadingRows() }
-                is SectionState.Failed -> item { SectionError(error = tracks.error, onRetry = onRetry) }
-                is SectionState.Content -> {
-                    if (tracks.value.isEmpty()) {
-                        item {
-                            Text(
-                                text = stringResource(R.string.track_list_empty),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(Spacing.xl),
-                            )
-                        }
-                    } else {
-                        val list = tracks.value
-                        val rows = if (isAlbum) albumRows(list) else list.mapIndexed { i, t -> AlbumRow.Song(t, i, t.trackNumber ?: (i + 1)) }
-                        itemsIndexed(rows, key = { i, row -> (row as? AlbumRow.Song)?.track?.id ?: -i.toLong() }) { _, row ->
-                            when (row) {
-                                is AlbumRow.Disc -> Row(
-                                    modifier = Modifier.padding(start = Spacing.lg, top = Spacing.sm, bottom = Spacing.xs),
-                                    horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
-                                ) {
-                                    Icon(painterResource(R.drawable.ic_album), contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
-                                    Text(stringResource(R.string.track_list_disc_fmt, row.number), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
-                                }
-                                is AlbumRow.Song -> TrackRow(
-                                    track = row.track,
-                                    onClick = { onPlayTracks(list, row.index) },
-                                    leading = if (isAlbum) {
-                                        { Text(row.number.toString(), style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"), color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center, modifier = Modifier.width(40.dp)) }
-                                    } else null,
-                                )
-                            }
-                        }
-                        if (state.canLoadMore || state.loadingMore || state.moreError != null) {
+                },
+                contentPadding = PaddingValues(
+                    top = innerPadding.calculateTopPadding(),
+                    bottom = innerPadding.calculateBottomPadding() + Spacing.xxl,
+                ),
+            ) {
+                when (val tracks = state.tracks) {
+                    is SectionState.Loading -> item { LoadingRows() }
+                    is SectionState.Failed -> item { SectionError(error = tracks.error, onRetry = onRetry) }
+                    is SectionState.Content -> {
+                        if (tracks.value.isEmpty()) {
                             item {
-                                MoreFooter(
-                                    loading = state.loadingMore,
-                                    error = state.moreError,
-                                    onRetry = onLoadMore,
+                                Text(
+                                    text = stringResource(R.string.track_list_empty),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(Spacing.xl),
                                 )
+                            }
+                        } else {
+                            val list = tracks.value
+                            val rows = if (isAlbum) albumRows(list) else list.mapIndexed { i, t -> AlbumRow.Song(t, i, t.trackNumber ?: (i + 1)) }
+                            itemsIndexed(rows, key = { i, row -> (row as? AlbumRow.Song)?.track?.id ?: -i.toLong() }) { _, row ->
+                                when (row) {
+                                    is AlbumRow.Disc -> Row(
+                                        modifier = Modifier.padding(start = Spacing.lg, top = Spacing.sm, bottom = Spacing.xs),
+                                        horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+                                    ) {
+                                        Icon(painterResource(R.drawable.ic_album), contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                                        Text(stringResource(R.string.track_list_disc_fmt, row.number), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                                    }
+                                    is AlbumRow.Song -> TrackRow(
+                                        track = row.track,
+                                        onClick = { onPlayTracks(list, row.index) },
+                                        leading = if (isAlbum) {
+                                            { Text(row.number.toString(), style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"), color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center, modifier = Modifier.width(40.dp)) }
+                                        } else null,
+                                    )
+                                }
+                            }
+                            if (state.canLoadMore || state.loadingMore || state.moreError != null) {
+                                item {
+                                    MoreFooter(
+                                        loading = state.loadingMore,
+                                        error = state.moreError,
+                                        onRetry = onLoadMore,
+                                    )
+                                }
                             }
                         }
                     }
                 }
             }
+            ToastPillHost(
+                state = toastState,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = Spacing.lg),
+            )
+        }
+    }
+    if (showSheet) {
+        ModalBottomSheet(onDismissRequest = { showSheet = false }) {
+            DetailSheetContent(state)
         }
     }
 }
 
-/**
- * Morphing header: artwork, titles, meta and the play button lerp between the expanded
- * header and a 64dp collapsed bar. `appBarState` is read ONLY inside layout/draw lambdas
- * (Layout, graphicsLayer, drawBehind), so scrolling never triggers recomposition.
- */
-@OptIn(ExperimentalMaterial3Api::class)
+/** The "N tracks · Released …" line; null until either part is known. */
 @Composable
-private fun CollapsingTrackListHeader(
-    state: TrackListUiState,
-    appBarState: TopAppBarState,
-    onBack: () -> Unit,
-    onPlayAll: () -> Unit,
-) {
-    val collapsedPlayVisible = remember { derivedStateOf { appBarState.collapsedFraction > 0.5f } }
-    val colorSchemeSurface = MaterialTheme.colorScheme.surface
-    val colorSchemeSurfaceContainer = MaterialTheme.colorScheme.surfaceContainer
-
-    Layout(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clipToBounds()
-            .drawBehind {
-                drawRect(
-                    androidx.compose.ui.graphics.lerp(
-                        colorSchemeSurface,
-                        colorSchemeSurfaceContainer,
-                        appBarState.collapsedFraction,
-                    ),
-                )
-            },
-        content = {
-            // "back"
-            IconButton(onClick = onBack, modifier = Modifier.layoutId("back")) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = stringResource(R.string.action_back),
-                )
-            }
-            // "art" — one Artwork morphed between the expanded and collapsed slots.
-            Artwork(
-                url = state.artworkUrl,
-                contentDescription = null,
-                modifier = Modifier.layoutId("art"),
-            )
-            // "bigText"
-            Column(
-                modifier = Modifier
-                    .layoutId("bigText")
-                    .graphicsLayer {
-                        alpha = (1f - appBarState.collapsedFraction / 0.4f).coerceIn(0f, 1f)
-                    },
-            ) {
-                Text(
-                    text = state.title.ifBlank { stringResource(R.string.track_list_title) },
-                    style = MaterialTheme.typography.headlineSmall,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                state.subtitle?.let {
-                    Text(
-                        text = it,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                val metaParts = listOfNotNull(
-                    state.trackCount?.let {
-                        pluralStringResource(R.plurals.library_track_count, it, it)
-                    },
-                    state.dateMillis?.let { dateMillis ->
-                        stringResource(
-                            if (state.dateKind == DateKind.Released) R.string.track_list_released_fmt
-                            else R.string.track_list_created_fmt,
-                            formatDetailDate(requireNotNull(state.dateKind), dateMillis, locale = LocalConfiguration.current.locales[0]),
-                        )
-                    },
-                )
-                if (metaParts.isNotEmpty()) {
-                    Text(
-                        text = metaParts.joinToString(" · "),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-            // "barTitle"
-            Text(
-                text = state.title.ifBlank { stringResource(R.string.track_list_title) },
-                style = MaterialTheme.typography.titleMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier
-                    .layoutId("barTitle")
-                    .graphicsLayer {
-                        alpha = ((appBarState.collapsedFraction - 0.6f) / 0.4f).coerceIn(0f, 1f)
-                    }
-                    ,
-            )
-            // "desc"
-            if (state.description != null) {
-                var showSheet by remember { mutableStateOf(false) }
-                Column(
-                    modifier = Modifier
-                        .layoutId("desc")
-                        .graphicsLayer {
-                            alpha = (1f - appBarState.collapsedFraction / 0.35f).coerceIn(0f, 1f)
-                        }
-                        .clickable(
-                            role = Role.Button,
-                            onClickLabel = stringResource(R.string.track_list_show_details),
-                        ) { showSheet = true },
-                ) {
-                    Text(
-                        text = state.description,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 3,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Row(
-                        modifier = Modifier.align(Alignment.End),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = stringResource(R.string.track_list_more),
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                        Icon(
-                            painterResource(R.drawable.ic_chevron_right),
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(16.dp),
-                        )
-                    }
-                }
-                if (showSheet) {
-                    ModalBottomSheet(onDismissRequest = { showSheet = false }) {
-                        DetailSheetContent(state)
-                    }
-                }
-            }
-            // "playAll" — expanded pill
-            Button(
-                onClick = onPlayAll,
-                shape = MaterialTheme.shapes.extraLarge,
-                modifier = Modifier
-                    .layoutId("playAll")
-                    .graphicsLayer {
-                        alpha = (1f - appBarState.collapsedFraction / 0.35f).coerceIn(0f, 1f)
-                    },
-            ) {
-                Icon(Icons.Default.PlayArrow, contentDescription = null)
-                Text(
-                    text = stringResource(R.string.track_list_play_all),
-                    modifier = Modifier.padding(start = Spacing.sm),
-                )
-            }
-            // "playCollapsed" — round 40dp button in the bar
-            FilledIconButton(
-                onClick = onPlayAll,
-                enabled = collapsedPlayVisible.value,
-                shape = CircleShape,
-                modifier = Modifier
-                    .layoutId("playCollapsed")
-                    .size(40.dp)
-                    .graphicsLayer {
-                        val t = ((appBarState.collapsedFraction - 0.6f) / 0.4f).coerceIn(0f, 1f)
-                        alpha = t
-                        scaleX = 0.8f + 0.2f * t
-                        scaleY = 0.8f + 0.2f * t
-                    }
-                    ,
-            ) {
-                Icon(
-                    Icons.Default.PlayArrow,
-                    contentDescription = stringResource(R.string.track_list_play_all),
-                )
-            }
+private fun headerMeta(state: TrackListUiState): String? {
+    val metaParts = listOfNotNull(
+        state.trackCount?.let {
+            pluralStringResource(R.plurals.library_track_count, it, it)
         },
-    ) { measurables, constraints ->
-        // Layout phase: state reads here never recompose.
-        val f = appBarState.collapsedFraction
-        val offset = appBarState.heightOffset
-        val barH = 64.dp.roundToPx()
-        val padH = Spacing.xl.roundToPx()
-        val gap = Spacing.md.roundToPx()
-
-        val byId = measurables.associateBy { it.layoutId }
-        fun place(id: String, maxW: Int) = byId[id]?.measure(
-            constraints.copy(minWidth = 0, minHeight = 0, maxWidth = maxW.coerceAtLeast(0)),
-        )
-
-        val artExpSize = 112.dp.roundToPx()
-        val artColSize = 40.dp.roundToPx()
-        val artExpX = padH
-        val artExpY = barH + 8.dp.roundToPx()
-        val artColX = padH + 48.dp.roundToPx() + 8.dp.roundToPx()
-        val artColY = (barH - artColSize) / 2
-
-        val back = byId["back"]?.measure(constraints.copy(minWidth = 0, minHeight = 0))
-        val bigText = place("bigText", constraints.maxWidth - (artExpX + artExpSize + gap) - padH)
-        val barTitleX = artColX + artColSize + 12.dp.roundToPx()
-        val collapsedPlayX = constraints.maxWidth - padH - artColSize
-        val barTitle = place("barTitle", collapsedPlayX - 12.dp.roundToPx() - barTitleX)
-        val desc = place("desc", constraints.maxWidth - 2 * padH)
-        val playAll = place("playAll", constraints.maxWidth - 2 * padH)
-        val playCollapsed = byId["playCollapsed"]?.measure(constraints.copy(minWidth = 0, minHeight = 0))
-        val rowH = maxOf(artExpSize, bigText?.height ?: 0)
-        val descTop = artExpY + rowH + gap
-        val playAllTop = descTop + (desc?.height ?: 0) + if (desc != null) gap else 0
-        val expandedHeight = playAllTop + (playAll?.height ?: 0) + gap
-
-        appBarState.heightOffsetLimit = barH - expandedHeight.toFloat()
-
-        val height = (expandedHeight + offset).roundToInt().coerceAtLeast(barH)
-        val dims = HeaderDims(
-            barHeight = barH.toFloat(),
-            artworkExpandedSize = artExpSize.toFloat(),
-            artworkExpandedX = artExpX.toFloat(),
-            artworkExpandedY = artExpY.toFloat(),
-            artworkCollapsedSize = artColSize.toFloat(),
-            artworkCollapsedX = artColX.toFloat(),
-            artworkCollapsedY = artColY.toFloat(),
-            contentExpandedY = descTop.toFloat(),
-        )
-        val g = headerGeometry(f, dims, expandedHeight.toFloat())
-        val artSide = g.artworkSize.roundToInt()
-        val art = byId["art"]?.measure(
-            androidx.compose.ui.unit.Constraints.fixed(artSide, artSide),
-        )
-
-        layout(constraints.maxWidth, height) {
-            art?.placeWithLayer(g.artworkX.roundToInt(), g.artworkY.roundToInt()) {
-                clip = true
-                shape = RoundedCornerShape(g.artworkCorner.dp)
-            }
-
-            if (g.bigTitleAlpha > 0f) {
-                bigText?.place(
-                    artExpX + artExpSize + gap,
-                    artExpY + offset.roundToInt(),
-                )
-            }
-            barTitle?.place(
-                barTitleX,
-                (barH - barTitle.height) / 2,
+        state.dateMillis?.let { dateMillis ->
+            stringResource(
+                if (state.dateKind == DateKind.Released) R.string.track_list_released_fmt
+                else R.string.track_list_created_fmt,
+                formatDetailDate(requireNotNull(state.dateKind), dateMillis, locale = LocalConfiguration.current.locales[0]),
             )
-            if (g.contentAlpha > 0f) {
-                desc?.place(padH, descTop + offset.roundToInt())
-                playAll?.place(padH, playAllTop + offset.roundToInt())
-            }
-            if (g.playButtonEnabled) {
-                playCollapsed?.place(
-                    collapsedPlayX,
-                    (barH - playCollapsed.height) / 2,
-                )
-            }
-            // Back is placed last so it always wins hit-testing in the bar row.
-            back?.place(padH, (barH - back.height) / 2)
-        }
+        },
+    )
+    return metaParts.takeIf { it.isNotEmpty() }?.joinToString(" · ")
+}
+
+/** Round tonal toggle in the header's action row; both states carry explicit colours. */
+@Composable
+private fun SaveAlbumButton(saved: Boolean, onToggle: () -> Unit) {
+    FilledTonalIconToggleButton(
+        checked = saved,
+        onCheckedChange = { onToggle() },
+        shape = CircleShape,
+        colors = IconButtonDefaults.filledTonalIconToggleButtonColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            checkedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+            checkedContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        ),
+        modifier = Modifier.size(40.dp),
+    ) {
+        Icon(
+            painter = painterResource(
+                if (saved) R.drawable.ic_library_add_check else R.drawable.ic_library_add,
+            ),
+            contentDescription = stringResource(
+                if (saved) R.string.track_list_remove_album else R.string.track_list_save_album,
+            ),
+        )
     }
 }
+
 @Composable
 internal fun DetailSheetContent(state: TrackListUiState) {
     Column(

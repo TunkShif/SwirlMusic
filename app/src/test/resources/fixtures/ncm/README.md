@@ -8,6 +8,15 @@ Taken from the deployment with the development token, then trimmed.
 - `artist_detail.json` — real `/artist/detail?id=9272` (public artist data), trimmed to the
   artist object plus a few extra keys; `briefDesc` shortened, `identify`, `blacklist`,
   `secondaryExpertIdentiy` dropped. Track `ar` entries carry no image, hence this call.
+- `album_detail_dynamic.json` — real `/album/detail/dynamic?id=1089008`; `isSub: true`.
+- `album_detail.json` — its `album.artists` array was added from a live `/album?id=1571654`
+  read on 2026-11-08 (the original capture had it trimmed).
+- `artist_detail_dynamic.json` — real `/artist/detail/dynamic?id=`; `followed: true`.
+- `album_sub.json` — real `/album/sub?t=1` success body.
+- `album_sub_locked.json` — real `/album/sub?t=1` refusal body, answered as HTTP 401.
+- `album_unsub_not_saved.json` — real `/album/sub?t=0` body when the album isn't saved,
+  answered as HTTP 404.
+- `artist_sub.json` — real `/artist/sub` success body.
 
 ## Synthetic
 

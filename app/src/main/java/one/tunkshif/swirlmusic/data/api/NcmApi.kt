@@ -18,8 +18,10 @@ import one.tunkshif.swirlmusic.data.api.dto.QrCreateResponse
 import one.tunkshif.swirlmusic.data.api.dto.QrKeyBody
 import one.tunkshif.swirlmusic.data.api.dto.QrKeyResponse
 import one.tunkshif.swirlmusic.data.api.dto.AlbumDetailResponse
+import one.tunkshif.swirlmusic.data.api.dto.AlbumDynamicResponse
 import one.tunkshif.swirlmusic.data.api.dto.AlbumSublistResponse
 import one.tunkshif.swirlmusic.data.api.dto.ArtistDetailResponse
+import one.tunkshif.swirlmusic.data.api.dto.ArtistDynamicResponse
 import one.tunkshif.swirlmusic.data.api.dto.ArtistProfileResponse
 import one.tunkshif.swirlmusic.data.api.dto.ArtistSublistResponse
 import one.tunkshif.swirlmusic.data.api.dto.LikeResponse
@@ -31,6 +33,7 @@ import one.tunkshif.swirlmusic.data.api.dto.SearchResponse
 import one.tunkshif.swirlmusic.data.api.dto.SongDetailResponse
 import one.tunkshif.swirlmusic.data.api.dto.UserPlaylistResponse
 import one.tunkshif.swirlmusic.data.api.dto.UserRecordResponse
+import one.tunkshif.swirlmusic.data.api.dto.WriteResponse
 import one.tunkshif.swirlmusic.data.api.dto.ScrobbleResponse
 import one.tunkshif.swirlmusic.data.api.dto.SongUrlResponse
 import one.tunkshif.swirlmusic.data.api.dto.RecommendSongsResponse
@@ -64,7 +67,8 @@ class NcmApi @Inject constructor(
     private val config: ApiConfig,
     private val timeSource: TimeSource,
     @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
-) : NcmAuthApi, NcmHomeApi, NcmPlaybackApi, NcmLibraryApi, NcmLyricsApi, NcmArtistApi {
+) : NcmAuthApi, NcmHomeApi, NcmPlaybackApi, NcmLibraryApi, NcmLyricsApi, NcmArtistApi,
+    NcmCollectionApi {
 
     override suspend fun artistAvatar(id: Long): ApiResult<String?> =
         request(
@@ -174,11 +178,16 @@ class NcmApi @Inject constructor(
             mapOf("uid" to uid.toString(), "type" to "0"),
         ).map { response -> response.allData.mapNotNull { it.toEntry() }.take(limit) }
 
-    override suspend fun followedAlbums(limit: Int, offset: Int): ApiResult<Page<AlbumSummary>> =
+    override suspend fun followedAlbums(
+        limit: Int,
+        offset: Int,
+        fresh: Boolean,
+    ): ApiResult<Page<AlbumSummary>> =
         request(
             "/album/sublist",
             AlbumSublistResponse.serializer(),
             mapOf("limit" to limit.toString(), "offset" to offset.toString()),
+            fresh = fresh,
         ).map { response ->
             val items = (response.subList + response.sublist + response.data)
                 .mapNotNull { it.toSummary() }
@@ -189,11 +198,16 @@ class NcmApi @Inject constructor(
         request("/album", AlbumDetailResponse.serializer(), mapOf("id" to id.toString()))
             .map { it.toDomain() }
 
-    override suspend fun followedArtists(limit: Int, offset: Int): ApiResult<Page<ArtistSummary>> =
+    override suspend fun followedArtists(
+        limit: Int,
+        offset: Int,
+        fresh: Boolean,
+    ): ApiResult<Page<ArtistSummary>> =
         request(
             "/artist/sublist",
             ArtistSublistResponse.serializer(),
             mapOf("limit" to limit.toString(), "offset" to offset.toString()),
+            fresh = fresh,
         ).map { response -> Page(response.data.map { it.toSummary() }, response.hasMore) }
 
     override suspend fun artistDetail(id: Long): ApiResult<ArtistDetail> =
@@ -225,19 +239,104 @@ class NcmApi @Inject constructor(
             ),
         ).map { response -> response.result.toResults(type, offset) }
 
+    override suspend fun albumSaved(id: Long): ApiResult<Boolean> =
+        request(
+            "/album/detail/dynamic",
+            AlbumDynamicResponse.serializer(),
+            mapOf("id" to id.toString()),
+            fresh = true,
+        ).map { it.isSub }
+
+    override suspend fun setAlbumSaved(id: Long, saved: Boolean): ApiResult<WriteOutcome> =
+        collectionWrite(
+            "/album/sub",
+            mapOf("id" to id.toString(), "t" to if (saved) "1" else "0"),
+            // Unsaving an album that isn't saved answers 404; that's already the goal.
+            notSavedIsDone = !saved,
+        )
+
+    override suspend fun artistFollowed(id: Long): ApiResult<Boolean> =
+        request(
+            "/artist/detail/dynamic",
+            ArtistDynamicResponse.serializer(),
+            mapOf("id" to id.toString()),
+            fresh = true,
+        ).map { it.followed }
+
+    override suspend fun setArtistFollowed(
+        id: Long,
+        followed: Boolean,
+    ): ApiResult<WriteOutcome> =
+        collectionWrite(
+            "/artist/sub",
+            mapOf("id" to id.toString(), "t" to if (followed) "1" else "0"),
+            notSavedIsDone = false,
+        )
+
+    /**
+     * One collection write (`/album/sub`, `/artist/sub`), always fresh. `request` turns every
+     * HTTP 401 into [ApiResult.Unauthorized], but NetEase uses 401 for "locked/delisted" too:
+     * a body with `code` 401 and a `message` key is a refusal, while the fork's own token
+     * failure (`"msg":"unauthorized"`, no `message`) stays Unauthorized. Success needs body
+     * `code` 200; any other code is the error it reports. [notSavedIsDone] accepts the 404 an
+     * unsave gets when the album was never saved — as an HTTP status or a body code.
+     */
+    private suspend fun collectionWrite(
+        path: String,
+        params: Map<String, String>,
+        notSavedIsDone: Boolean,
+    ): ApiResult<WriteOutcome> {
+        var rawBody: String? = null
+        return when (
+            val result = request(path, WriteResponse.serializer(), params, fresh = true) {
+                rawBody = it
+            }
+        ) {
+            is ApiResult.Success -> when {
+                result.value.code == 200 -> ApiResult.Success(WriteOutcome.Done)
+                notSavedIsDone && result.value.code == 404 ->
+                    ApiResult.Success(WriteOutcome.Done)
+                else -> ApiResult.HttpError(result.value.code, rawBody)
+            }
+            is ApiResult.Unauthorized ->
+                if (result.body.isRefusalBody()) ApiResult.Success(WriteOutcome.Refused) else result
+            is ApiResult.HttpError ->
+                if (notSavedIsDone && result.code == 404) {
+                    ApiResult.Success(WriteOutcome.Done)
+                } else {
+                    result
+                }
+            is ApiResult.NetworkError -> result
+        }
+    }
+
+    /** The NetEase refusal body: `{"code":401,"message":"…"}`. The fork's is `…,"msg":…`. */
+    private fun String?.isRefusalBody(): Boolean {
+        val obj = this?.let { runCatching { json.parseToJsonElement(it) }.getOrNull() }
+            as? JsonObject ?: return false
+        return obj["code"].asIntOrNull() == 401 && "message" in obj
+    }
+
     private suspend fun <T> request(
         path: String,
         deserializer: DeserializationStrategy<T>,
         params: Map<String, String> = emptyMap(),
+        fresh: Boolean = false,
+        onBody: (String) -> Unit = {},
     ): ApiResult<T> = withContext(ioDispatcher) {
         val url = config.urlOf(path).toHttpUrl().newBuilder()
             .apply { params.forEach { (name, value) -> addQueryParameter(name, value) } }
+            .apply {
+                // The interceptor only timestamps /login/qr/*; fresh calls carry their own.
+                if (fresh) addQueryParameter("timestamp", timeSource.nowMillis().toString())
+            }
             .build()
         val request = Request.Builder().url(url).get().build()
 
         try {
             client.newCall(request).execute().use { response ->
                 val body = response.body.string()
+                onBody(body)
 
                 when {
                     response.code == 401 -> ApiResult.Unauthorized(body)

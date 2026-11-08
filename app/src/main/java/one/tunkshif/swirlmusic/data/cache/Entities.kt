@@ -28,11 +28,7 @@ data class TrackEntity(
 ) {
     fun toTrack(): Track = Track(
         id, title, artistLine, artworkUrl, durationMs, discNumber, trackNumber, albumId, albumName,
-        artists = runCatching {
-            artists?.let { artistJson.decodeFromString<List<ArtistRefJson>>(it) }
-                .orEmpty()
-                .map { ArtistRef(it.id, it.name) }
-        }.getOrDefault(emptyList()),
+        artists = decodeArtistRefs(artists),
     )
 
     companion object {
@@ -47,9 +43,7 @@ data class TrackEntity(
             trackNumber = track.trackNumber,
             albumId = track.albumId,
             albumName = track.albumName,
-            artists = track.artists
-                .takeIf { it.isNotEmpty() }
-                ?.let { list -> artistJson.encodeToString(list.map { ArtistRefJson(it.id, it.name) }) },
+            artists = encodeArtistRefs(track.artists),
         )
     }
 }
@@ -58,6 +52,18 @@ data class TrackEntity(
 private data class ArtistRefJson(val id: Long, val name: String)
 
 private val artistJson = Json { ignoreUnknownKeys = true }
+
+/** Compact JSON for an artist list; null when empty so the column stays sparse. */
+private fun encodeArtistRefs(artists: List<ArtistRef>): String? =
+    artists.takeIf { it.isNotEmpty() }
+        ?.let { list -> artistJson.encodeToString(list.map { ArtistRefJson(it.id, it.name) }) }
+
+/** Malformed JSON (or null) reads back as an empty list, never a crash. */
+internal fun decodeArtistRefs(encoded: String?): List<ArtistRef> = runCatching {
+    encoded?.let { artistJson.decodeFromString<List<ArtistRefJson>>(it) }
+        .orEmpty()
+        .map { ArtistRef(it.id, it.name) }
+}.getOrDefault(emptyList())
 
 /** One cached detail list: `playlist:<id>`, `album:<id>` or `artist:<id>`. */
 @Entity(tableName = "snapshot")
@@ -77,7 +83,15 @@ data class SnapshotEntity(
     val albumType: String? = null,
     /** Newline-joined; playlists only. */
     val tags: String? = null,
-)
+    /** Album header artists, same JSON encoding as [TrackEntity.artists]. */
+    val artists: String? = null,
+) {
+    fun artistRefs(): List<ArtistRef> = decodeArtistRefs(artists)
+
+    companion object {
+        fun encodedArtists(artists: List<ArtistRef>): String? = encodeArtistRefs(artists)
+    }
+}
 
 @Entity(
     tableName = "snapshot_track",

@@ -1,4 +1,4 @@
-package one.tunkshif.swirlmusic.ui.playing
+package one.tunkshif.swirlmusic.ui.components
 
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
@@ -30,22 +30,24 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import one.tunkshif.swirlmusic.ui.theme.Spacing
 
 private const val TOAST_MS = 1_500L
+private val ToastIconSize = 18.dp
 
 /** Transient pill state. Each [show] replaces the current toast and restarts its timer. */
 @Stable
-class PlayerToastState {
+class ToastPillState {
 
-    var current: PlayerToastMessage? by mutableStateOf(null)
+    var current: ToastPillMessage? by mutableStateOf(null)
         private set
 
     private var nextId = 0L
 
     fun show(@DrawableRes icon: Int, @StringRes text: Int) {
-        current = PlayerToastMessage(id = nextId++, icon = icon, text = text)
+        current = ToastPillMessage(id = nextId++, icon = icon, text = text)
     }
 
     internal fun dismiss(id: Long) {
@@ -53,20 +55,20 @@ class PlayerToastState {
     }
 }
 
-data class PlayerToastMessage(
+data class ToastPillMessage(
     val id: Long,
     @DrawableRes val icon: Int,
     @StringRes val text: Int,
 )
 
 @Composable
-fun rememberPlayerToastState(): PlayerToastState = remember { PlayerToastState() }
+fun rememberToastPillState(): ToastPillState = remember { ToastPillState() }
 
 /** Overlay host; place it inside the parent Box and align it. TalkBack announces via liveRegion. */
 @Composable
-fun PlayerToastHost(state: PlayerToastState, modifier: Modifier = Modifier) {
+fun ToastPillHost(state: ToastPillState, modifier: Modifier = Modifier) {
     // Keep the last message so the exit animation still has content.
-    var shown by remember { mutableStateOf<PlayerToastMessage?>(null) }
+    var shown by remember { mutableStateOf<ToastPillMessage?>(null) }
     val message = state.current
     LaunchedEffect(message?.id) {
         if (message != null) {
@@ -100,7 +102,7 @@ fun PlayerToastHost(state: PlayerToastState, modifier: Modifier = Modifier) {
                     Icon(
                         painter = painterResource(msg.icon),
                         contentDescription = null,
-                        modifier = Modifier.size(NowPlayingDimens.toastIcon),
+                        modifier = Modifier.size(ToastIconSize),
                     )
                     Text(
                         text = stringResource(msg.text),

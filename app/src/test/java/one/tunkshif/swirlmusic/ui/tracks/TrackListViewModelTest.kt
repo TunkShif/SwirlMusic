@@ -4,6 +4,8 @@ import androidx.room.Room
 import com.google.common.truth.Truth.assertThat
 import java.io.IOException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
@@ -19,6 +21,10 @@ import one.tunkshif.swirlmusic.ui.library.FakeLibraryApi
 import one.tunkshif.swirlmusic.ui.library.track
 import one.tunkshif.swirlmusic.data.api.TimeSource
 import one.tunkshif.swirlmusic.data.cache.SwirlDatabase
+import one.tunkshif.swirlmusic.data.library.ArtistAvatarRepository
+import one.tunkshif.swirlmusic.data.library.CollectionRepository
+import one.tunkshif.swirlmusic.data.library.FakeArtistApi
+import one.tunkshif.swirlmusic.data.library.FakeCollectionApi
 import one.tunkshif.swirlmusic.data.library.TrackListRepository
 import org.junit.After
 import org.junit.Test
@@ -38,8 +44,13 @@ class TrackListViewModelTest {
     ).allowMainThreadQueries().build()
 
     private val api = FakeLibraryApi()
+    private val collectionApi = FakeCollectionApi()
     private val repository = TrackListRepository(api, db.trackListDao(), object : TimeSource { override fun nowMillis() = 1_000L }, kotlinx.coroutines.test.UnconfinedTestDispatcher(), one.tunkshif.swirlmusic.data.cache.CacheGate(db.trackListDao(), kotlinx.coroutines.test.UnconfinedTestDispatcher()))
-    private val viewModel = TrackListViewModel(repository)
+    private val viewModel = TrackListViewModel(
+        repository,
+        CollectionRepository(collectionApi),
+        ArtistAvatarRepository(FakeArtistApi()),
+    )
 
     @After
     fun tearDown() {
@@ -259,5 +270,174 @@ class TrackListViewModelTest {
         advanceUntilIdle()
 
         assertThat(api.calls.count { it == "albumDetail:1" }).isEqualTo(1)
+    }
+
+    @Test
+    fun `the album saved state loads independently of the content`() = runTest {
+        useTestMain()
+        collectionApi.albumSavedResult = ApiResult.Success(true)
+        api.failWith = ApiResult.NetworkError(IOException("offline"))
+
+        viewModel.load(TrackListSource.Album(1))
+        advanceUntilIdle()
+
+        // The content failed, but the dynamic read still landed.
+        assertThat(viewModel.state.value.saved).isTrue()
+        assertThat(collectionApi.calls).contains("albumSaved:1")
+    }
+
+    @Test
+    fun `a failed saved read leaves saved null`() = runTest {
+        useTestMain()
+        collectionApi.albumSavedResult = ApiResult.NetworkError(IOException("offline"))
+
+        viewModel.load(TrackListSource.Album(1))
+        advanceUntilIdle()
+
+        assertThat(viewModel.state.value.saved).isNull()
+        assertThat(viewModel.state.value.title).isEqualTo("OutRun")
+    }
+
+    @Test
+    fun `toggleSave flips optimistically and reports Saved`() = runTest {
+        useTestMain()
+        collectionApi.albumSavedResult = ApiResult.Success(false)
+        val received = mutableListOf<TrackListMessage>()
+        backgroundScope.launch { viewModel.messages.toList(received) }
+        runCurrent()
+        viewModel.load(TrackListSource.Album(1))
+        advanceUntilIdle()
+        assertThat(viewModel.state.value.saved).isFalse()
+
+        viewModel.toggleSave()
+        assertThat(viewModel.state.value.saved).isTrue()
+        assertThat(viewModel.state.value.savePending).isTrue()
+
+        advanceUntilIdle()
+        runCurrent()
+        assertThat(viewModel.state.value.savePending).isFalse()
+        assertThat(collectionApi.calls).contains("setAlbumSaved:1:1")
+        assertThat(received).containsExactly(TrackListMessage.Saved)
+    }
+
+    @Test
+    fun `toggleSave removal reports Removed`() = runTest {
+        useTestMain()
+        collectionApi.albumSavedResult = ApiResult.Success(true)
+        val received = mutableListOf<TrackListMessage>()
+        backgroundScope.launch { viewModel.messages.toList(received) }
+        runCurrent()
+        viewModel.load(TrackListSource.Album(1))
+        advanceUntilIdle()
+
+        viewModel.toggleSave()
+        advanceUntilIdle()
+        runCurrent()
+
+        assertThat(viewModel.state.value.saved).isFalse()
+        assertThat(collectionApi.calls).contains("setAlbumSaved:1:0")
+        assertThat(received).containsExactly(TrackListMessage.Removed)
+    }
+
+    @Test
+    fun `a refused write reverts and reports locked`() = runTest {
+        useTestMain()
+        collectionApi.albumSavedResult = ApiResult.Success(false)
+        collectionApi.setAlbumSavedResult = ApiResult.Success(
+            one.tunkshif.swirlmusic.data.api.WriteOutcome.Refused,
+        )
+        val received = mutableListOf<TrackListMessage>()
+        backgroundScope.launch { viewModel.messages.toList(received) }
+        runCurrent()
+        viewModel.load(TrackListSource.Album(1))
+        advanceUntilIdle()
+
+        viewModel.toggleSave()
+        advanceUntilIdle()
+        runCurrent()
+
+        assertThat(viewModel.state.value.saved).isFalse()
+        assertThat(viewModel.state.value.savePending).isFalse()
+        assertThat(received).containsExactly(TrackListMessage.AlbumLocked)
+    }
+
+    @Test
+    fun `a failed write reverts and reports the failure`() = runTest {
+        useTestMain()
+        collectionApi.albumSavedResult = ApiResult.Success(false)
+        collectionApi.setAlbumSavedResult = ApiResult.NetworkError(IOException("offline"))
+        val received = mutableListOf<TrackListMessage>()
+        backgroundScope.launch { viewModel.messages.toList(received) }
+        runCurrent()
+        viewModel.load(TrackListSource.Album(1))
+        advanceUntilIdle()
+
+        viewModel.toggleSave()
+        advanceUntilIdle()
+        runCurrent()
+
+        assertThat(viewModel.state.value.saved).isFalse()
+        assertThat(viewModel.state.value.savePending).isFalse()
+        assertThat(received).containsExactly(TrackListMessage.SaveFailed)
+    }
+
+    @Test
+    fun `a second toggle while pending is ignored`() = runTest {
+        useTestMain()
+        collectionApi.albumSavedResult = ApiResult.Success(false)
+        collectionApi.writeGate = kotlinx.coroutines.CompletableDeferred()
+        viewModel.load(TrackListSource.Album(1))
+        advanceUntilIdle()
+
+        viewModel.toggleSave()
+        runCurrent()
+        viewModel.toggleSave()
+        runCurrent()
+
+        assertThat(collectionApi.calls.filter { it.startsWith("setAlbumSaved") }).hasSize(1)
+        assertThat(viewModel.state.value.saved).isTrue()
+        assertThat(viewModel.state.value.savePending).isTrue()
+
+        collectionApi.writeGate!!.complete(Unit)
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun `retry after a failed chunk clears the footer`() = runTest {
+        useTestMain()
+        api.contentsFirstTracks = (1L..50L).map { track(it) }
+        api.contentsTrackIds = (1L..200L).toList()
+        viewModel.load(TrackListSource.Playlist(1))
+        advanceUntilIdle()
+
+        api.failSongsWith = ApiResult.NetworkError(IOException("offline"))
+        viewModel.loadMore()
+        advanceUntilIdle()
+        assertThat(viewModel.state.value.moreError).isEqualTo(LoadError.Network)
+
+        api.failSongsWith = null
+        viewModel.retry()
+        advanceUntilIdle()
+
+        assertThat(viewModel.state.value.moreError).isNull()
+        assertThat(viewModel.state.value.loadingMore).isFalse()
+        assertThat(viewModel.state.value.tracks).isInstanceOf(SectionState.Content::class.java)
+    }
+
+    @Test
+    fun `album header artists land in state and multi artists fetch avatars`() = runTest {
+        useTestMain()
+        val artists = listOf(
+            one.tunkshif.swirlmusic.data.model.ArtistRef(501, "Kavinsky"),
+            one.tunkshif.swirlmusic.data.model.ArtistRef(502, "M83"),
+        )
+        api.albumDetail = api.albumDetail.copy(artists = artists)
+
+        viewModel.load(TrackListSource.Album(1))
+        advanceUntilIdle()
+
+        assertThat(viewModel.state.value.artists).containsExactlyElementsIn(artists).inOrder()
+        assertThat(viewModel.state.value.artistAvatars.keys)
+            .containsExactly(501L, 502L)
     }
 }

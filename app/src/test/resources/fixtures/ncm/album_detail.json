@@ -4,6 +4,12 @@
     "id": 1571654,
     "name": "Back To Basics",
     "picUrl": "https://p1.example.invalid/album.jpg",
+    "artists": [
+      {
+        "id": 50892,
+        "name": "Christina Aguilera"
+      }
+    ],
     "publishTime": 1155600000000,
     "company": "索尼音乐",
     "subType": "录音室版",

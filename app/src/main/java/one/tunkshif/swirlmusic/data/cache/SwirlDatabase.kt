@@ -19,9 +19,13 @@ import androidx.room.RoomDatabase
         PlaybackResumeEntity::class,
         LyricsEntity::class,
     ],
-    version = 6,
+    version = 7,
     exportSchema = true,
-    autoMigrations = [AutoMigration(from = 4, to = 5), AutoMigration(from = 5, to = 6)],
+    autoMigrations = [
+        AutoMigration(from = 4, to = 5),
+        AutoMigration(from = 5, to = 6),
+        AutoMigration(from = 6, to = 7),
+    ],
 )
 abstract class SwirlDatabase : RoomDatabase() {
     abstract fun trackListDao(): TrackListDao

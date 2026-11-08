@@ -5,11 +5,16 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performClick
 import com.github.takahirom.roborazzi.captureRoboImage
+import com.github.takahirom.roborazzi.captureScreenRoboImage
+import one.tunkshif.swirlmusic.data.model.ArtistRef
 import one.tunkshif.swirlmusic.data.model.Track
 import one.tunkshif.swirlmusic.ui.common.SectionState
 import one.tunkshif.swirlmusic.ui.components.LocalArtworkPainter
+import one.tunkshif.swirlmusic.ui.components.LocalArtworkPainterResolver
 import one.tunkshif.swirlmusic.ui.theme.SwirlMusicTheme
 import org.junit.Rule
 import org.junit.Test
@@ -57,6 +62,50 @@ class TrackListScreenshotTest {
 
     @Test
     fun album_two_discs_light() = capture("album-two-discs-light", albumState(), isAlbum = true)
+
+    @Test
+    fun album_saved_light() =
+        capture("album-saved-light", albumState().copy(saved = true), isAlbum = true)
+
+    @Test
+    fun album_saved_dark() =
+        capture("album-saved-dark", albumState().copy(saved = true), dark = true, isAlbum = true)
+
+    /** The album subtitle's choose-artist menu, open (popup, so capture the whole screen). */
+    @Test
+    fun album_artist_menu_light() {
+        compose.setContent {
+            CompositionLocalProvider(
+                LocalArtworkPainterResolver provides { url ->
+                    when (url) {
+                        "avatar-501" -> ColorPainter(Color(0xFFE0662B))
+                        else -> ColorPainter(Color(0xFF9AA0C8))
+                    }
+                },
+            ) {
+                SwirlMusicTheme(darkTheme = false, dynamicColor = false) {
+                    TrackListScreen(
+                        state = albumState().copy(
+                            subtitle = "Kavinsky / M83",
+                            artists = listOf(
+                                ArtistRef(501, "Kavinsky"),
+                                ArtistRef(502, "M83"),
+                            ),
+                            artistAvatars = mapOf(501L to "avatar-501"),
+                        ),
+                        isAlbum = true,
+                        onBack = {},
+                        onRetry = {},
+                        onLoadMore = {},
+                        onPlayTracks = { _, _ -> },
+                    )
+                }
+            }
+        }
+        compose.onNodeWithText("Kavinsky / M83").performClick()
+        compose.waitForIdle()
+        captureScreenRoboImage("src/test/screenshots/tracklist/album-artist-menu-light.png")
+    }
 
     @Test
     fun playlist_description_light() = capture("playlist-description-light", playlistState())

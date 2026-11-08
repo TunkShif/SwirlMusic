@@ -3,6 +3,7 @@ package one.tunkshif.swirlmusic.data.api.dto
 import com.google.common.truth.Truth.assertThat
 import kotlinx.serialization.json.Json
 import one.tunkshif.swirlmusic.data.api.toDomain
+import one.tunkshif.swirlmusic.data.model.ArtistRef
 import org.junit.Test
 
 /**
@@ -91,6 +92,31 @@ class PlaylistDetailParsingTest {
         assertThat(response.playlist[0].tracks).isNull()
         assertThat(response.playlist[0].trackIds).isNull()
         assertThat(response.playlist[0].name).isNotEmpty()
+    }
+
+    @Test
+    fun `album detail artists map to refs`() {
+        val response = json.decodeFromString<AlbumDetailResponse>(fixture("album_detail.json"))
+
+        assertThat(response.toDomain().artists)
+            .containsExactly(ArtistRef(50892, "Christina Aguilera"))
+    }
+
+    @Test
+    fun `album artists drop id zero, blank names and duplicates`() {
+        val response = json.decodeFromString<AlbumDetailResponse>(fixture("album_detail.json"))
+        val withArtists = response.copy(
+            album = response.album.copy(
+                artists = listOf(
+                    ArtistDto(id = 0, name = "Ghost"),
+                    ArtistDto(id = 1, name = "A"),
+                    ArtistDto(id = 1, name = "A again"),
+                    ArtistDto(id = 2, name = ""),
+                ),
+            ),
+        )
+
+        assertThat(withArtists.toDomain().artists).containsExactly(ArtistRef(1, "A"))
     }
 
     private fun fixture(name: String): String =

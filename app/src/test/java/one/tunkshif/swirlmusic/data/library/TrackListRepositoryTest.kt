@@ -153,4 +153,18 @@ class TrackListRepositoryTest {
         assertThat(cached.orderedIds).hasSize(1)
         assertThat(cached.firstTracks).hasSize(1)
     }
+
+    @Test
+    fun `an album snapshot keeps the header artists`() = runTest {
+        val artists = listOf(
+            one.tunkshif.swirlmusic.data.model.ArtistRef(501, "Kavinsky"),
+            one.tunkshif.swirlmusic.data.model.ArtistRef(502, "M83"),
+        )
+        api.albumDetail = api.albumDetail.copy(artists = artists)
+
+        repo.fetchAlbum(5)
+
+        assertThat(repo.cached(TrackListRepository.albumKey(5))!!.artists)
+            .containsExactlyElementsIn(artists).inOrder()
+    }
 }
