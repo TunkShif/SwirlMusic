@@ -297,7 +297,7 @@ fun NowPlayingScreen(
                         textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth(),
                     )
-                    Spacer(Modifier.size(Spacing.xs))
+                    Spacer(Modifier.size(Spacing.md))
                 }
                 if (state.error != null) {
                     Text(
