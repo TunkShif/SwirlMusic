@@ -19,3 +19,7 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Navigation3's NavKeySerializer saves Class.getName() and restores via Class.forName —
+# key names must not be obfuscated.
+-keepnames class * extends androidx.navigation3.runtime.NavKey
