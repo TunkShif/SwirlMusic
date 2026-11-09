@@ -4,7 +4,10 @@ import com.google.common.truth.Truth.assertThat
 import one.tunkshif.swirlmusic.ui.home.DayPart
 import one.tunkshif.swirlmusic.ui.home.dayPartFor
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class FormattingTest {
 
     @Test
@@ -36,5 +39,36 @@ class FormattingTest {
         assertThat(dayPartFor(21)).isEqualTo(DayPart.Evening)
         assertThat(dayPartFor(22)).isEqualTo(DayPart.Night)
         assertThat(dayPartFor(23)).isEqualTo(DayPart.Night)
+    }
+
+
+    @Test
+    fun `the quality label joins level bitrate and format`() {
+        val ctx = org.robolectric.RuntimeEnvironment.getApplication()
+        fun name(level: String) = qualityLevelRes(level)?.let { ctx.getString(it) }
+
+        assertThat(formatQualityLabel(name("exhigh"), 320, "mp3"))
+            .isEqualTo("Extra high · 320 kbps · MP3")
+        assertThat(formatQualityLabel(name("lossless"), 1119, "flac"))
+            .isEqualTo("Lossless · 1119 kbps · FLAC")
+        assertThat(formatQualityLabel(name("standard"), 128, "mp3"))
+            .isEqualTo("Standard · 128 kbps · MP3")
+        assertThat(formatQualityLabel(name("hires"), 2000, null))
+            .isEqualTo("Hi-Res · 2000 kbps")
+        // Unknown level drops its part; lowercase formats still read uppercase.
+        assertThat(formatQualityLabel(name("weird"), 320, "mp3")).isEqualTo("320 kbps · MP3")
+        assertThat(formatQualityLabel(null, 0, null)).isEmpty()
+        assertThat(formatQualityLabel(name("sky"), 320, "flac"))
+            .isEqualTo("Surround · 320 kbps · FLAC")
+    }
+
+    @Test
+    fun `every known level has a name`() {
+        for (level in listOf(
+            "standard", "higher", "exhigh", "lossless", "hires", "jyeffect", "sky", "jymaster",
+        )) {
+            assertThat(qualityLevelRes(level)).isNotNull()
+        }
+        assertThat(qualityLevelRes("dolby")).isNull()
     }
 }

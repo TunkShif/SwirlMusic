@@ -139,11 +139,13 @@ class NcmApi @Inject constructor(
         uid: Long,
         limit: Int,
         offset: Int,
+        fresh: Boolean,
     ): ApiResult<Page<PlaylistSummary>> =
         request(
             "/user/playlist",
             UserPlaylistResponse.serializer(),
             mapOf("uid" to uid.toString(), "limit" to limit.toString(), "offset" to offset.toString()),
+            fresh = fresh,
         ).map { Page(it.playlist.map { playlist -> playlist.toDomain() }, it.more) }
 
     override suspend fun playlistDetail(id: Long): ApiResult<PlaylistContents> =
@@ -297,6 +299,31 @@ class NcmApi @Inject constructor(
             mapOf("id" to id.toString(), "t" to if (followed) "1" else "0"),
             notSavedIsDone = false,
         )
+
+    override suspend fun setTrackLiked(id: Long, liked: Boolean): ApiResult<LikeWrite> {
+        var rawBody: String? = null
+        return when (
+            val result = request(
+                "/like",
+                LikeResponse.serializer(),
+                mapOf("id" to id.toString(), "like" to liked.toString()),
+                fresh = true,
+            ) { rawBody = it }
+        ) {
+            is ApiResult.Success -> when {
+                result.value.code == 200 ->
+                    ApiResult.Success(LikeWrite(WriteOutcome.Done, result.value.playlistId))
+                else -> ApiResult.HttpError(result.value.code, rawBody)
+            }
+            is ApiResult.Unauthorized ->
+                if (result.body.isRefusalBody()) {
+                    ApiResult.Success(LikeWrite(WriteOutcome.Refused, null))
+                } else {
+                    result
+                }
+            is ApiResult.HttpError, is ApiResult.NetworkError -> result
+        }
+    }
 
     /**
      * One collection write (`/album/sub`, `/artist/sub`), always fresh. `request` turns every

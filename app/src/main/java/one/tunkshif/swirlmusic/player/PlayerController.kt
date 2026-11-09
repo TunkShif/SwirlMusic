@@ -815,6 +815,9 @@ class PlayerController @Inject constructor(
             hasNext = if (restored) queue.size > 1 else player.hasNextMediaItem(),
             hasPrevious = if (restored) queue.size > 1 else player.hasPreviousMediaItem(),
             isTrial = current?.let { playable[it.track.id]?.isTrial } == true,
+            quality = current?.let { playable[it.track.id] }?.let {
+                StreamQuality(level = it.level, bitrateKbps = it.bitrate / 1_000, format = it.format)
+            },
             error = error,
             pending = pendingTrack,
             playIntent = playWhenReadyIntent,

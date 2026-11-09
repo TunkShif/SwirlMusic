@@ -63,6 +63,8 @@ class ArtistViewModelTest {
     private val nowPlaying = kotlinx.coroutines.flow.MutableStateFlow<Long?>(null)
     private val viewModel = ArtistViewModel(androidx.lifecycle.SavedStateHandle(), repository, artistApi, CollectionRepository(
             collectionApi,
+            one.tunkshif.swirlmusic.ui.library.FakeLibraryApi(),
+            one.tunkshif.swirlmusic.ui.library.signedInSession(),
             db.trackListDao(),
             one.tunkshif.swirlmusic.data.cache.CacheGate(db.trackListDao(), UnconfinedTestDispatcher()),
             object : TimeSource { override fun nowMillis() = 1_000L },
@@ -321,6 +323,8 @@ class ArtistViewModelTest {
         val restored = ArtistViewModel(handle, repository, artistApi,
             CollectionRepository(
             collectionApi,
+            one.tunkshif.swirlmusic.ui.library.FakeLibraryApi(),
+            one.tunkshif.swirlmusic.ui.library.signedInSession(),
             db.trackListDao(),
             one.tunkshif.swirlmusic.data.cache.CacheGate(db.trackListDao(), UnconfinedTestDispatcher()),
             object : TimeSource { override fun nowMillis() = 1_000L },

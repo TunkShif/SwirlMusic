@@ -62,6 +62,14 @@ class NowPlayingScreenshotTest {
     fun empty_light() = capture("playing-empty", PlayingStateEmpty, dark = false)
 
     @Test
+    fun like_quality_light() =
+        capture("playing-like-quality-light", PlayingStateLikeQuality, dark = false)
+
+    @Test
+    fun like_quality_dark() =
+        capture("playing-like-quality-dark", PlayingStateLikeQuality, dark = true)
+
+    @Test
     fun playing_short_phone() {
         RuntimeEnvironment.setQualifiers("+w360dp-h640dp")
         capture("playing-short", PlayingStatePlaying, dark = false)

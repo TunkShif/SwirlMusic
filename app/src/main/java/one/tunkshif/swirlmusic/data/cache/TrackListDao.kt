@@ -71,8 +71,22 @@ interface TrackListDao {
     @Upsert
     fun upsertCollectionStates(states: List<CollectionStateEntity>)
 
+    @Query("DELETE FROM collection_state WHERE kind = :kind")
+    fun deleteCollectionStates(kind: String)
+
+    /** A likelist load is the full truth for [kind]: rewrite its rows in one transaction. */
+    @Transaction
+    fun replaceCollectionStates(kind: String, states: List<CollectionStateEntity>) {
+        deleteCollectionStates(kind)
+        upsertCollectionStates(states)
+    }
+
     @Query("DELETE FROM collection_state")
     fun clearCollectionStates()
+
+    /** A null version makes the next fetch see `orderChanged` and rewrite the order. */
+    @Query("UPDATE snapshot SET version = NULL WHERE sourceKey = :key")
+    fun clearSnapshotVersion(key: String)
 
     @Transaction
     fun clearAll() {

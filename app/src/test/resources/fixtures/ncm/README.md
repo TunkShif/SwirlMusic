@@ -43,3 +43,6 @@ fields when signed in, and there is no automation account.
 
 Extra fields are included on purpose: they prove that `ignoreUnknownKeys` holds when NetEase adds
 or renames something.
+- `like_true.json` — real `/like?id=…&like=true` body; `playlistId` is the liked-songs list.
+- `like_false.json` — real `/like?id=…&like=false` body; identical shape to the like answer.
+- `like_bad_id.json` — real `/like?id=1` body; HTTP 200 carrying `code:400`, i.e. a refusal.

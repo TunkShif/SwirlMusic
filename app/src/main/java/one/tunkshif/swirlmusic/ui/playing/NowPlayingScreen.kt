@@ -6,6 +6,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -62,6 +63,8 @@ import one.tunkshif.swirlmusic.player.next
 import one.tunkshif.swirlmusic.player.PlaybackError
 import one.tunkshif.swirlmusic.ui.components.ArtistLine
 import one.tunkshif.swirlmusic.ui.components.Artwork
+import one.tunkshif.swirlmusic.ui.components.ArtworkViewer
+import one.tunkshif.swirlmusic.ui.components.ArtworkSaverViewModel
 import one.tunkshif.swirlmusic.ui.components.EmptyState
 import one.tunkshif.swirlmusic.ui.components.LocalSharedTransitionScope
 import one.tunkshif.swirlmusic.ui.components.ToastPillHost
@@ -69,6 +72,8 @@ import one.tunkshif.swirlmusic.ui.components.ToastPillState
 import one.tunkshif.swirlmusic.ui.components.rememberToastPillState
 import one.tunkshif.swirlmusic.ui.components.nowPlayingArtwork
 import one.tunkshif.swirlmusic.ui.format.formatDuration
+import one.tunkshif.swirlmusic.ui.format.formatQualityLabel
+import one.tunkshif.swirlmusic.ui.format.qualityLevelRes
 import one.tunkshif.swirlmusic.ui.theme.Spacing
 import one.tunkshif.swirlmusic.ui.theme.SwirlMusicTheme
 
@@ -97,10 +102,26 @@ fun NowPlayingRoute(
     onOpenQueue: () -> Unit = {},
     onOpenArtist: (Long) -> Unit = {},
     viewModel: NowPlayingViewModel = hiltViewModel(),
+    artworkSaver: ArtworkSaverViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val lyrics by viewModel.lyrics.collectAsStateWithLifecycle()
     var showLyrics by rememberSaveable { mutableStateOf(false) }
+    var showArtwork by rememberSaveable { mutableStateOf(false) }
+    val toastState = rememberToastPillState()
+
+    LaunchedEffect(Unit) {
+        viewModel.messages.collect { message ->
+            when (message) {
+                NowPlayingMessage.Liked ->
+                    toastState.show(R.drawable.ic_favorite_fill, R.string.playing_liked_toast)
+                NowPlayingMessage.Unliked ->
+                    toastState.show(R.drawable.ic_favorite, R.string.playing_unliked_toast)
+                NowPlayingMessage.LikeFailed ->
+                    toastState.show(R.drawable.ic_error, R.string.track_list_save_failed_toast)
+            }
+        }
+    }
 
     NowPlayingScreen(
         state = state,
@@ -112,8 +133,21 @@ fun NowPlayingRoute(
         lyrics = lyrics,
         showLyrics = showLyrics,
         onToggleLyrics = { showLyrics = !showLyrics },
+        onViewArtwork = { showArtwork = true },
+        toastState = toastState,
         modifier = modifier,
     )
+
+    val artworkTrack = state.track
+    val artworkUrl = artworkTrack?.placeholderArtworkUrl ?: artworkTrack?.artworkUrl
+    if (showArtwork && artworkTrack != null && artworkUrl != null) {
+        ArtworkViewer(
+            url = artworkUrl,
+            title = artworkTrack.title,
+            onDismiss = { showArtwork = false },
+            onSave = { artworkSaver.save(artworkUrl, artworkTrack.title) },
+        )
+    }
 }
 
 @Composable
@@ -128,6 +162,7 @@ fun NowPlayingScreen(
     lyrics: LyricsUiState = LyricsUiState.Loading,
     showLyrics: Boolean = false,
     onToggleLyrics: () -> Unit = {},
+    onViewArtwork: () -> Unit = {},
     toastState: ToastPillState = rememberToastPillState(),
 ) {
     // One shared position source for the seek bar, the elapsed label and the lyrics pane.
@@ -214,9 +249,11 @@ fun NowPlayingScreen(
                                     )
                                     // The clip lives outside so the shared element morphs the corners.
                                     .clip(MaterialTheme.shapes.extraLarge)
-                                    .clickable(
+                                    .combinedClickable(
                                         onClickLabel = stringResource(R.string.playing_show_lyrics),
                                         role = Role.Button,
+                                        onLongClickLabel = stringResource(R.string.artwork_view),
+                                        onLongClick = onViewArtwork,
                                     ) { onToggleLyrics() },
                                 // bleed must stay equal to the Column's horizontal padding
                                 // (Spacing.xl) so covers exit at the physical screen edge.
@@ -237,10 +274,31 @@ fun NowPlayingScreen(
                             .padding(bottom = Spacing.lg),
                     )
                 }
-                TrackText(track, onOpenAlbum, onOpenArtist, isTrial = state.isTrial)
+                TrackText(
+                    track = track,
+                    onOpenAlbum = onOpenAlbum,
+                    onOpenArtist = onOpenArtist,
+                    isTrial = state.isTrial,
+                    liked = state.liked,
+                    onToggleLike = { onEvent(NowPlayingEvent.ToggleLike) },
+                )
                 Spacer(Modifier.size(Spacing.xl))
                 SeekBlock(state, onEvent, displayed, seekTo)
                 Spacer(Modifier.size(Spacing.md))
+                state.quality?.let { quality ->
+                    Text(
+                        text = formatQualityLabel(
+                            qualityLevelRes(quality.level)?.let { stringResource(it) },
+                            quality.bitrateKbps,
+                            quality.format,
+                        ),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(Modifier.size(Spacing.xs))
+                }
                 if (state.error != null) {
                     Text(
                         text = stringResource(errorText(state.error)),
@@ -314,58 +372,76 @@ private fun TrackText(
     onOpenAlbum: (Long) -> Unit,
     onOpenArtist: (Long) -> Unit,
     isTrial: Boolean,
+    liked: Boolean,
+    onToggleLike: () -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(Spacing.xxs),
+            modifier = Modifier.weight(1f),
+        ) {
             Text(
                 text = track.title,
                 style = MaterialTheme.typography.headlineSmall,
                 maxLines = 1,
-                modifier = Modifier
-                    .weight(1f, fill = false)
-                    .basicMarquee(),
+                modifier = Modifier.basicMarquee(),
             )
-            // A later slice draws a like button here; the space is already reserved.
-            Spacer(Modifier.width(NowPlayingDimens.actionSmall))
-        }
-        ArtistLine(
-            text = track.artistLine,
-            artists = track.artists,
-            avatars = track.artistAvatars,
-            onOpenArtist = onOpenArtist,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-        )
-        val albumName = track.albumName
-        if (!albumName.isNullOrBlank()) {
-            val albumId = track.albumId
-            Text(
-                text = albumName,
-                style = MaterialTheme.typography.bodyMedium,
+            ArtistLine(
+                text = track.artistLine,
+                artists = track.artists,
+                avatars = track.artistAvatars,
+                onOpenArtist = onOpenArtist,
+                style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = if (albumId != null) {
-                    Modifier.clickable(
-                        onClickLabel = stringResource(R.string.playing_open_album),
-                        role = Role.Button,
-                    ) { onOpenAlbum(albumId) }
-                } else {
-                    Modifier
-                },
             )
-        }
-        if (isTrial) {
-            Surface(
-                shape = MaterialTheme.shapes.small,
-                color = MaterialTheme.colorScheme.tertiaryContainer,
-            ) {
+            val albumName = track.albumName
+            if (!albumName.isNullOrBlank()) {
+                val albumId = track.albumId
                 Text(
-                    text = stringResource(R.string.mini_player_preview),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onTertiaryContainer,
-                    modifier = Modifier.padding(horizontal = Spacing.sm, vertical = Spacing.xxs),
+                    text = albumName,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = if (albumId != null) {
+                        Modifier.clickable(
+                            onClickLabel = stringResource(R.string.playing_open_album),
+                            role = Role.Button,
+                        ) { onOpenAlbum(albumId) }
+                    } else {
+                        Modifier
+                    },
+                )
+            }
+            if (isTrial) {
+                Surface(
+                    shape = MaterialTheme.shapes.small,
+                    color = MaterialTheme.colorScheme.tertiaryContainer,
+                ) {
+                    Text(
+                        text = stringResource(R.string.mini_player_preview),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer,
+                        modifier = Modifier.padding(horizontal = Spacing.sm, vertical = Spacing.xxs),
+                    )
+                }
+            }
+        }
+        // The like toggle now; a comments button joins this row in Phase 10.
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            FilledTonalIconToggleButton(
+                checked = liked,
+                onCheckedChange = { onToggleLike() },
+                modifier = Modifier.size(NowPlayingDimens.actionSmall),
+            ) {
+                Icon(
+                    painter = painterResource(
+                        if (liked) R.drawable.ic_favorite_fill else R.drawable.ic_favorite,
+                    ),
+                    contentDescription = stringResource(
+                        if (liked) R.string.playing_unlike else R.string.playing_like,
+                    ),
                 )
             }
         }

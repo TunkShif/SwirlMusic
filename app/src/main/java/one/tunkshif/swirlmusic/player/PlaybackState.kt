@@ -40,6 +40,13 @@ enum class PlaybackError {
  * Everything the UI needs about playback. One immutable snapshot, emitted by
  * [PlayerController].
  */
+/** The resolved stream's quality, for the Now Playing label. [bitrateKbps] is `br / 1000`. */
+data class StreamQuality(
+    val level: String,
+    val bitrateKbps: Int,
+    val format: String?,
+)
+
 data class PlaybackState(
     val queue: List<QueueEntry> = emptyList(),
     val currentIndex: Int = -1,
@@ -53,6 +60,8 @@ data class PlaybackState(
     val hasNext: Boolean = false,
     val hasPrevious: Boolean = false,
     val isTrial: Boolean = false,
+    /** The current track's stream quality; null while pending or unresolved. */
+    val quality: StreamQuality? = null,
     val error: PlaybackError? = null,
     /** A tapped track waiting for its URL — the mini player shows it before audio starts. */
     val pending: Track? = null,

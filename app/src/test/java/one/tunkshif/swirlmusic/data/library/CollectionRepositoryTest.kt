@@ -23,8 +23,11 @@ class CollectionRepositoryTest {
         one.tunkshif.swirlmusic.data.cache.SwirlDatabase::class.java,
     ).allowMainThreadQueries().build()
     private val dispatcher = kotlinx.coroutines.test.UnconfinedTestDispatcher()
+    private val libraryApi = one.tunkshif.swirlmusic.ui.library.FakeLibraryApi()
     private val repository = CollectionRepository(
         api,
+        libraryApi,
+        one.tunkshif.swirlmusic.ui.library.signedInSession(),
         db.trackListDao(),
         one.tunkshif.swirlmusic.data.cache.CacheGate(db.trackListDao(), dispatcher),
         object : one.tunkshif.swirlmusic.data.api.TimeSource { override fun nowMillis() = 1_000L },
@@ -141,4 +144,122 @@ class CollectionRepositoryTest {
         assertThat(repository.lastKnownAlbumSaved(1)).isNull()
     }
 
+
+
+    @Test
+    fun `the likelist replaces song rows and runs once`() = runTest {
+        db.trackListDao().upsertCollectionStates(
+            listOf(
+                one.tunkshif.swirlmusic.data.cache.CollectionStateEntity("song", 9, true, 0),
+                one.tunkshif.swirlmusic.data.cache.CollectionStateEntity("album", 9, true, 0),
+            ),
+        )
+        libraryApi.likedIdsResult = ApiResult.Success(listOf(1L, 2L, 3L))
+
+        repository.refreshLikedIds()
+        repository.refreshLikedIds()
+
+        assertThat(repository.lastKnownTrackLiked(1)).isTrue()
+        assertThat(repository.lastKnownTrackLiked(3)).isTrue()
+        // Replaced, not merged: the stale row is gone, other kinds untouched.
+        assertThat(repository.lastKnownTrackLiked(9)).isNull()
+        assertThat(repository.lastKnownAlbumSaved(9)).isTrue()
+        assertThat(libraryApi.calls.count { it.startsWith("likedIds") }).isEqualTo(1)
+    }
+
+    @Test
+    fun `a Done like write upserts emits LikedSongs and drops the snapshot version`() = runTest {
+        val received = mutableListOf<LibraryChange>()
+        backgroundScope.launch { repository.changes.toList(received) }
+        runCurrent()
+        db.trackListDao().replaceSnapshot(
+            one.tunkshif.swirlmusic.data.cache.SnapshotEntity(
+                sourceKey = "playlist:99",
+                title = "Liked",
+                subtitle = null,
+                artworkUrl = null,
+                trackCount = 0,
+                version = 7L,
+                fetchedAt = 0,
+                lastOpenedAt = 0,
+            ),
+            emptyList(),
+        )
+
+        assertThat(repository.setTrackLiked(1, liked = true)).isEqualTo(ToggleResult.Done)
+        runCurrent()
+
+        assertThat(repository.lastKnownTrackLiked(1)).isTrue()
+        assertThat(received).containsExactly(LibraryChange.LikedSongs)
+        assertThat(db.trackListDao().snapshot("playlist:99")!!.version).isNull()
+    }
+
+    @Test
+    fun `a failed like write changes nothing`() = runTest {
+        val received = mutableListOf<LibraryChange>()
+        backgroundScope.launch { repository.changes.toList(received) }
+        runCurrent()
+        api.setTrackLikedResult = ApiResult.NetworkError(IOException("offline"))
+
+        assertThat(repository.setTrackLiked(1, liked = true))
+            .isEqualTo(ToggleResult.Failed(LoadError.Network))
+        runCurrent()
+
+        assertThat(repository.lastKnownTrackLiked(1)).isNull()
+        assertThat(received).isEmpty()
+    }
+
+    @Test
+    fun `a signed-out likelist refresh writes nothing and stays retryable`() = runTest {
+        val signedOut = CollectionRepository(
+            api,
+            libraryApi,
+            one.tunkshif.swirlmusic.ui.library.signedOutSession(),
+            db.trackListDao(),
+            one.tunkshif.swirlmusic.data.cache.CacheGate(db.trackListDao(), dispatcher),
+            object : one.tunkshif.swirlmusic.data.api.TimeSource {
+                override fun nowMillis() = 1_000L
+            },
+            dispatcher,
+        )
+        libraryApi.likedIdsResult = ApiResult.Success(listOf(1L))
+
+        signedOut.refreshLikedIds()
+
+        assertThat(repository.lastKnownTrackLiked(1)).isNull()
+        assertThat(libraryApi.calls.none { it.startsWith("likedIds") }).isTrue()
+    }
+
+    @Test
+    fun `signing out and back in reloads the likelist`() = runTest {
+        val session = one.tunkshif.swirlmusic.ui.library.signedInSession()
+        val gate = one.tunkshif.swirlmusic.data.cache.CacheGate(db.trackListDao(), dispatcher)
+        val repository = CollectionRepository(
+            api,
+            libraryApi,
+            session,
+            db.trackListDao(),
+            gate,
+            object : one.tunkshif.swirlmusic.data.api.TimeSource {
+                override fun nowMillis() = 1_000L
+            },
+            dispatcher,
+        )
+        libraryApi.likedIdsResult = ApiResult.Success(listOf(1L))
+        repository.refreshLikedIds()
+        assertThat(repository.lastKnownTrackLiked(1)).isTrue()
+
+        // The real sign-out path: the cache wipes and the generation bumps.
+        session.signOut()
+        gate.clearAll()
+        assertThat(repository.lastKnownTrackLiked(1)).isNull()
+
+        session.signIn("MUSIC_U=test")
+        libraryApi.likedIdsResult = ApiResult.Success(listOf(2L))
+        repository.refreshLikedIds()
+
+        assertThat(repository.lastKnownTrackLiked(2)).isTrue()
+        assertThat(repository.lastKnownTrackLiked(1)).isNull()
+        assertThat(libraryApi.calls.count { it.startsWith("likedIds") }).isEqualTo(2)
+    }
 }

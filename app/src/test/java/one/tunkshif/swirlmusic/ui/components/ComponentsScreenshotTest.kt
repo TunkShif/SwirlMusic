@@ -44,4 +44,27 @@ class ComponentsScreenshotTest {
         }
         compose.onRoot().captureRoboImage("src/test/screenshots/components/grid-skeleton-light.png")
     }
+
+    /** The artwork viewer: scrim, image, caption and the save button. */
+    @Test
+    fun artwork_viewer_light() {
+        compose.setContent {
+            SwirlMusicTheme(darkTheme = false, dynamicColor = false) {
+                androidx.compose.runtime.CompositionLocalProvider(
+                    LocalArtworkPainter provides
+                        androidx.compose.ui.graphics.painter.ColorPainter(
+                            androidx.compose.ui.graphics.Color(0xFF9AA0C8),
+                        ),
+                ) {
+                    ArtworkViewerContent(
+                        url = "https://p1.example.invalid/cover.jpg",
+                        title = "Imaginal Disk",
+                        onDismiss = {},
+                        onSave = { true },
+                    )
+                }
+            }
+        }
+        compose.onRoot().captureRoboImage("src/test/screenshots/components/artwork-viewer-light.png")
+    }
 }

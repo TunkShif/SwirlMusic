@@ -11,6 +11,8 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.longClick
 import com.google.common.truth.Truth.assertThat
 import one.tunkshif.swirlmusic.R
 import one.tunkshif.swirlmusic.data.model.ArtistRef
@@ -304,5 +306,68 @@ class NowPlayingScreenTest {
 
         assertThat(events).contains(NowPlayingEvent.CycleLoopMode)
         compose.onNodeWithText(context.getString(R.string.playing_loop_shuffle)).assertExists()
+    }
+
+
+    @Test
+    fun `the like toggle sends ToggleLike`() {
+        show(PlayingStatePlaying.copy(liked = true))
+
+        compose.onNodeWithContentDescription(description(R.string.playing_unlike))
+            .assertExists()
+            .performClick()
+
+        assertThat(events).contains(NowPlayingEvent.ToggleLike)
+    }
+
+    @Test
+    fun `the like button reads Like when unliked`() {
+        show(PlayingStatePlaying)
+
+        compose.onNodeWithContentDescription(description(R.string.playing_like)).assertExists()
+        compose.onNodeWithContentDescription(description(R.string.playing_unlike))
+            .assertDoesNotExist()
+    }
+
+    @Test
+    fun `a long press on the cover opens the artwork viewer`() {
+        var artworkOpened = 0
+        compose.setContent {
+            SwirlMusicTheme(dynamicColor = false) {
+                NowPlayingScreen(
+                    state = PlayingStatePlaying,
+                    onEvent = {},
+                    onBack = {},
+                    onOpenAlbum = {},
+                    onOpenQueue = {},
+                    onViewArtwork = { artworkOpened++ },
+                )
+            }
+        }
+
+        compose.onNode(
+            SemanticsMatcher("click label") { node ->
+                runCatching {
+                    node.config[SemanticsActions.OnClick].label
+                }.getOrNull() == context.getString(R.string.playing_show_lyrics)
+            },
+        ).performTouchInput { longClick() }
+
+        assertThat(artworkOpened).isEqualTo(1)
+    }
+
+    @Test
+    fun `the quality label shows when resolved and hides when null`() {
+        val uiState = show(
+            PlayingStatePlaying.copy(
+                quality = one.tunkshif.swirlmusic.player.StreamQuality(
+                    level = "exhigh", bitrateKbps = 320, format = "mp3",
+                ),
+            ),
+        )
+        compose.onNodeWithText("Extra high · 320 kbps · MP3").assertExists()
+
+        uiState.value = PlayingStatePlaying
+        compose.onNodeWithText("Extra high · 320 kbps · MP3").assertDoesNotExist()
     }
 }

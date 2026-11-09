@@ -30,6 +30,8 @@ data class LikelistResponse(
 @Serializable
 data class LikeResponse(
     val code: Int = 0,
+    /** The account's liked-songs playlist, present on `/like` answers. */
+    val playlistId: Long? = null,
 )
 
 /** `/user/record` returns the same shape under `allData` or `weekData`. */

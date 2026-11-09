@@ -35,6 +35,8 @@ class LibraryViewModelTest {
     }
     private val collection = CollectionRepository(
         collectionApi,
+        api,
+        signedInSession(),
         db.trackListDao(),
         one.tunkshif.swirlmusic.data.cache.CacheGate(db.trackListDao(), dispatcher),
         object : one.tunkshif.swirlmusic.data.api.TimeSource { override fun nowMillis() = 1_000L },

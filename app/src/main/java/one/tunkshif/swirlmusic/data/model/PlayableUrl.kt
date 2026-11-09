@@ -13,6 +13,8 @@ data class PlayableUrl(
     val isTrial: Boolean,
     val level: String,
     val bitrate: Int,
+    /** `type` from `/song/url/v1`: "mp3" or "flac"; `encodeType` lies for flac. */
+    val format: String? = null,
 ) {
     val isPlayable: Boolean get() = !url.isNullOrBlank()
 }

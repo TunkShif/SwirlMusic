@@ -184,4 +184,43 @@ class NcmCollectionApiTest {
         assertThat(url.queryParameter("t")).isEqualTo("1")
         assertThat(url.queryParameter("timestamp")).isEqualTo("1000")
     }
+
+    @Test
+    fun `setTrackLiked maps 200 to Done and keeps the playlist id`() = runTest {
+        canned(200, fixture("like_true.json"))
+
+        val result = api.setTrackLiked(347230, liked = true)
+
+        assertThat(result).isEqualTo(
+            ApiResult.Success(LikeWrite(WriteOutcome.Done, playlistId = 42246344)),
+        )
+        val url = lastRequest!!.url
+        assertThat(url.encodedPath).isEqualTo("/like")
+        assertThat(url.queryParameter("id")).isEqualTo("347230")
+        assertThat(url.queryParameter("like")).isEqualTo("true")
+        assertThat(url.queryParameter("timestamp")).isEqualTo("1000")
+        assertThat(url.queryParameter("cookie")).isNull()
+    }
+
+    @Test
+    fun `setTrackLiked sends like false for an unlike`() = runTest {
+        canned(200, fixture("like_false.json"))
+
+        val result = api.setTrackLiked(347230, liked = false)
+
+        assertThat(result).isEqualTo(
+            ApiResult.Success(LikeWrite(WriteOutcome.Done, playlistId = 42246344)),
+        )
+        assertThat(lastRequest!!.url.queryParameter("like")).isEqualTo("false")
+    }
+
+    @Test
+    fun `a 200 body with an error code fails the like write`() = runTest {
+        canned(200, fixture("like_bad_id.json"))
+
+        val result = api.setTrackLiked(1, liked = true)
+
+        assertThat(result).isInstanceOf(ApiResult.HttpError::class.java)
+        assertThat((result as ApiResult.HttpError).code).isEqualTo(400)
+    }
 }

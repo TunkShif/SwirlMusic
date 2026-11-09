@@ -70,6 +70,8 @@ internal fun CollapsingDetailHeader(
     onPlayAll: () -> Unit,
     modifier: Modifier = Modifier,
     circularArtwork: Boolean = false,
+    /** Expanded-header artwork tap (the collapsed thumbnail ignores it). */
+    onArtworkClick: (() -> Unit)? = null,
     subtitle: (@Composable () -> Unit)? = null,
     meta: String? = null,
     description: String? = null,
@@ -111,7 +113,22 @@ internal fun CollapsingDetailHeader(
             Artwork(
                 url = artworkUrl,
                 contentDescription = null,
-                modifier = Modifier.layoutId("art"),
+                modifier = Modifier
+                    .layoutId("art")
+                    .then(
+                        if (onArtworkClick != null) {
+                            Modifier.clickable(
+                                onClickLabel = stringResource(R.string.artwork_view),
+                                role = Role.Button,
+                            ) {
+                                // Only the expanded header opens the viewer; the collapsed
+                                // bar thumbnail is too small to be a target.
+                                if (appBarState.collapsedFraction < 0.5f) onArtworkClick()
+                            }
+                        } else {
+                            Modifier
+                        },
+                    ),
             )
             // "bigText" — skeleton bars while the first fetch is in flight (D50).
             Column(

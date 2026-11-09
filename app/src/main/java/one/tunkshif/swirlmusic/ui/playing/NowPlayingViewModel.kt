@@ -4,7 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -16,6 +18,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.flow.update
@@ -23,6 +26,8 @@ import kotlinx.coroutines.launch
 import one.tunkshif.swirlmusic.data.api.ApiResult
 import one.tunkshif.swirlmusic.data.api.resizedArtwork
 import one.tunkshif.swirlmusic.data.library.ArtistAvatarRepository
+import one.tunkshif.swirlmusic.data.library.CollectionRepository
+import one.tunkshif.swirlmusic.data.library.ToggleResult
 import one.tunkshif.swirlmusic.data.local.LyricsExtra
 import one.tunkshif.swirlmusic.data.local.LyricsPreferences
 import one.tunkshif.swirlmusic.data.lyrics.LyricsRepository
@@ -33,6 +38,7 @@ import one.tunkshif.swirlmusic.player.LoopMode
 import one.tunkshif.swirlmusic.player.PlaybackError
 import one.tunkshif.swirlmusic.player.PlaybackState
 import one.tunkshif.swirlmusic.player.PlayerController
+import one.tunkshif.swirlmusic.player.StreamQuality
 import one.tunkshif.swirlmusic.player.QueueEntry
 
 /** The cover asks NetEase for this many pixels. */
@@ -89,6 +95,10 @@ data class NowPlayingUiState(
     val loopMode: LoopMode = LoopMode.ListLoop,
     val hasNext: Boolean = false,
     val error: PlaybackError? = null,
+    /** The current track's stream quality; null until the URL resolves. */
+    val quality: StreamQuality? = null,
+    /** Liked state of the current track: server, then last-known, then false. */
+    val liked: Boolean = false,
 )
 
 sealed interface NowPlayingEvent {
@@ -100,7 +110,11 @@ sealed interface NowPlayingEvent {
     data class SeekTo(val positionMs: Long) : NowPlayingEvent
     data object RetryLyrics : NowPlayingEvent
     data object CycleLyricsExtra : NowPlayingEvent
+    data object ToggleLike : NowPlayingEvent
 }
+
+/** One-shot messages for the toast pill. */
+enum class NowPlayingMessage { Liked, Unliked, LikeFailed }
 
 sealed interface LyricsUiState {
     data object Loading : LyricsUiState
@@ -253,7 +267,65 @@ internal fun PlaybackState.toNowPlayingUiState(): NowPlayingUiState {
         loopMode = loopMode,
         hasNext = hasNext,
         error = error,
+        quality = quality,
     )
+}
+
+/**
+ * Liked state for the Now Playing heart. Paints `server ?: lastKnown ?: false` (0012-D51):
+ * [CollectionRepository.refreshLikedIds] runs once per process, so a last-known read after it
+ * is the server truth; before it finishes the stored row still shows. A toggle flips an
+ * optimistic override keyed by track id, ignores taps while a write is in flight, and reverts
+ * on failure — a track change mid-write just stops showing the override.
+ */
+internal class TrackLikeState(
+    private val scope: CoroutineScope,
+    private val collection: CollectionRepository,
+    trackIds: Flow<Long?>,
+) {
+
+    private val version = MutableStateFlow(0)
+    private val override = MutableStateFlow<Pair<Long, Boolean>?>(null)
+    private var writeInFlight = false
+
+    private val _messages = Channel<NowPlayingMessage>(Channel.BUFFERED)
+    val messages = _messages.receiveAsFlow()
+
+    val liked: StateFlow<Boolean> = combine(trackIds, version, override) { id, _, pending ->
+        when {
+            id == null -> false
+            pending?.first == id -> pending.second
+            else -> collection.lastKnownTrackLiked(id) ?: false
+        }
+    }
+        .stateIn(scope, SharingStarted.WhileSubscribed(5_000), false)
+
+    init {
+        scope.launch {
+            collection.refreshLikedIds()
+            version.update { it + 1 }
+        }
+    }
+
+    fun toggle(trackId: Long?) {
+        if (trackId == null || writeInFlight) return
+        val target = !(override.value?.takeIf { it.first == trackId }?.second ?: liked.value)
+        override.value = trackId to target
+        writeInFlight = true
+        scope.launch {
+            val result = collection.setTrackLiked(trackId, target)
+            writeInFlight = false
+            if (override.value?.first == trackId) override.value = null
+            version.update { it + 1 }
+            _messages.send(
+                when (result) {
+                    ToggleResult.Done ->
+                        if (target) NowPlayingMessage.Liked else NowPlayingMessage.Unliked
+                    else -> NowPlayingMessage.LikeFailed
+                },
+            )
+        }
+    }
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -262,8 +334,17 @@ class NowPlayingViewModel @Inject constructor(
     private val controller: PlayerController,
     private val lyricsRepository: LyricsRepository,
     private val lyricsPreferences: LyricsPreferences,
+    private val collection: CollectionRepository,
     artistAvatarRepository: ArtistAvatarRepository,
 ) : ViewModel() {
+
+    private val likeState = TrackLikeState(
+        scope = viewModelScope,
+        collection = collection,
+        trackIds = controller.state.map { it.current?.id }.distinctUntilChanged(),
+    )
+
+    val messages = likeState.messages
 
     val state: StateFlow<NowPlayingUiState> = combine(
         controller.state.map { it.toNowPlayingUiState() },
@@ -271,8 +352,9 @@ class NowPlayingViewModel @Inject constructor(
             controller.state.map { it.current?.menuArtists()?.map(ArtistRef::id).orEmpty() },
             artistAvatarRepository::avatars,
         ),
-    ) { uiState, avatars ->
-        uiState.copy(track = uiState.track?.copy(artistAvatars = avatars))
+        likeState.liked,
+    ) { uiState, avatars, liked ->
+        uiState.copy(track = uiState.track?.copy(artistAvatars = avatars), liked = liked)
     }
         .stateIn(
             scope = viewModelScope,
@@ -313,6 +395,7 @@ class NowPlayingViewModel @Inject constructor(
             NowPlayingEvent.CycleLoopMode -> controller.cycleLoopMode()
             is NowPlayingEvent.SeekTo -> controller.seekTo(event.positionMs)
             NowPlayingEvent.RetryLyrics -> lyricsRetry.update { it + 1 }
+            NowPlayingEvent.ToggleLike -> likeState.toggle(controller.state.value.current?.id)
             NowPlayingEvent.CycleLyricsExtra -> viewModelScope.launch {
                 val content = lyrics.value as? LyricsUiState.Content ?: return@launch
                 lyricsPreferences.setExtra(nextExtra(content.extraChoices, content.extra))

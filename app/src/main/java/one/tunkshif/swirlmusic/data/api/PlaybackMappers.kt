@@ -15,5 +15,6 @@ internal fun SongUrlDto.toDomain(nowMillis: Long): PlayableUrl {
         isTrial = freeTrialInfo != null,
         level = level ?: "",
         bitrate = br,
+        format = type,
     )
 }

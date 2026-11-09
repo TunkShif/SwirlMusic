@@ -67,8 +67,14 @@ class FakeLibraryApi : NcmLibraryApi {
     )
     var searchResults: SearchResults = SearchResults(songs = listOf(track(1), track(2)))
 
-    override suspend fun userPlaylists(uid: Long, limit: Int, offset: Int): ApiResult<Page<PlaylistSummary>> {
+    override suspend fun userPlaylists(
+        uid: Long,
+        limit: Int,
+        offset: Int,
+        fresh: Boolean,
+    ): ApiResult<Page<PlaylistSummary>> {
         calls += "playlists:$offset"
+        if (fresh) freshCalls += "playlists:$offset"
         failWith?.let { return it }
         return ApiResult.Success(Page(playlists, hasMorePlaylists))
     }
@@ -87,7 +93,12 @@ class FakeLibraryApi : NcmLibraryApi {
         )
     }
 
-    override suspend fun likedIds(uid: Long): ApiResult<List<Long>> = ApiResult.Success(emptyList())
+    var likedIdsResult: ApiResult<List<Long>> = ApiResult.Success(emptyList())
+
+    override suspend fun likedIds(uid: Long): ApiResult<List<Long>> {
+        calls += "likedIds:$uid"
+        return likedIdsResult
+    }
 
     var contentsTrackIds: List<Long> = emptyList()
     var contentsFirstTracks: List<Track> = emptyList()
@@ -200,6 +211,11 @@ fun signedInSession(): SessionRepository {
     )
     runBlocking { repository.signIn("MUSIC_U=test") }
     return repository
+}
+
+/** A session that was signed in and then out; likelist refreshes must stay quiet. */
+fun signedOutSession(): SessionRepository = signedInSession().also {
+    runBlocking { it.signOut() }
 }
 
 const val TEST_USER_ID = 42L

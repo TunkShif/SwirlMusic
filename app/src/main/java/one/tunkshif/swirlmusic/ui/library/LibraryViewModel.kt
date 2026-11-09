@@ -67,6 +67,7 @@ class LibraryViewModel @Inject constructor(
                 when (change) {
                     LibraryChange.Albums -> loadAlbums(reset = true, fresh = true)
                     LibraryChange.Artists -> loadArtists(reset = true, fresh = true)
+                    LibraryChange.LikedSongs -> loadPlaylists(reset = true, fresh = true)
                 }
             }
         }
@@ -94,11 +95,11 @@ class LibraryViewModel @Inject constructor(
         }
     }
 
-    private fun loadPlaylists(reset: Boolean) = loadPage(
+    private fun loadPlaylists(reset: Boolean, fresh: Boolean = false) = loadPage(
         reset = reset,
         current = { _state.value.playlists },
         update = { paged -> _state.update { it.copy(playlists = paged) } },
-        fetch = { uid, offset -> api.userPlaylists(uid, PAGE_SIZE, offset) },
+        fetch = { uid, offset -> api.userPlaylists(uid, PAGE_SIZE, offset, fresh = fresh) },
     )
 
     private fun loadAlbums(reset: Boolean, fresh: Boolean = false) = loadPage(

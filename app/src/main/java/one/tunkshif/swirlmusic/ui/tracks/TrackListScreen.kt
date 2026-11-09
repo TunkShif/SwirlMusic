@@ -43,6 +43,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -67,6 +68,8 @@ import one.tunkshif.swirlmusic.ui.common.LoadingRows
 import one.tunkshif.swirlmusic.ui.common.SectionError
 import one.tunkshif.swirlmusic.ui.common.SectionState
 import one.tunkshif.swirlmusic.ui.components.ArtistLine
+import one.tunkshif.swirlmusic.ui.components.ArtworkSaverViewModel
+import one.tunkshif.swirlmusic.ui.components.ArtworkViewer
 import one.tunkshif.swirlmusic.ui.components.CollectionAction
 import one.tunkshif.swirlmusic.ui.components.CollectionToggle
 import one.tunkshif.swirlmusic.ui.theme.AlbumColorTheme
@@ -85,12 +88,14 @@ fun TrackListRoute(
     contentPadding: PaddingValues = PaddingValues(),
     onOpenArtist: (Long) -> Unit = {},
     viewModel: TrackListViewModel = hiltViewModel(),
+    artworkSaver: ArtworkSaverViewModel = hiltViewModel(),
 ) {
     LaunchedEffect(source) { viewModel.load(source) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val toastState = rememberToastPillState()
     val seedValue by viewModel.seed.collectAsStateWithLifecycle()
     val nowPlayingId by viewModel.nowPlayingId.collectAsStateWithLifecycle()
+    var showArtwork by rememberSaveable { mutableStateOf(false) }
     val seed = seedValue
 
     LaunchedEffect(Unit) {
@@ -120,12 +125,23 @@ fun TrackListRoute(
         nowPlayingId = nowPlayingId,
         onToggleSave = viewModel::toggleSave,
         onOpenArtist = onOpenArtist,
+        onArtworkClick = state.artworkUrl?.let { { showArtwork = true } },
         onPlayTracks = { tracks, index ->
             onPlayTracks(tracks, index, viewModel.playPager())
         },
         toastState = toastState,
         modifier = modifier,
     )
+    }
+
+    val artworkUrl = state.artworkUrl
+    if (showArtwork && artworkUrl != null) {
+        ArtworkViewer(
+            url = artworkUrl,
+            title = state.title,
+            onDismiss = { showArtwork = false },
+            onSave = { artworkSaver.save(artworkUrl, state.title) },
+        )
     }
 }
 
@@ -144,6 +160,7 @@ fun TrackListScreen(
     onLoadMore: () -> Unit,
     onToggleSave: () -> Unit = {},
     onOpenArtist: (Long) -> Unit = {},
+    onArtworkClick: (() -> Unit)? = null,
     nowPlayingId: Long? = null,
     onPlayTracks: (List<Track>, Int) -> Unit,
 ) {
@@ -196,6 +213,7 @@ fun TrackListScreen(
                 },
                 meta = headerMeta(state),
                 description = state.description,
+                onArtworkClick = onArtworkClick,
                 onDescriptionClick = { showSheet = true },
                 leadingActions = {
                     if (isAlbum) {

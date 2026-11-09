@@ -60,6 +60,8 @@ class TrackListViewModelTest {
         nowPlayingSource,
         CollectionRepository(
             collectionApi,
+            one.tunkshif.swirlmusic.ui.library.FakeLibraryApi(),
+            one.tunkshif.swirlmusic.ui.library.signedInSession(),
             db.trackListDao(),
             one.tunkshif.swirlmusic.data.cache.CacheGate(db.trackListDao(), UnconfinedTestDispatcher()),
             object : TimeSource { override fun nowMillis() = 1_000L },

@@ -54,6 +54,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -80,6 +81,8 @@ import one.tunkshif.swirlmusic.ui.common.LoadError
 import one.tunkshif.swirlmusic.ui.common.LoadingRows
 import one.tunkshif.swirlmusic.ui.common.SectionError
 import one.tunkshif.swirlmusic.ui.common.SectionState
+import one.tunkshif.swirlmusic.ui.components.ArtworkSaverViewModel
+import one.tunkshif.swirlmusic.ui.components.ArtworkViewer
 import one.tunkshif.swirlmusic.ui.components.CollectionAction
 import one.tunkshif.swirlmusic.ui.components.CollectionToggle
 import one.tunkshif.swirlmusic.ui.components.GridCard
@@ -101,12 +104,14 @@ fun ArtistRoute(
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(),
     viewModel: ArtistViewModel = hiltViewModel(),
+    artworkSaver: ArtworkSaverViewModel = hiltViewModel(),
 ) {
     LaunchedEffect(id) { viewModel.load(id) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val seed by viewModel.seed.collectAsStateWithLifecycle()
     val nowPlayingId by viewModel.nowPlayingId.collectAsStateWithLifecycle()
     val toastState = rememberToastPillState()
+    var showArtwork by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.messages.collect { message ->
@@ -137,8 +142,19 @@ fun ArtistRoute(
         toastState = toastState,
         nowPlayingId = nowPlayingId,
         onSelectFilter = viewModel::selectFilter,
+        onArtworkClick = state.avatarUrl?.let { { showArtwork = true } },
         modifier = modifier,
     )
+    }
+
+    val artworkUrl = state.avatarUrl
+    if (showArtwork && artworkUrl != null) {
+        ArtworkViewer(
+            url = artworkUrl,
+            title = state.name,
+            onDismiss = { showArtwork = false },
+            onSave = { artworkSaver.save(artworkUrl, state.name) },
+        )
     }
 }
 
@@ -158,6 +174,7 @@ fun ArtistScreen(
     onShowReleases: () -> Unit = {},
     onRetryReleases: () -> Unit = {},
     onOpenAlbum: (Long) -> Unit = {},
+    onArtworkClick: (() -> Unit)? = null,
     onOpenDescription: () -> Unit = {},
     nowPlayingId: Long? = null,
     onSelectFilter: (ReleaseFilter) -> Unit = {},
@@ -197,6 +214,7 @@ fun ArtistScreen(
                     hasCollectionAction = true,
                     meta = artistMeta(state),
                     description = state.briefDesc,
+                    onArtworkClick = onArtworkClick,
                     onDescriptionClick = {
                         showSheet = true
                         onOpenDescription()

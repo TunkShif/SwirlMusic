@@ -20,7 +20,12 @@ import one.tunkshif.swirlmusic.data.model.ArtistDetail
  * session, not from the API client.
  */
 interface NcmLibraryApi {
-    suspend fun userPlaylists(uid: Long, limit: Int, offset: Int): ApiResult<Page<PlaylistSummary>>
+    suspend fun userPlaylists(
+        uid: Long,
+        limit: Int,
+        offset: Int,
+        fresh: Boolean = false,
+    ): ApiResult<Page<PlaylistSummary>>
 
     suspend fun playlistDetail(id: Long): ApiResult<PlaylistContents>
 

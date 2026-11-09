@@ -2,6 +2,7 @@ package one.tunkshif.swirlmusic.data.library
 
 import kotlinx.coroutines.CompletableDeferred
 import one.tunkshif.swirlmusic.data.api.ApiResult
+import one.tunkshif.swirlmusic.data.api.LikeWrite
 import one.tunkshif.swirlmusic.data.api.NcmArtistApi
 import one.tunkshif.swirlmusic.data.api.NcmCollectionApi
 import one.tunkshif.swirlmusic.data.api.WriteOutcome
@@ -18,6 +19,8 @@ class FakeCollectionApi : NcmCollectionApi {
     var setAlbumSavedResult: ApiResult<WriteOutcome> = ApiResult.Success(WriteOutcome.Done)
     var artistFollowedResult: ApiResult<Boolean> = ApiResult.Success(false)
     var setArtistFollowedResult: ApiResult<WriteOutcome> = ApiResult.Success(WriteOutcome.Done)
+    var setTrackLikedResult: ApiResult<LikeWrite> =
+        ApiResult.Success(LikeWrite(WriteOutcome.Done, playlistId = 99))
     var writeGate: CompletableDeferred<Unit>? = null
 
     override suspend fun albumSaved(id: Long): ApiResult<Boolean> {
@@ -40,6 +43,12 @@ class FakeCollectionApi : NcmCollectionApi {
         calls += "setArtistFollowed:$id:${if (followed) 1 else 0}"
         writeGate?.await()
         return setArtistFollowedResult
+    }
+
+    override suspend fun setTrackLiked(id: Long, liked: Boolean): ApiResult<LikeWrite> {
+        calls += "setTrackLiked:$id:${if (liked) 1 else 0}"
+        writeGate?.await()
+        return setTrackLikedResult
     }
 }
 

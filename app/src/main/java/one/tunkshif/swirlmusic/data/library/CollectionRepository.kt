@@ -5,13 +5,19 @@ import javax.inject.Singleton
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import one.tunkshif.swirlmusic.data.api.ApiResult
 import one.tunkshif.swirlmusic.data.api.NcmCollectionApi
+import one.tunkshif.swirlmusic.data.api.NcmLibraryApi
 import one.tunkshif.swirlmusic.data.api.WriteOutcome
+import one.tunkshif.swirlmusic.data.library.TrackListRepository
+import one.tunkshif.swirlmusic.data.session.SessionRepository
+import one.tunkshif.swirlmusic.data.session.SessionState
 import one.tunkshif.swirlmusic.ui.common.LoadError
 
 /** Which library tab a successful write changed. */
-enum class LibraryChange { Albums, Artists }
+enum class LibraryChange { Albums, Artists, LikedSongs }
 
 sealed interface ToggleResult {
     data object Done : ToggleResult
@@ -27,6 +33,8 @@ sealed interface ToggleResult {
 @Singleton
 class CollectionRepository @Inject constructor(
     private val api: NcmCollectionApi,
+    private val libraryApi: NcmLibraryApi,
+    private val session: SessionRepository,
     private val dao: one.tunkshif.swirlmusic.data.cache.TrackListDao,
     private val gate: one.tunkshif.swirlmusic.data.cache.CacheGate,
     private val timeSource: one.tunkshif.swirlmusic.data.api.TimeSource,
@@ -48,14 +56,85 @@ class CollectionRepository @Inject constructor(
     suspend fun lastKnownArtistFollowed(id: Long): Boolean? =
         kotlinx.coroutines.withContext(io) { dao.collectionState("artist", id) }
 
+    suspend fun lastKnownTrackLiked(id: Long): Boolean? =
+        kotlinx.coroutines.withContext(io) { dao.collectionState("song", id) }
+
+    /**
+     * One likelist load per app process: the response is the full truth, so its ids replace
+     * every `song` row in one gated transaction. Called after sign-in/session restore, and by
+     * screens that need the state before it has run. A signed-out or offline start leaves
+     * [likedIdsLoaded] false so a later call retries.
+     */
+    /**
+     * The uid and cache generation the likelist was loaded under. Signing out bumps the
+     * generation (the rows are wiped), so signing back in — same or other account — reloads.
+     */
+    @Volatile
+    private var likedIdsLoadedFor: Pair<Long, Int>? = null
+    private val likedIdsMutex = Mutex()
+
+    suspend fun refreshLikedIds() {
+        val uid = (session.state.value as? SessionState.SignedIn)?.profile?.userId
+        if (uid == null || likedIdsLoadedFor == uid to gate.generation) return
+        likedIdsMutex.withLock {
+            val currentUid =
+                (session.state.value as? SessionState.SignedIn)?.profile?.userId ?: return
+            // Capture before the fetch: a sign-out landing mid-request makes the generation
+            // stale and the write is dropped, not applied to the new account's rows.
+            val generation = gate.generation
+            if (likedIdsLoadedFor == currentUid to generation) return
+            val result = libraryApi.likedIds(currentUid)
+            if (result !is ApiResult.Success) return
+            val now = timeSource.nowMillis()
+            val written = gate.writeIfCurrent(generation) {
+                replaceCollectionStates(
+                    "song",
+                    result.value.map {
+                        one.tunkshif.swirlmusic.data.cache.CollectionStateEntity("song", it, true, now)
+                    },
+                )
+                true
+            }
+            if (written == true) likedIdsLoadedFor = currentUid to generation
+        }
+    }
+
+    suspend fun setTrackLiked(id: Long, liked: Boolean): ToggleResult {
+        // One generation for the whole write: a mid-call sign-out must drop both writes.
+        val generation = gate.generation
+        return when (val result = api.setTrackLiked(id, liked)) {
+            is ApiResult.Success -> when (result.value.outcome) {
+                WriteOutcome.Done -> {
+                    remember("song", mapOf(id to liked), generation)
+                    // The liked playlist changed server-side; null the version so the next
+                    // fetch rewrites the order instead of trusting the snapshot.
+                    result.value.playlistId?.let { playlistId ->
+                        gate.writeIfCurrent(generation) {
+                            clearSnapshotVersion(TrackListRepository.playlistKey(playlistId))
+                        }
+                    }
+                    _changes.tryEmit(LibraryChange.LikedSongs)
+                    ToggleResult.Done
+                }
+                WriteOutcome.Refused -> ToggleResult.Refused
+            }
+            is ApiResult.NetworkError -> ToggleResult.Failed(LoadError.Network)
+            is ApiResult.HttpError, is ApiResult.Unauthorized ->
+                ToggleResult.Failed(LoadError.Server)
+        }
+    }
+
     suspend fun rememberAlbums(states: Map<Long, Boolean>) = remember("album", states)
 
     suspend fun rememberArtists(states: Map<Long, Boolean>) = remember("artist", states)
 
-    private suspend fun remember(kind: String, states: Map<Long, Boolean>) {
+    private suspend fun remember(
+        kind: String,
+        states: Map<Long, Boolean>,
+        generation: Int = gate.generation,
+    ) {
         if (states.isEmpty()) return
         val now = timeSource.nowMillis()
-        val generation = gate.generation
         gate.writeIfCurrent(generation) {
             upsertCollectionStates(
                 states.map { (id, active) ->

@@ -33,6 +33,16 @@ internal val PlayingStateTrialError = PlayingStatePlaying.copy(
 
 internal val PlayingStateEmpty = NowPlayingUiState()
 
+/** Liked track at a named quality, for the like-button + label golden. */
+internal val PlayingStateLikeQuality = PlayingStatePlaying.copy(
+    liked = true,
+    quality = one.tunkshif.swirlmusic.player.StreamQuality(
+        level = "exhigh",
+        bitrateKbps = 320,
+        format = "mp3",
+    ),
+)
+
 internal val QueueFixture = QueueUiState(
     items = (0L until 5).map { uid ->
         QueueItemUi(uid, "Song ${'A' + uid.toInt()}", "Artist ${'A' + uid.toInt()}", null)

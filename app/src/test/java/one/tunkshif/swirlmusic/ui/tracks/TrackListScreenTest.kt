@@ -126,4 +126,35 @@ class TrackListScreenTest {
         compose.onNodeWithText("M83").assertIsDisplayed().performClick()
         assertThat(openedArtist).isEqualTo(502L)
     }
+
+
+    @Test
+    fun `tapping the expanded artwork reports the viewer click`() {
+        var artworkClicks = 0
+        compose.setContent {
+            CompositionLocalProvider(LocalArtworkPainter provides ColorPainter(Color(0xFF9AA0C8))) {
+                SwirlMusicTheme(dynamicColor = false) {
+                    TrackListScreen(
+                        state = albumState(),
+                        isAlbum = true,
+                        onBack = {},
+                        onRetry = {},
+                        onLoadMore = {},
+                        onArtworkClick = { artworkClicks++ },
+                        onPlayTracks = { _, _ -> },
+                    )
+                }
+            }
+        }
+
+        compose.onNode(
+            androidx.compose.ui.test.SemanticsMatcher("click label") { node ->
+                runCatching {
+                    node.config[androidx.compose.ui.semantics.SemanticsActions.OnClick].label
+                }.getOrNull() == res(R.string.artwork_view)
+            },
+        ).performClick()
+
+        assertThat(artworkClicks).isEqualTo(1)
+    }
 }
