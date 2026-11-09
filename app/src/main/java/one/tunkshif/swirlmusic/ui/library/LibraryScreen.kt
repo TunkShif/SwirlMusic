@@ -5,7 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -21,9 +20,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
@@ -43,6 +47,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -66,9 +73,10 @@ import one.tunkshif.swirlmusic.data.model.Track
 import one.tunkshif.swirlmusic.ui.common.PagedList
 import one.tunkshif.swirlmusic.ui.common.SectionError
 import one.tunkshif.swirlmusic.ui.common.SectionState
+import one.tunkshif.swirlmusic.ui.common.SkeletonBar
 import one.tunkshif.swirlmusic.ui.components.Artwork
 import one.tunkshif.swirlmusic.ui.components.GridCard
-import one.tunkshif.swirlmusic.ui.components.GridCard
+import one.tunkshif.swirlmusic.ui.components.GridCardSkeleton
 import one.tunkshif.swirlmusic.ui.format.formatCount
 import one.tunkshif.swirlmusic.ui.theme.Spacing
 
@@ -189,6 +197,24 @@ private fun LibraryContent(
             }
         }
 
+        val pagerState = rememberPagerState(initialPage = state.tab.ordinal) {
+            LibraryTab.entries.size
+        }
+        // A settle reports the tab; a pill tap animates the pager (the guard skips the
+        // re-animate when the state change came from the pager itself).
+        val currentTab = rememberUpdatedState(state.tab)
+        LaunchedEffect(pagerState) {
+            snapshotFlow { pagerState.settledPage }.collect { page ->
+                val tab = LibraryTab.entries[page]
+                if (tab != currentTab.value) onSelectTab(tab)
+            }
+        }
+        LaunchedEffect(state.tab) {
+            if (pagerState.currentPage != state.tab.ordinal) {
+                pagerState.animateScrollToPage(state.tab.ordinal)
+            }
+        }
+
         TabPills(
             selected = state.tab,
             onSelect = onSelectTab,
@@ -203,48 +229,57 @@ private fun LibraryContent(
             shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
             color = MaterialTheme.colorScheme.surfaceContainerLow,
         ) {
-            when (state.tab) {
-                LibraryTab.Playlists -> PlaylistList(
-                    bottomPad = contentPadding.calculateBottomPadding(),
-                    paged = state.playlists,
-                    onOpen = onOpenPlaylist,
-                    onRetry = { onRetry(LibraryTab.Playlists) },
-                    onLoadMore = { onLoadMore(LibraryTab.Playlists) },
-                )
+            // Pager pages keep their own lazy state, so each tab's scroll survives a swipe
+            // away and back.
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize(),
+                // The default centres pages; lists and grids belong at the top.
+                verticalAlignment = Alignment.Top,
+            ) { page ->
+                when (LibraryTab.entries[page]) {
+                    LibraryTab.Playlists -> PlaylistList(
+                        bottomPad = contentPadding.calculateBottomPadding(),
+                        paged = state.playlists,
+                        onOpen = onOpenPlaylist,
+                        onRetry = { onRetry(LibraryTab.Playlists) },
+                        onLoadMore = { onLoadMore(LibraryTab.Playlists) },
+                    )
 
-                LibraryTab.Albums -> CardGrid(
-                    bottomPad = contentPadding.calculateBottomPadding(),
-                    paged = state.albums,
-                    cards = state.albums.items.map {
-                        LibraryCard(it.id, it.name, it.artistLine, it.artworkUrl)
-                    },
-                    onOpen = onOpenAlbum,
-                    onRetry = { onRetry(LibraryTab.Albums) },
-                    onLoadMore = { onLoadMore(LibraryTab.Albums) },
-                    emptyRes = R.string.library_empty_albums,
-                    circularArtwork = false,
-                )
+                    LibraryTab.Albums -> CardGrid(
+                        bottomPad = contentPadding.calculateBottomPadding(),
+                        paged = state.albums,
+                        cards = state.albums.items.map {
+                            LibraryCard(it.id, it.name, it.artistLine, it.artworkUrl)
+                        },
+                        onOpen = onOpenAlbum,
+                        onRetry = { onRetry(LibraryTab.Albums) },
+                        onLoadMore = { onLoadMore(LibraryTab.Albums) },
+                        emptyRes = R.string.library_empty_albums,
+                        circularArtwork = false,
+                    )
 
-                LibraryTab.Artists -> CardGrid(
-                    bottomPad = contentPadding.calculateBottomPadding(),
-                    paged = state.artists,
-                    cards = state.artists.items.map {
-                        LibraryCard(it.id, it.name, null, it.artworkUrl)
-                    },
-                    onOpen = onOpenArtist,
-                    onRetry = { onRetry(LibraryTab.Artists) },
-                    onLoadMore = { onLoadMore(LibraryTab.Artists) },
-                    emptyRes = R.string.library_empty_artists,
-                    circularArtwork = true,
-                )
+                    LibraryTab.Artists -> CardGrid(
+                        bottomPad = contentPadding.calculateBottomPadding(),
+                        paged = state.artists,
+                        cards = state.artists.items.map {
+                            LibraryCard(it.id, it.name, null, it.artworkUrl)
+                        },
+                        onOpen = onOpenArtist,
+                        onRetry = { onRetry(LibraryTab.Artists) },
+                        onLoadMore = { onLoadMore(LibraryTab.Artists) },
+                        emptyRes = R.string.library_empty_artists,
+                        circularArtwork = true,
+                    )
 
-                LibraryTab.Recent -> RecentList(
-                    bottomPad = contentPadding.calculateBottomPadding(),
-                    nowPlayingId = nowPlayingId,
-                    state = state.recent,
-                    onRetry = { onRetry(LibraryTab.Recent) },
-                    onPlayTracks = onPlayTracks,
-                )
+                    LibraryTab.Recent -> RecentList(
+                        bottomPad = contentPadding.calculateBottomPadding(),
+                        nowPlayingId = nowPlayingId,
+                        state = state.recent,
+                        onRetry = { onRetry(LibraryTab.Recent) },
+                        onPlayTracks = onPlayTracks,
+                    )
+                }
             }
         }
     }
@@ -267,6 +302,11 @@ private fun TabPills(
     ) {
         LibraryTab.entries.forEach { tab ->
             val isSelected = selected == tab
+            // A swipe changes the tab without a touch on the row: scroll the pill into view.
+            val bringIntoViewRequester = remember { BringIntoViewRequester() }
+            LaunchedEffect(isSelected) {
+                if (isSelected) bringIntoViewRequester.bringIntoView()
+            }
             val container by animateColorAsState(
                 targetValue = if (isSelected) {
                     MaterialTheme.colorScheme.primaryContainer
@@ -281,7 +321,10 @@ private fun TabPills(
             } else {
                 MaterialTheme.colorScheme.onSurfaceVariant
             }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.bringIntoViewRequester(bringIntoViewRequester),
+            ) {
                 Surface(
                     onClick = { onSelect(tab) },
                     shape = CircleShape,
@@ -464,7 +507,7 @@ private fun <T> CardGrid(
     bottomPad: androidx.compose.ui.unit.Dp = 0.dp,
 ) {
     when {
-        paged.isFirstLoad -> GridSkeleton(circular = circularArtwork)
+        paged.isFirstLoad -> GridSkeleton(circular = circularArtwork, bottomPad = bottomPad)
 
         paged.state is SectionState.Failed -> CenteredState {
             SectionError(error = (paged.state as SectionState.Failed).error, onRetry = onRetry)
@@ -485,7 +528,8 @@ private fun <T> CardGrid(
                 GridCard(title = card.title, subtitle = card.subtitle, artworkUrl = card.artworkUrl, circularArtwork = circularArtwork, onClick = { onOpen(card.id) })
             }
             if (paged.hasMore) {
-                item {
+                // One cell would park the indicator at the start; span the whole row.
+                item(span = { GridItemSpan(maxLineSpan) }) {
                     LaunchedEffect(Unit) { onLoadMore() }
                     Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                         LoadingIndicator(modifier = Modifier.padding(Spacing.md))
@@ -592,82 +636,70 @@ private fun EmptyText(emptyRes: Int) {
     )
 }
 
+/**
+ * The [ListCard] skeleton: same segmented card, padding, and 56 dp artwork, with bars at the
+ * text styles' line heights — same height as a real row by construction.
+ */
 @Composable
 private fun ListSkeleton() {
     Column(
         modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.md),
-        verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+        verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
     ) {
         repeat(4) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(ListItemDefaults.segmentedShapes(it, 4).shape)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                    .padding(Spacing.md),
-                horizontalArrangement = Arrangement.spacedBy(Spacing.md),
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = ListItemDefaults.segmentedShapes(it, 4).shape,
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clip(MaterialTheme.shapes.medium)
-                        .background(MaterialTheme.colorScheme.surfaceContainerHighest),
-                )
-                Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                Row(
+                    modifier = Modifier.padding(Spacing.md),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.md),
+                ) {
                     Box(
                         modifier = Modifier
-                            .width(140.dp)
-                            .height(16.dp)
-                            .clip(MaterialTheme.shapes.extraSmall)
+                            .size(56.dp)
+                            .clip(MaterialTheme.shapes.medium)
                             .background(MaterialTheme.colorScheme.surfaceContainerHighest),
                     )
-                    Box(
-                        modifier = Modifier
-                            .width(80.dp)
-                            .height(12.dp)
-                            .clip(MaterialTheme.shapes.extraSmall)
-                            .background(MaterialTheme.colorScheme.surfaceContainerHighest),
-                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        SkeletonBar(
+                            textStyle = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.fillMaxWidth(0.6f),
+                        )
+                        SkeletonBar(
+                            textStyle = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.fillMaxWidth(0.35f),
+                        )
+                    }
                 }
             }
         }
     }
 }
 
+/**
+ * The card-grid skeleton: a real [LazyVerticalGrid] with the real grid's cells and insets, so
+ * the column count matches what loads in. Scroll is off; it is a placeholder.
+ */
 @Composable
-private fun GridSkeleton(circular: Boolean) {
-    Column(
-        modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.md),
-        verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+private fun GridSkeleton(
+    circular: Boolean,
+    bottomPad: androidx.compose.ui.unit.Dp = 0.dp,
+) {
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(minSize = 152.dp),
+        userScrollEnabled = false,
+        contentPadding = PaddingValues(
+            start = Spacing.md, top = Spacing.md, end = Spacing.md,
+            bottom = Spacing.md + bottomPad,
+        ),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+        verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
     ) {
-        repeat(2) {
-            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                repeat(2) {
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(MaterialTheme.shapes.large)
-                            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                            .padding(Spacing.md),
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(120.dp)
-                                .clip(if (circular) CircleShape else MaterialTheme.shapes.large)
-                                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
-                        )
-                        Box(
-                            modifier = Modifier
-                                .padding(top = Spacing.sm)
-                                .width(90.dp)
-                                .height(14.dp)
-                                .clip(MaterialTheme.shapes.extraSmall)
-                                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
-                        )
-                    }
-                }
-            }
+        items(6) {
+            GridCardSkeleton(circularArtwork = circular, showSubtitle = !circular)
         }
     }
 }

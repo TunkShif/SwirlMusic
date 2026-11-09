@@ -25,6 +25,10 @@ data class MiniPlayerUiState(
     val isTrial: Boolean = false,
     /** A tapped track is resolving; show the loading ring instead of progress. */
     val isLoading: Boolean = false,
+    /** Changes when the track does — the text swipe keys its exit/enter animation on it. */
+    val trackKey: Long? = null,
+    val hasNext: Boolean = false,
+    val hasPrevious: Boolean = false,
 ) {
     val hasTrack: Boolean get() = !title.isNullOrBlank()
 }
@@ -63,6 +67,12 @@ class PlayerViewModel @Inject constructor(
                 progress = playback.progress,
                 isTrial = playback.isTrial,
                 isLoading = playback.isLoading,
+                // Same precedence as `current`: a pending track (not in the queue yet) wins
+                // by id; otherwise the queue uid, distinct when a track plays twice.
+                trackKey = playback.pending?.id
+                    ?: playback.queue.getOrNull(playback.currentIndex)?.uid,
+                hasNext = playback.hasNext,
+                hasPrevious = playback.hasPrevious,
             )
         }
         .stateIn(
@@ -72,6 +82,10 @@ class PlayerViewModel @Inject constructor(
         )
 
     fun togglePlayPause() = controller.togglePlayPause()
+
+    fun next() = controller.next()
+
+    fun previousTrack() = controller.previousTrack()
 
     fun play(tracks: List<Track>, startIndex: Int, rest: PlayerController.TrackPager? = null) =
         controller.play(tracks, startIndex, rest)

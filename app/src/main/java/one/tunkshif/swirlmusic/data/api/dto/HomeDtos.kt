@@ -22,7 +22,7 @@ data class TrackDto(
     val al: AlbumDto? = null,
     val dt: Long = 0,
     val fee: Int = 0,
-    /** `/search` and `/song/detail` spell the same fields differently. */
+    /** `/song/detail` spells the same fields differently from `ar`/`al`. */
     val artists: List<ArtistDto>? = null,
     val album: AlbumDto? = null,
     /** Track number on its disc; 0 = unknown. */

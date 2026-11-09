@@ -1,11 +1,10 @@
 package one.tunkshif.swirlmusic.ui.artist
 
 import androidx.compose.animation.rememberSplineBasedDecay
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
@@ -13,13 +12,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -59,7 +57,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -86,6 +83,7 @@ import one.tunkshif.swirlmusic.ui.common.SectionState
 import one.tunkshif.swirlmusic.ui.components.CollectionAction
 import one.tunkshif.swirlmusic.ui.components.CollectionToggle
 import one.tunkshif.swirlmusic.ui.components.GridCard
+import one.tunkshif.swirlmusic.ui.components.GridCardSkeleton
 import one.tunkshif.swirlmusic.ui.components.ToastPillHost
 import one.tunkshif.swirlmusic.ui.components.ToastPillState
 import one.tunkshif.swirlmusic.ui.components.TrackRow
@@ -328,15 +326,8 @@ private fun TopSongsPage(
                         count = state.value.size,
                         selected = track.id == nowPlayingId,
                         onClick = { onPlayTracks(state.value, index) },
-                        leading = {
-                            Text(
-                                (index + 1).toString(),
-                                style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.width(40.dp),
-                            )
-                        },
+                        supportingText = track.albumName?.takeIf { it.isNotBlank() }
+                            ?: track.artistLine,
                     )
                 }
             }
@@ -391,7 +382,10 @@ private fun AlbumsPage(
             }
         }
         when {
-        state.releases.isEmpty() && state.releasesLoading -> ReleasesSkeleton()
+        state.releases.isEmpty() && state.releasesLoading -> ReleasesSkeleton(
+            contentPadding = contentPadding,
+            outerPadding = outerPadding,
+        )
         state.releases.isEmpty() && state.releasesError != null -> Column(
             modifier = Modifier.padding(bottom = outerPadding.calculateBottomPadding()),
         ) {
@@ -452,7 +446,8 @@ private fun AlbumsPage(
                 )
             }
             if (state.releasesError != null || state.releasesLoading) {
-                item {
+                // One cell would park the indicator at the start; span the whole row.
+                item(span = { GridItemSpan(maxLineSpan) }) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -499,42 +494,29 @@ private fun releaseSubtitle(release: ArtistRelease): String? {
     return listOfNotNull(year, kind).takeIf { it.isNotEmpty() }?.joinToString(" · ")
 }
 
+/**
+ * The releases-grid skeleton: a real [LazyVerticalGrid] with the same cells and insets as the
+ * loaded grid, so the column count matches. Scroll is off; it is a placeholder.
+ */
 @Composable
-private fun ReleasesSkeleton() {
-    Column(
-        modifier = Modifier
-            .padding(horizontal = Spacing.md, vertical = Spacing.md),
+private fun ColumnScope.ReleasesSkeleton(
+    contentPadding: PaddingValues,
+    outerPadding: PaddingValues,
+) {
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(minSize = 152.dp),
+        modifier = Modifier.weight(1f).fillMaxWidth(),
+        userScrollEnabled = false,
+        contentPadding = PaddingValues(
+            top = Spacing.md,
+            bottom = contentPadding.calculateBottomPadding() + outerPadding.calculateBottomPadding() + Spacing.md,
+            start = Spacing.md,
+            end = Spacing.md,
+        ),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
         verticalArrangement = Arrangement.spacedBy(Spacing.sm),
     ) {
-        repeat(2) {
-            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                repeat(2) {
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(MaterialTheme.shapes.large)
-                            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                            .padding(Spacing.md),
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(120.dp)
-                                .clip(MaterialTheme.shapes.large)
-                                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
-                        )
-                        Box(
-                            modifier = Modifier
-                                .padding(top = Spacing.sm)
-                                .width(90.dp)
-                                .height(14.dp)
-                                .clip(MaterialTheme.shapes.extraSmall)
-                                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
-                        )
-                    }
-                }
-            }
-        }
+        items(6) { GridCardSkeleton(circularArtwork = false) }
     }
 }
 

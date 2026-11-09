@@ -103,6 +103,8 @@ fun SwirlApp(
     onPlayPause: () -> Unit,
     onPlayTracks: (List<Track>, Int, PlayerController.TrackPager?) -> Unit,
     modifier: Modifier = Modifier,
+    onNext: () -> Unit = {},
+    onPrevious: () -> Unit = {},
     /** Artwork colour seed re-theming the mini player and Now Playing; null keeps the app theme. */
     albumSeed: Int? = null,
     /**
@@ -204,6 +206,8 @@ fun SwirlApp(
                                         onPlayPause = onPlayPause,
                                         onOpen = { backStack.add(PlayingKey) },
                                         onOpenQueue = { showQueue = true },
+                                        onNext = onNext,
+                                        onPrevious = onPrevious,
                                         animatedVisibilityScope = dockScope,
                                     )
                                 }

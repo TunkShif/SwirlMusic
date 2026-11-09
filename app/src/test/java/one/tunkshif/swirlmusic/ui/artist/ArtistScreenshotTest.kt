@@ -82,6 +82,23 @@ class ArtistScreenshotTest {
         compose.onRoot().captureRoboImage("src/test/screenshots/artist/top-songs-dark.png")
     }
 
+    /** Covers + album names: what top songs look like when `/artists` sends `al`. */
+    @Test
+    fun top_songs_covers_light() {
+        val tracks = (1..8).map {
+            Track(
+                id = it.toLong(),
+                title = "Song $it",
+                artistLine = "Jay",
+                artworkUrl = "art-$it",
+                durationMs = 180_000,
+                albumName = "Album $it",
+            )
+        }
+        show(state().copy(topSongs = SectionState.Content(tracks)), dark = false)
+        compose.onRoot().captureRoboImage("src/test/screenshots/artist/top-songs-covers-light.png")
+    }
+
     @Test
     fun albums_light() {
         show(state().copy(releases = releases(), releasesComplete = true), dark = false, page = 1)

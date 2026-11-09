@@ -170,6 +170,17 @@ class TrackListScreenshotTest {
     fun album_header_loading_light() =
         capture("album-header-loading-light", TrackListUiState(), isAlbum = true)
 
+    /** The track-list skeleton rows match the real `TrackRow` height. */
+    @Test
+    fun loading_rows_light() {
+        compose.setContent {
+            SwirlMusicTheme(darkTheme = false, dynamicColor = false) {
+                one.tunkshif.swirlmusic.ui.common.LoadingRows()
+            }
+        }
+        compose.onRoot().captureRoboImage("src/test/screenshots/tracklist/loading-rows-light.png")
+    }
+
     /** D52: the playing row takes the fully-rounded selected segment. */
     @Test
     fun album_now_playing_light() {

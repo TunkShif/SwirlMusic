@@ -441,6 +441,21 @@ class PlayerController @Inject constructor(
         player.seekToPrevious()
     }
 
+    /**
+     * Always the previous track, never "restart current": `seekToPrevious()` restarts the
+     * track when it has played past ~3 s, `seekToPreviousMediaItem()` never does.
+     */
+    fun previousTrack() = scope.launch {
+        val restored = restoredQueue
+        if (restored != null && player.mediaItemCount == 0) {
+            applyLoopMode(restored.loopMode)
+            play(queue.map { it.track }, (restored.currentIndex - 1 + queue.size) % queue.size)
+            return@launch
+        }
+        if (player.mediaItemCount == 0 || !player.hasPreviousMediaItem()) return@launch
+        player.seekToPreviousMediaItem()
+    }
+
     /** Jump to a queue entry by uid. In restored mode this starts playback there. */
     fun skipTo(uid: Long) = scope.launch {
         val index = queue.indexOfFirst { it.uid == uid }
@@ -798,6 +813,7 @@ class PlayerController @Inject constructor(
                 IdentityOrder(queue.size)
             },
             hasNext = if (restored) queue.size > 1 else player.hasNextMediaItem(),
+            hasPrevious = if (restored) queue.size > 1 else player.hasPreviousMediaItem(),
             isTrial = current?.let { playable[it.track.id]?.isTrial } == true,
             error = error,
             pending = pendingTrack,

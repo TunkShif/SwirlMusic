@@ -14,7 +14,7 @@ internal const val CHART_PREVIEW_COUNT = 3
 private const val CHART_LINE_PREVIEW = 3
 
 internal fun TrackDto.toDomain(): Track {
-    // `/recommend/songs` uses `ar` and `al`; `/search` and `/song/detail` use `artists` and `album`.
+    // `/recommend/songs` and `/cloudsearch` use `ar` and `al`; `/song/detail` uses `artists` and `album`.
     val artists = ar.ifEmpty { artists.orEmpty() }
     val album = al ?: album
     return Track(

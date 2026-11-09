@@ -51,6 +51,7 @@ data class PlaybackState(
     /** Queue indices in the order they will play; identity order when not shuffled. */
     val playOrder: List<Int> = emptyList(),
     val hasNext: Boolean = false,
+    val hasPrevious: Boolean = false,
     val isTrial: Boolean = false,
     val error: PlaybackError? = null,
     /** A tapped track waiting for its URL — the mini player shows it before audio starts. */

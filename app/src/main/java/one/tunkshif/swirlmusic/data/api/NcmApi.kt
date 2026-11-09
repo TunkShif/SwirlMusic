@@ -253,7 +253,8 @@ class NcmApi @Inject constructor(
         offset: Int,
     ): ApiResult<SearchResults> =
         request(
-            "/search",
+            // `/cloudsearch` returns `ar`/`al` with `al.picUrl`; `/search` songs have none.
+            "/cloudsearch",
             SearchResponse.serializer(),
             mapOf(
                 "keywords" to keywords,

@@ -27,6 +27,8 @@ fun TrackRow(
     /** Highlights the row with the fully-rounded selected segment (0012-D52). */
     selected: Boolean = false,
     onClick: () -> Unit,
+    /** The supporting line; defaults to the artists. */
+    supportingText: String = track.artistLine,
     leading: (@Composable () -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
     colors: androidx.compose.material3.ListItemColors = ListItemDefaults.segmentedColors(
@@ -61,7 +63,7 @@ fun TrackRow(
         },
         supportingContent = {
             Text(
-                text = track.artistLine,
+                text = supportingText,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,

@@ -88,6 +88,8 @@ private fun SessionBranch(
                 onQueueEvent = onQueueEvent,
                 onPlayPause = playerViewModel::togglePlayPause,
                 onPlayTracks = playerViewModel::play,
+                onNext = playerViewModel::next,
+                onPrevious = playerViewModel::previousTrack,
                 homeViewModel = homeViewModel,
                 libraryViewModel = libraryViewModel,
             )

@@ -1,0 +1,104 @@
+{
+  "result": {
+    "songs": [
+      {
+        "dt": 240000,
+        "rtype": 0,
+        "no": 15,
+        "fee": 8,
+        "name": "The Ballad of Matt & Mica",
+        "al": {
+          "picUrl": "http://p3.music.126.net/mWNiDREeGb4B2sI9JndUzA==/109951169891120142.jpg",
+          "name": "Imaginal Disk",
+          "tns": [],
+          "pic_str": "109951169891120142",
+          "id": 245618979,
+          "pic": 109951169891120140
+        },
+        "id": 2619307815,
+        "pop": 95,
+        "mv": 0,
+        "v": 37,
+        "cd": "01",
+        "ar": [
+          {
+            "name": "Magdalena Bay",
+            "tns": [],
+            "alias": [],
+            "id": 12603779
+          }
+        ],
+        "publishTime": 1724342400000
+      },
+      {
+        "dt": 152053,
+        "rtype": 0,
+        "no": 6,
+        "fee": 8,
+        "name": "Fear, Sex",
+        "al": {
+          "picUrl": "http://p4.music.126.net/mWNiDREeGb4B2sI9JndUzA==/109951169891120142.jpg",
+          "name": "Imaginal Disk",
+          "tns": [
+            "幻想光碟"
+          ],
+          "pic_str": "109951169891120142",
+          "id": 245618979,
+          "pic": 109951169891120140
+        },
+        "id": 2619308686,
+        "pop": 90,
+        "mv": 22658953,
+        "v": 38,
+        "cd": "01",
+        "ar": [
+          {
+            "name": "Magdalena Bay",
+            "tns": [],
+            "alias": [],
+            "id": 12603779
+          }
+        ],
+        "publishTime": 1724342400000
+      },
+      {
+        "dt": 307266,
+        "rtype": 0,
+        "no": 13,
+        "fee": 8,
+        "name": "Cry for Me",
+        "al": {
+          "picUrl": "http://p4.music.126.net/mWNiDREeGb4B2sI9JndUzA==/109951169891120142.jpg",
+          "name": "Imaginal Disk",
+          "tns": [],
+          "pic_str": "109951169891120142",
+          "id": 245618979,
+          "pic": 109951169891120140
+        },
+        "id": 2619307813,
+        "pop": 80,
+        "mv": 0,
+        "v": 37,
+        "cd": "01",
+        "ar": [
+          {
+            "name": "Magdalena Bay",
+            "tns": [],
+            "alias": [],
+            "id": 12603779
+          }
+        ],
+        "publishTime": 1724342400000
+      }
+    ],
+    "songCount": 174
+  },
+  "code": 200,
+  "trp": {
+    "rules": [
+      "search_tab_song::2619307813::searchAlg$isGlobalQuality$1",
+      "search_tab_song::2619307815::searchAlg$isGlobalQuality$1",
+      "search_tab_song::2619308686::searchAlg$isGlobalQuality$1"
+    ]
+  }
+}

@@ -22,6 +22,9 @@ Taken from the deployment with the development token, then trimmed.
   `type`/`subType` variant and the `artist` object dropped.
 - `artist_desc.json` — real `/artist/desc?id=6452`, `briefDesc` and `txt` cut to 200 chars,
   `introduction` trimmed to 2, `topicData`/`count` dropped.
+- `cloudsearch_songs.json` — real `/cloudsearch?keywords=magdalena bay&type=1&limit=3`; per-song
+  audio payloads (`privilege`, `h`, `m`, `l`, `sq`, `rt*`) dropped, `al`/`ar`/`dt`/`id`/`name`/
+  `fee`/`no`/`cd` kept — `/cloudsearch` spells artists and album `ar`/`al`, like `/song/detail`.
 
 ## Synthetic
 

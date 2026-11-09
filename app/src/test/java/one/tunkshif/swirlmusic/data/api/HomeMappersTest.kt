@@ -106,8 +106,8 @@ class HomeMappersTest {
     }
 
     @Test
-    fun `a search-style track reads the album from the album key`() {
-        // `/search` and `/song/detail` spell the album object `album`, not `al`.
+    fun `a song-detail-style track reads the album from the album key`() {
+        // `/song/detail` spells the album object `album`, not `al`.
         val dto = json.decodeFromString<one.tunkshif.swirlmusic.data.api.dto.TrackDto>(
             """
             {
