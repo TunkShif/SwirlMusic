@@ -2,11 +2,13 @@ package one.tunkshif.swirlmusic.ui.comments
 
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsNotSelected
-import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -103,7 +105,14 @@ class CommentsScreenTest {
                 timeMillis = nowMillis - 3 * 3_600_000L,
                 location = "Shanghai",
             ),
-            comment(id = 2, user = "Listener 7", text = "plain words", timeMillis = nowMillis - 2 * 24 * 3_600_000L + 1000),
+            comment(
+                id = 2,
+                user = "Listener 7",
+                text = "plain words",
+                replyCount = 0,
+                likedCount = 0,
+                timeMillis = nowMillis - 2 * 24 * 3_600_000L + 1000,
+            ),
         )
         setContent(CommentsUiState(comments = SectionState.Content(comments), totalCount = 1_969_866L))
 
@@ -115,6 +124,8 @@ class CommentsScreenTest {
         composeTestRule.onNodeWithText("Listener 7").assertIsDisplayed()
         composeTestRule.onNodeWithText("plain words").assertIsDisplayed()
         composeTestRule.onNodeWithText("1,969,866 comments").assertIsDisplayed()
+        // 0 likes and 0 replies: Listener 7's row shows no like group and no footer.
+        composeTestRule.onAllNodesWithText("0").assertCountEquals(0)
     }
 
     @Test
@@ -124,8 +135,8 @@ class CommentsScreenTest {
             CommentsUiState(comments = SectionState.Content(listOf(comment(1)))),
             onSelectSort = { selected = it },
         )
-        composeTestRule.onNodeWithText("Hot").assertIsSelected()
-        composeTestRule.onNodeWithText("Newest").assertIsNotSelected()
+        composeTestRule.onNodeWithText("Hot").assertIsOn()
+        composeTestRule.onNodeWithText("Newest").assertIsOff()
         composeTestRule.onNodeWithText("Newest").performClick()
         assertThat(selected).isEqualTo(CommentSort.Newest)
     }

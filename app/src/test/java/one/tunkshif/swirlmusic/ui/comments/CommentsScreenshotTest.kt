@@ -91,7 +91,7 @@ class CommentsScreenshotTest {
                     id = 4,
                     user = "Tape Deck",
                     text = "heard this in a record store and had to ask what it was",
-                    likedCount = 12,
+                    likedCount = 0,
                     timeMillis = Instant.parse("2025-11-20T18:00:00Z").toEpochMilli(),
                 ),
             ),

@@ -7,6 +7,9 @@ import one.tunkshif.swirlmusic.data.model.CommentPage
 import one.tunkshif.swirlmusic.data.model.CommentPageKey
 import one.tunkshif.swirlmusic.data.model.CommentQuote
 
+/** 40 dp avatar × 3 density buckets: matches what the comment rows draw. */
+private const val COMMENT_AVATAR_PX = 120
+
 internal fun CommentPageDto.toCommentPage(pageNo: Int): CommentPage {
     val mapped = comments.map { it.toDomain() }
     return CommentPage(
@@ -24,7 +27,8 @@ internal fun CommentDto.toDomain(): Comment = Comment(
     id = commentId,
     userId = user?.userId ?: 0,
     userName = user?.nickname.orEmpty(),
-    avatarUrl = user?.avatarUrl,
+    // NetEase hands out http:// avatars; sizedArtwork upgrades to https and pins the size.
+    avatarUrl = user?.avatarUrl?.takeIf { it.isNotBlank() }?.let { sizedArtwork(it, COMMENT_AVATAR_PX) },
     text = CommentEmoji.mapCommentEmoji(content.orEmpty()),
     timeMillis = time,
     likedCount = likedCount,

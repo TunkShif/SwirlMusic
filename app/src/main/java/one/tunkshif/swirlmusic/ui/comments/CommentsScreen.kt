@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
@@ -25,13 +26,14 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ButtonGroupDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonSize
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -95,7 +97,7 @@ fun CommentsRoute(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun CommentsScreen(
     state: CommentsUiState,
@@ -155,36 +157,58 @@ fun CommentsScreen(
                     .fillMaxSize()
                     .padding(innerPadding),
             ) {
-                val sorts = CommentSort.entries
-                SingleChoiceSegmentedButtonRow(
+                // One compact header row: the thread's total on the left, a small connected
+                // toggle group for Hot/Newest on the right.
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = Spacing.xl, vertical = Spacing.sm),
-                ) {
-                    sorts.forEachIndexed { index, sort ->
-                        SegmentedButton(
-                            selected = state.sort == sort,
-                            onClick = { onSelectSort(sort) },
-                            shape = SegmentedButtonDefaults.itemShape(
-                                index = index,
-                                count = sorts.size,
-                            ),
-                            label = { Text(stringResource(sort.labelRes())) },
-                        )
-                    }
-                }
-                state.totalCount?.let { total ->
-                    val locale = LocalConfiguration.current.locales[0]
-                    Text(
-                        text = pluralStringResource(
-                            R.plurals.comments_count,
-                            total.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
-                            String.format(locale, "%,d", total),
+                        .padding(
+                            // Lines the count up with the card text inset: card edge + its
+                            // inner padding (md + lg), buttons flush with the card's edge.
+                            start = Spacing.md + Spacing.lg,
+                            end = Spacing.md,
+                            top = Spacing.xs,
+                            bottom = Spacing.md,
                         ),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = Spacing.xl),
-                    )
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    val total = state.totalCount
+                    if (total != null) {
+                        val locale = LocalConfiguration.current.locales[0]
+                        Text(
+                            text = pluralStringResource(
+                                R.plurals.comments_count,
+                                total.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+                                String.format(locale, "%,d", total),
+                            ),
+                            style = MaterialTheme.typography.titleSmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                        )
+                    } else {
+                        // The toggles hold the row's height until the first page reports a total.
+                        Spacer(Modifier.weight(1f))
+                    }
+                    Row(
+                        horizontalArrangement =
+                            Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
+                    ) {
+                        CommentSort.entries.forEachIndexed { index, sort ->
+                            ToggleButton(
+                                checked = state.sort == sort,
+                                onCheckedChange = { onSelectSort(sort) },
+                                buttonSize = ToggleButtonSize.ExtraSmall,
+                                shapes = if (index == 0) {
+                                    ButtonGroupDefaults.connectedLeadingButtonShapes()
+                                } else {
+                                    ButtonGroupDefaults.connectedTrailingButtonShapes()
+                                },
+                            ) {
+                                Text(stringResource(sort.labelRes()))
+                            }
+                        }
+                    }
                 }
                 Box(modifier = Modifier.weight(1f)) {
                     when (val comments = state.comments) {
@@ -296,12 +320,33 @@ private fun CommentRow(
             verticalArrangement = Arrangement.spacedBy(Spacing.xs),
             modifier = Modifier.weight(1f),
         ) {
-            Text(
-                text = comment.userName,
-                style = MaterialTheme.typography.titleSmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = comment.userName,
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                if (comment.likedCount > 0) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.xxs),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_favorite),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Text(
+                            text = formatCount(comment.likedCount),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
             Text(
                 text = commentMeta(comment, nowMillis),
                 style = MaterialTheme.typography.labelMedium,
@@ -331,32 +376,16 @@ private fun CommentRow(
                 }
             }
             Text(text = comment.text, style = MaterialTheme.typography.bodyMedium)
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(Spacing.md),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_favorite),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(14.dp),
-                )
+            if (comment.replyCount > 0) {
                 Text(
-                    text = formatCount(comment.likedCount),
+                    text = pluralStringResource(
+                        R.plurals.comments_reply_count,
+                        comment.replyCount,
+                        comment.replyCount,
+                    ),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                if (comment.replyCount > 0) {
-                    Text(
-                        text = pluralStringResource(
-                            R.plurals.comments_reply_count,
-                            comment.replyCount,
-                            comment.replyCount,
-                        ),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
             }
         }
     }

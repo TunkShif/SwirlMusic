@@ -34,7 +34,7 @@
           "userId": 90000001,
           "userType": 0,
           "nickname": "Listener 1",
-          "avatarUrl": "https://example.invalid/avatar/1.jpg",
+          "avatarUrl": "http://example.invalid/avatar/1.jpg",
           "authStatus": 0,
           "expertTags": null,
           "experts": null,

@@ -91,6 +91,8 @@ class NcmCommentsApiTest {
         val first = page.comments.first()
         assertThat(first.id).isEqualTo(4956438)
         assertThat(first.userName).isEqualTo("Listener 1")
+        // The API serves http:// avatars; the mapper upgrades and sizes them for the 40 dp row.
+        assertThat(first.avatarUrl).isEqualTo("https://example.invalid/avatar/1.jpg?param=120y120")
         assertThat(first.likedCount).isEqualTo(823213)
         assertThat(first.replyCount).isEqualTo(14)
         assertThat(first.location).isNull()
