@@ -86,6 +86,32 @@ class TrackListScreenTest {
     }
 
     @Test
+    fun `the comments action opens the thread`() {
+        var opened = false
+        compose.setContent {
+            CompositionLocalProvider(LocalArtworkPainter provides ColorPainter(Color(0xFF9AA0C8))) {
+                SwirlMusicTheme(dynamicColor = false) {
+                    TrackListScreen(
+                        state = albumState(saved = true),
+                        isAlbum = true,
+                        onBack = {},
+                        onRetry = {},
+                        onLoadMore = {},
+                        onToggleSave = {},
+                        onOpenComments = { opened = true },
+                        onPlayTracks = { _, _ -> },
+                    )
+                }
+            }
+        }
+
+        compose.onNodeWithContentDescription(res(R.string.comments_open))
+            .assertIsDisplayed()
+            .performClick()
+        assertThat(opened).isTrue()
+    }
+
+    @Test
     fun `an unsaved album offers save and toggles`() {
         setAlbumContent(albumState(saved = false))
 

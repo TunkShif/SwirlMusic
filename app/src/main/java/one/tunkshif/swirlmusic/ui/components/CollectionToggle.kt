@@ -18,10 +18,13 @@ import androidx.compose.material3.FilledTonalToggleButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.ToggleButtonDefaults
+import androidx.compose.material3.ToggleButtonShapes
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -35,7 +38,8 @@ private val CollectionSkeletonWidth = 104.dp
 
 /**
  * The collection pill of a detail header: [checked] picks icon and label; the M3 Expressive
- * toggle morphs its shape on check. Same height as the Play-all pill.
+ * toggle morphs its shape on check. Same height as the Play-all pill. [shapes] overrides the
+ * default shapes, e.g. the connected-leading shapes when the pill leads a button group.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -47,11 +51,13 @@ fun CollectionToggle(
     @StringRes checkedLabel: Int,
     @StringRes uncheckedLabel: Int,
     modifier: Modifier = Modifier,
+    shapes: ToggleButtonShapes? = null,
 ) {
     FilledTonalToggleButton(
         checked = checked,
         onCheckedChange = onCheckedChange,
         modifier = modifier.height(CollectionPillHeight),
+        shapes = shapes ?: ToggleButtonDefaults.shapesFor(ToggleButtonDefaults.size),
     ) {
         Icon(
             painter = painterResource(if (checked) checkedIcon else uncheckedIcon),
@@ -67,13 +73,16 @@ fun CollectionToggle(
 
 /**
  * The whole slot: a skeleton stadium while the state read is in flight, the toggle once it
- * lands, nothing if it failed — Play all is anchored at the end, so nothing else moves.
+ * lands — the last-known read means the slot never fails visibly (0012-D51), and Play all
+ * is anchored at the end, so nothing else moves. [skeletonShape] lets a connected group
+ * keep the leading shape through the cross-fade.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun CollectionAction(
     state: CollectionSlotState,
     modifier: Modifier = Modifier,
+    skeletonShape: Shape = RoundedCornerShape(50),
     content: @Composable () -> Unit,
 ) {
     val spec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
@@ -90,7 +99,7 @@ fun CollectionAction(
                 modifier = Modifier
                     .width(CollectionSkeletonWidth)
                     .height(CollectionPillHeight)
-                    .clip(RoundedCornerShape(50))
+                    .clip(skeletonShape)
                     .background(MaterialTheme.colorScheme.surfaceContainerHigh),
             )
             CollectionSlotState.Ready -> content()

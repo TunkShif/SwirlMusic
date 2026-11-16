@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -23,7 +24,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FilledTonalIconToggleButton
 import androidx.compose.material3.Icon
@@ -222,30 +225,70 @@ fun TrackListScreen(
                 onArtworkClick = onArtworkClick,
                 onDescriptionClick = { showSheet = true },
                 leadingActions = {
+                    // The slot only renders once the header content is there (D50).
+                    val commentsLabel = stringResource(R.string.comments_open)
                     if (isAlbum) {
-                        CollectionAction(state = state.saveState) {
-                            CollectionToggle(
-                                checked = state.saved,
-                                onCheckedChange = { onToggleSave() },
-                                checkedIcon = R.drawable.ic_favorite_fill,
-                                uncheckedIcon = R.drawable.ic_favorite,
-                                checkedLabel = R.string.track_list_saved,
-                                uncheckedLabel = R.string.track_list_save,
+                        // Save toggle + comments as one connected group (D38): the
+                        // skeleton keeps the leading connected shape through the fade.
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(
+                                ButtonGroupDefaults.ConnectedSpaceBetween,
+                            ),
+                        ) {
+                            CollectionAction(
+                                state = state.saveState,
+                                skeletonShape =
+                                    ButtonGroupDefaults.connectedLeadingButtonShape,
+                            ) {
+                                CollectionToggle(
+                                    checked = state.saved,
+                                    onCheckedChange = { onToggleSave() },
+                                    checkedIcon = R.drawable.ic_favorite_fill,
+                                    uncheckedIcon = R.drawable.ic_favorite,
+                                    checkedLabel = R.string.track_list_saved,
+                                    uncheckedLabel = R.string.track_list_save,
+                                    shapes =
+                                        ButtonGroupDefaults.connectedLeadingButtonShapes(),
+                                )
+                            }
+                            FilledTonalIconButton(
+                                onClick = onOpenComments,
+                                shapes = IconButtonDefaults.shapes(
+                                    shape =
+                                        ButtonGroupDefaults.connectedTrailingButtonShape,
+                                    pressedShape =
+                                        ButtonGroupDefaults.connectedTrailingButtonPressShape,
+                                ),
+                                modifier = Modifier.size(
+                                    IconButtonDefaults.smallContainerSize(
+                                        IconButtonDefaults.IconButtonWidthOption.Wide,
+                                    ),
+                                ),
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_comment),
+                                    contentDescription = commentsLabel,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            }
+                        }
+                    } else {
+                        // Playlists have no save action; a labelled pill from the same
+                        // family as the album's toggle carries the comments entry.
+                        FilledTonalButton(
+                            onClick = onOpenComments,
+                            modifier = Modifier.height(40.dp),
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_comment),
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp),
+                            )
+                            Text(
+                                text = commentsLabel,
+                                modifier = Modifier.padding(start = Spacing.xs),
                             )
                         }
-                        Spacer(Modifier.width(Spacing.sm))
-                    }
-                    // The slot only renders once the header content is there (D50).
-                    FilledTonalIconButton(
-                        onClick = onOpenComments,
-                        modifier = Modifier.size(40.dp),
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_comment),
-                            contentDescription = stringResource(R.string.comments_open),
-                            // The Saved pill's icon size, so the round button doesn't read heavier.
-                            modifier = Modifier.size(20.dp),
-                        )
                     }
                 },
             )
