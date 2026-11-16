@@ -112,7 +112,7 @@ class ShellScreenshotTest {
                         ),
                         albumSeed = albumSeed,
                         onPlayPause = {},
-                        onPlayTracks = { _, _, _ -> },
+                        onPlayTracks = { _, _, _, _ -> },
                         homeContent = { _ -> TestHome() },
                         libraryContent = { _, _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
                         playingContent = { _, _, _, _, _ ->
@@ -149,7 +149,7 @@ class ShellScreenshotTest {
                         isLoading = true,
                     ),
                     onPlayPause = {},
-                    onPlayTracks = { _, _, _ -> },
+                    onPlayTracks = { _, _, _, _ -> },
                     homeContent = { _ -> TestHome() },
                     libraryContent = { _, _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
                 )
@@ -177,7 +177,7 @@ class ShellScreenshotTest {
                     ),
                     albumSeed = albumSeed,
                     onPlayPause = {},
-                    onPlayTracks = { _, _, _ -> },
+                    onPlayTracks = { _, _, _, _ -> },
                     homeContent = { _ -> TestHome() },
                     libraryContent = { _, _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
                 )

@@ -199,10 +199,10 @@ class PlayerController @Inject constructor(
 
         // Restore the last queue so the mini player shows the last track, paused.
         scope.launch {
-            val (tracks, restored) = resumeStore.load() ?: return@launch
+            val (entries, restored) = resumeStore.load() ?: return@launch
             if (player.mediaItemCount > 0 || queue.isNotEmpty()) return@launch
             restoredQueue = restored
-            queue = tracks.map { QueueEntry(nextUid(), it) }
+            queue = entries.map { (track, source) -> QueueEntry(nextUid(), track, source) }
             publish()
         }
 
@@ -273,7 +273,7 @@ class PlayerController @Inject constructor(
                 return@launch
             }
             resumeStore.save(
-                queue = queue.map { it.track },
+                queue = queue.map { it.track to it.sourceAlbumId },
                 currentIndex = currentIndex().takeIf { it >= 0 } ?: 0,
                 positionMs = positionMs,
                 loopMode = loopMode(),
@@ -295,21 +295,58 @@ class PlayerController @Inject constructor(
     private var pendingTrack: Track? = null
     private var playWhenReadyIntent = false
 
+    /**
+     * Start a new queue. Every entry this play creates — the window, the head/tail fill, and
+     * everything [rest] appends — carries [sourceAlbumId] so listens scrobble with the album
+     * the play was started from (recently-played-albums; null for every other surface).
+     */
+    fun play(
+        tracks: List<Track>,
+        startIndex: Int,
+        rest: TrackPager? = null,
+        startPositionMs: Long = 0,
+        sourceAlbumId: Long? = null,
+    ) = playWithSources(
+        tracks.map { it to sourceAlbumId },
+        startIndex,
+        rest,
+        sourceAlbumId,
+        startPositionMs,
+    )
+
+    /**
+     * Restart the restored queue where it paused. The entries keep their saved per-entry
+     * source, so a resumed album queue still scrobbles as an album play.
+     */
+    private fun replayQueue(startIndex: Int, startPositionMs: Long = 0) = playWithSources(
+        queue.map { it.track to it.sourceAlbumId },
+        startIndex,
+        null,
+        null,
+        startPositionMs,
+    )
+
     @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
-    fun play(tracks: List<Track>, startIndex: Int, rest: TrackPager? = null, startPositionMs: Long = 0) {
-        if (tracks.isEmpty()) return
+    private fun playWithSources(
+        entries: List<Pair<Track, Long?>>,
+        startIndex: Int,
+        rest: TrackPager?,
+        restSourceAlbumId: Long?,
+        startPositionMs: Long,
+    ) {
+        if (entries.isEmpty()) return
         val generation = ++playGeneration
         playJob?.cancel()
         // Show the tapped track at once; the old song stops immediately.
-        pendingTrack = tracks.getOrNull(startIndex.coerceIn(0, tracks.lastIndex))
+        pendingTrack = entries.getOrNull(startIndex.coerceIn(0, entries.lastIndex))?.first
         playWhenReadyIntent = true
         if (player.isPlaying) player.pause()
         publish(error = null)
         val pendingStartTrackId = pendingTrack?.id
         playJob = scope.launch {
             // Fast start: resolve only the window around the tapped track.
-            val split = queueSplit(tracks.size, startIndex, PLAY_WINDOW)
-            val window = tracks.subList(split.window.first, split.window.last + 1)
+            val split = queueSplit(entries.size, startIndex, PLAY_WINDOW)
+            val window = entries.subList(split.window.first, split.window.last + 1)
             val items = itemsFor(window)
             if (items.isEmpty()) {
                 pendingTrack = null
@@ -317,15 +354,15 @@ class PlayerController @Inject constructor(
                 return@launch
             }
             // The start track must play: if it was dropped, start at the first playable.
-            val windowTracks = items.map { it.first }
-            val newStart = (windowTracks.indexOfFirst { it.id == window.getOrNull(0)?.id })
+            val windowTracks = items.map { it.track }
+            val newStart = (windowTracks.indexOfFirst { it.id == window.getOrNull(0)?.first?.id })
                 .takeIf { it >= 0 } ?: 0
-            queue = windowTracks.map { QueueEntry(nextUid(), it) }
+            queue = items.map { QueueEntry(nextUid(), it.track, it.sourceAlbumId) }
             retriedTracks.clear()
             pendingTrack = null
             restoredQueue = null
             val seekMs = if (windowTracks[newStart].id == pendingStartTrackId) startPositionMs else 0
-            player.setMediaItems(items.map { it.second }, newStart, seekMs)
+            player.setMediaItems(items.map { it.item }, newStart, seekMs)
             // setMediaItems replaces the shuffle order with a random one; put the start first again.
             if (player.shuffleModeEnabled && player.mediaItemCount > 1) {
                 player.setShuffleOrder(
@@ -343,15 +380,15 @@ class PlayerController @Inject constructor(
 
             // Background fill, in order: tail of the list, then the head (inserted at 0 so
             // list order holds), then pager chunks. Each step bails if a newer play() won.
-            val tail = tracks.subList(split.tail.first, split.tail.last + 1)
+            val tail = entries.subList(split.tail.first, split.tail.last + 1)
             appendResolved(tail, generation)
             if (!isCurrent(generation)) return@launch
-            val head = tracks.subList(split.head.first, split.head.last + 1)
+            val head = entries.subList(split.head.first, split.head.last + 1)
             if (head.isNotEmpty()) {
                 val headItems = itemsFor(head)
                 if (headItems.isNotEmpty() && isCurrent(generation)) {
-                    player.addMediaItems(0, headItems.map { it.second })
-                    queue = headItems.map { QueueEntry(nextUid(), it.first) } + queue
+                    player.addMediaItems(0, headItems.map { it.item })
+                    queue = headItems.map { QueueEntry(nextUid(), it.track, it.sourceAlbumId) } + queue
                     publish()
                     saveResumeState(generation, player.currentPosition)
                 }
@@ -361,7 +398,9 @@ class PlayerController @Inject constructor(
                 while (isActive && isCurrent(generation)) {
                     val chunk = rest.next() ?: break
                     // Empty is a dead slice, not the end of the list.
-                    if (chunk.isNotEmpty()) appendResolved(chunk, generation)
+                    if (chunk.isNotEmpty()) {
+                        appendResolved(chunk.map { it to restSourceAlbumId }, generation)
+                    }
                 }
             }
         }
@@ -370,26 +409,29 @@ class PlayerController @Inject constructor(
     private fun isCurrent(generation: Int) = generation == playGeneration
 
     /** Resolve + append a slice of tracks at the queue end, keeping queue/playable in sync. */
-    private suspend fun appendResolved(tracks: List<Track>, generation: Int) {
-        tracks.chunked(RESOLVE_CHUNK).forEach { chunk ->
+    private suspend fun appendResolved(entries: List<Pair<Track, Long?>>, generation: Int) {
+        entries.chunked(RESOLVE_CHUNK).forEach { chunk ->
             if (!isCurrent(generation)) return
             val items = itemsFor(chunk)
             if (items.isNotEmpty()) {
-                queue = queue + items.map { QueueEntry(nextUid(), it.first) }
-                player.addMediaItems(items.map { it.second })
+                queue = queue + items.map { QueueEntry(nextUid(), it.track, it.sourceAlbumId) }
+                player.addMediaItems(items.map { it.item })
                 publish()
                 saveResumeState(generation, player.currentPosition)
             }
         }
     }
 
-    /** Resolve a slice and return (track, MediaItem) pairs for the playable ones, in order. */
-    private suspend fun itemsFor(tracks: List<Track>): List<Pair<Track, MediaItem>> {
-        val resolved = resolver.resolve(tracks.map { it.id })
-        return tracks.mapNotNull { track ->
+    /** A resolved track: its source album and the ready MediaItem. */
+    private class ResolvedItem(val track: Track, val sourceAlbumId: Long?, val item: MediaItem)
+
+    /** Resolve a slice and return the playable (track, source, MediaItem)s, in order. */
+    private suspend fun itemsFor(entries: List<Pair<Track, Long?>>): List<ResolvedItem> {
+        val resolved = resolver.resolve(entries.map { it.first.id })
+        return entries.mapNotNull { (track, sourceAlbumId) ->
             val url = resolved[track.id]?.takeIf { it.isPlayable } ?: return@mapNotNull null
             playable[track.id] = url
-            track to buildItem(track, requireNotNull(url.url))
+            ResolvedItem(track, sourceAlbumId, buildItem(track, requireNotNull(url.url)))
         }
     }
 
@@ -406,7 +448,7 @@ class PlayerController @Inject constructor(
         if (restored != null && player.mediaItemCount == 0) {
             // Restore the loop mode first, then take the normal play path at the saved spot.
             applyLoopMode(restored.loopMode)
-            play(queue.map { it.track }, restored.currentIndex, startPositionMs = restored.positionMs)
+            replayQueue(restored.currentIndex, restored.positionMs)
             return@launch
         }
         if (player.mediaItemCount == 0) return@launch
@@ -423,7 +465,7 @@ class PlayerController @Inject constructor(
         if (restored != null && player.mediaItemCount == 0) {
             // Every mode loops, so "next" wraps around.
             applyLoopMode(restored.loopMode)
-            play(queue.map { it.track }, (restored.currentIndex + 1) % queue.size)
+            replayQueue((restored.currentIndex + 1) % queue.size)
             return@launch
         }
         if (player.mediaItemCount == 0) return@launch
@@ -434,7 +476,7 @@ class PlayerController @Inject constructor(
         val restored = restoredQueue
         if (restored != null && player.mediaItemCount == 0) {
             applyLoopMode(restored.loopMode)
-            play(queue.map { it.track }, (restored.currentIndex - 1 + queue.size) % queue.size)
+            replayQueue((restored.currentIndex - 1 + queue.size) % queue.size)
             return@launch
         }
         if (player.mediaItemCount == 0) return@launch
@@ -449,7 +491,7 @@ class PlayerController @Inject constructor(
         val restored = restoredQueue
         if (restored != null && player.mediaItemCount == 0) {
             applyLoopMode(restored.loopMode)
-            play(queue.map { it.track }, (restored.currentIndex - 1 + queue.size) % queue.size)
+            replayQueue((restored.currentIndex - 1 + queue.size) % queue.size)
             return@launch
         }
         if (player.mediaItemCount == 0 || !player.hasPreviousMediaItem()) return@launch
@@ -463,7 +505,7 @@ class PlayerController @Inject constructor(
         val restored = restoredQueue
         if (restored != null && player.mediaItemCount == 0) {
             applyLoopMode(restored.loopMode)
-            play(queue.map { it.track }, index)
+            replayQueue(index)
             return@launch
         }
         if (player.mediaItemCount == 0) return@launch
@@ -762,7 +804,8 @@ class PlayerController @Inject constructor(
     }
 
     private fun maybeReportListen() {
-        val track = queue.getOrNull(player.currentMediaItemIndex)?.track ?: return
+        val entry = queue.getOrNull(player.currentMediaItemIndex) ?: return
+        val track = entry.track
         val position = player.currentPosition
         val duration = player.duration.takeIf { it > 0 } ?: track.durationMs
 
@@ -770,7 +813,7 @@ class PlayerController @Inject constructor(
 
         scrobbler.markReported(track.id)
         val playedSeconds = (position / 1_000).toInt()
-        scope.launch { playbackApi.scrobble(track.id, playedSeconds) }
+        scope.launch { playbackApi.scrobble(track.id, playedSeconds, entry.sourceAlbumId) }
     }
 
     /**

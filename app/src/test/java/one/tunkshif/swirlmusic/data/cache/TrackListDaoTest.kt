@@ -66,10 +66,13 @@ class TrackListDaoTest {
 
     @Test
     fun `queue and resume rows round trip`() = runTest {
-        dao.replaceQueue(listOf(5L, 9L, 3L))
+        dao.replaceQueue(listOf(5L to null, 9L to 42L, 3L to null))
         dao.saveResume(PlaybackResumeEntity(0, 1, 42_000, 2, 1000))
 
-        assertThat(dao.queueIds()).containsExactly(5L, 9L, 3L).inOrder()
+        dao.queueItems().let {
+            assertThat(it.map { item -> item.trackId }).containsExactly(5L, 9L, 3L).inOrder()
+            assertThat(it.map { item -> item.sourceAlbumId }).containsExactly(null, 42L, null).inOrder()
+        }
         dao.resume()!!.let {
             assertThat(it.currentIndex).isEqualTo(1)
             assertThat(it.positionMs).isEqualTo(42_000)
@@ -89,19 +92,19 @@ class TrackListDaoTest {
 
     @Test
     fun `clearQueue and clearResume wipe the persisted playback state`() = runTest {
-        dao.replaceQueue(listOf(5L))
+        dao.replaceQueue(listOf(5L to null))
         dao.saveResume(PlaybackResumeEntity(0, 0, 0, 0, 0))
 
         dao.clearQueue()
         dao.clearResume()
 
-        assertThat(dao.queueIds()).isEmpty()
+        assertThat(dao.queueItems()).isEmpty()
         assertThat(dao.resume()).isNull()
     }
 
     @Test
     fun `evict keeps tracks referenced by the queue`() = runTest {
-        dao.replaceQueue(listOf(55L))
+        dao.replaceQueue(listOf(55L to null))
         dao.upsertTracks(listOf(track(55), track(77)))
         dao.replaceSnapshot(snapshot("old", openedAt = -1), listOf(77L))
 

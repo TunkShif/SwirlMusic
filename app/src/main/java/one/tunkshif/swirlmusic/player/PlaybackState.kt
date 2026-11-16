@@ -24,9 +24,10 @@ internal fun loopModeOf(playerRepeatMode: Int, shuffle: Boolean): LoopMode = whe
 
 /**
  * One queue slot. [uid] identifies the entry across reorder and removal; it is never reused
- * within the process, so two plays of the same track stay distinct.
+ * within the process, so two plays of the same track stay distinct. [sourceAlbumId] is the
+ * album the play was started from — scrobbled so NetEase's recently-played-albums sees it.
  */
-data class QueueEntry(val uid: Long, val track: Track)
+data class QueueEntry(val uid: Long, val track: Track, val sourceAlbumId: Long? = null)
 
 enum class PlaybackError {
     /** The server returned no URL: taken down, or premium only. */

@@ -106,16 +106,19 @@ interface TrackListDao {
     @Query("DELETE FROM playback_resume")
     fun clearResume()
 
-    @Query("SELECT trackId FROM queue_item ORDER BY position")
-    fun queueIds(): List<Long>
+    @Query("SELECT * FROM queue_item ORDER BY position")
+    fun queueItems(): List<QueueItemEntity>
 
     @Query("SELECT * FROM playback_resume WHERE id = 0")
     fun resume(): PlaybackResumeEntity?
 
+    /** Each pair is a track id and the album it was played from, if any. */
     @Transaction
-    fun replaceQueue(trackIds: List<Long>) {
+    fun replaceQueue(entries: List<Pair<Long, Long?>>) {
         clearQueue()
-        trackIds.forEachIndexed { i, id -> upsertQueueItem(QueueItemEntity(i, id)) }
+        entries.forEachIndexed { i, (id, sourceAlbumId) ->
+            upsertQueueItem(QueueItemEntity(i, id, sourceAlbumId))
+        }
     }
 
     @androidx.room.Upsert

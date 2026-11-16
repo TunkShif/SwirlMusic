@@ -8,6 +8,8 @@ import androidx.room.PrimaryKey
 data class QueueItemEntity(
     @PrimaryKey val position: Int,
     val trackId: Long,
+    /** The album this entry was played from, when it was (scrobbled as the play source). */
+    val sourceAlbumId: Long? = null,
 )
 
 /** The one resume row: where the queue's current track left off. */

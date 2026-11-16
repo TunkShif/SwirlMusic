@@ -149,7 +149,7 @@ class PlayerControllerQueueTest {
         assertThat(mediaItems).isEqualTo(0)
         awaitMain { true }
         runBlockingIdle()
-        assertThat(db.trackListDao().queueIds()).isEmpty()
+        assertThat(db.trackListDao().queueItems()).isEmpty()
         assertThat(db.trackListDao().resume()).isNull()
     }
 
@@ -188,7 +188,7 @@ class PlayerControllerQueueTest {
         // A saved queue + resume row, loaded before the player has any items.
         val dao = db.trackListDao()
         dao.upsertTracks((1L..3L).map { one.tunkshif.swirlmusic.data.cache.TrackEntity.of(track(it), 0) })
-        dao.replaceQueue(listOf(1L, 2L, 3L))
+        dao.replaceQueue(listOf(1L to 42L, 2L to null, 3L to 42L))
         dao.saveResume(
             one.tunkshif.swirlmusic.data.cache.PlaybackResumeEntity(
                 0, 1, 5_000, LoopMode.RepeatOne.ordinal, 0,
@@ -208,6 +208,10 @@ class PlayerControllerQueueTest {
         instrumentation.runOnMainSync { controller.cycleLoopMode() }
         awaitMain { controller.state.value.loopMode == LoopMode.ListLoop }
 
+        // The stored per-entry album sources come back with the queue.
+        assertThat(controller.state.value.queue.map { it.sourceAlbumId })
+            .containsExactly(42L, null, 42L).inOrder()
+
         // Removing the entry before the current one shifts the index with it.
         val firstUid = controller.state.value.queue[0].uid
         instrumentation.runOnMainSync { controller.remove(firstUid) }
@@ -216,6 +220,61 @@ class PlayerControllerQueueTest {
         assertThat(controller.state.value.currentIndex).isEqualTo(0)
         assertThat(controller.state.value.current?.id).isEqualTo(2L)
         assertThat(controller.state.value.restored).isTrue()
+    }
+
+    @Test
+    fun an_album_play_marks_every_entry_and_scrobbles_with_the_source() {
+        createController()
+        // One extra track arrives through the pager after the window.
+        var served = false
+        val pager = PlayerController.TrackPager {
+            if (served) null else {
+                served = true
+                listOf(track(6))
+            }
+        }
+        instrumentation.runOnMainSync {
+            controller.play((1L..5L).map(::track), 0, rest = pager, sourceAlbumId = 42L)
+        }
+        awaitQueueSize(6)
+
+        assertThat(controller.state.value.queue.map { it.sourceAlbumId })
+            .containsExactly(42L, 42L, 42L, 42L, 42L, 42L).inOrder()
+        awaitMain { playbackApi.scrobbles.isNotEmpty() }
+        assertThat(playbackApi.scrobbles.last().third).isEqualTo(42L)
+    }
+
+    @Test
+    fun play_next_and_add_to_queue_carry_no_album_source() {
+        playTracks(3, startIndex = 0)
+        awaitQueueSize(3)
+
+        instrumentation.runOnMainSync {
+            controller.playNext(track(9))
+            controller.addToQueue(track(10))
+        }
+        awaitQueueSize(5)
+
+        assertThat(controller.state.value.queue.map { it.sourceAlbumId })
+            .containsExactly(null, null, null, null, null).inOrder()
+    }
+
+    @Test
+    fun a_moved_entry_keeps_its_album_source() {
+        createController()
+        instrumentation.runOnMainSync {
+            controller.play((1L..3L).map(::track), 0, sourceAlbumId = 42L)
+            controller.addToQueue(track(9))
+        }
+        awaitQueueSize(4)
+
+        val uidOf = { i: Int -> controller.state.value.queue[i].uid }
+        instrumentation.runOnMainSync { controller.move(uidOf(0), uidOf(3)) }
+        awaitQueueAligned()
+
+        // Track 1 (album-sourced) moved to the end; the enqueued track 9 stays source-less.
+        assertThat(controller.state.value.queue.map { it.sourceAlbumId })
+            .containsExactly(42L, 42L, null, 42L).inOrder()
     }
 
     // helpers
@@ -259,13 +318,18 @@ class PlayerControllerQueueTest {
     }
 
     private class FakePlaybackApi(private val url: String) : NcmPlaybackApi {
+        /** (trackId, playedSeconds, sourceAlbumId) of each reported listen. */
+        val scrobbles = mutableListOf<Triple<Long, Int, Long?>>()
+
         override suspend fun songUrls(ids: List<Long>, level: String): ApiResult<List<PlayableUrl>> =
             ApiResult.Success(
                 ids.map { PlayableUrl(it, url, System.currentTimeMillis() + 3_600_000, false, level, 320) },
             )
 
-        override suspend fun scrobble(trackId: Long, playedSeconds: Int): ApiResult<Unit> =
-            ApiResult.Success(Unit)
+        override suspend fun scrobble(trackId: Long, playedSeconds: Int, sourceAlbumId: Long?): ApiResult<Unit> {
+            scrobbles += Triple(trackId, playedSeconds, sourceAlbumId)
+            return ApiResult.Success(Unit)
+        }
     }
 
     private class FakeAuthApi : NcmAuthApi {

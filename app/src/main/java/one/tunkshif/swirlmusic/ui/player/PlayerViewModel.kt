@@ -87,6 +87,10 @@ class PlayerViewModel @Inject constructor(
 
     fun previousTrack() = controller.previousTrack()
 
-    fun play(tracks: List<Track>, startIndex: Int, rest: PlayerController.TrackPager? = null) =
-        controller.play(tracks, startIndex, rest)
+    fun play(
+        tracks: List<Track>,
+        startIndex: Int,
+        rest: PlayerController.TrackPager? = null,
+        sourceAlbumId: Long? = null,
+    ) = controller.play(tracks, startIndex, rest, sourceAlbumId = sourceAlbumId)
 }

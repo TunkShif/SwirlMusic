@@ -230,6 +230,21 @@ class TrackListViewModelTest {
     }
 
     @Test
+    fun `only album plays report the album as their source`() = runTest {
+        useTestMain()
+
+        viewModel.load(TrackListSource.Album(9))
+        advanceUntilIdle()
+        assertThat(viewModel.playSourceAlbumId()).isEqualTo(9)
+
+        api.contentsFirstTracks = listOf(track(1))
+        api.contentsTrackIds = listOf(1L)
+        viewModel.load(TrackListSource.Playlist(1))
+        advanceUntilIdle()
+        assertThat(viewModel.playSourceAlbumId()).isNull()
+    }
+
+    @Test
     fun `an in-flight loadMore is cancelled by a reload`() = runTest {
         useTestMain()
         api.contentsFirstTracks = (1L..50L).map { track(it) }

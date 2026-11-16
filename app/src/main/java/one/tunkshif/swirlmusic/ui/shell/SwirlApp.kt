@@ -105,7 +105,7 @@ fun SwirlApp(
     onSignOut: () -> Unit,
     miniPlayer: MiniPlayerUiState,
     onPlayPause: () -> Unit,
-    onPlayTracks: (List<Track>, Int, PlayerController.TrackPager?) -> Unit,
+    onPlayTracks: (List<Track>, Int, PlayerController.TrackPager?, Long?) -> Unit,
     modifier: Modifier = Modifier,
     onNext: () -> Unit = {},
     onPrevious: () -> Unit = {},
@@ -125,7 +125,7 @@ fun SwirlApp(
     homeContent: @Composable (contentPadding: PaddingValues) -> Unit = { contentPadding ->
         HomeRoute(
             nickname = profile?.nickname,
-            onPlayTracks = { t, i -> onPlayTracks(t, i, null) },
+            onPlayTracks = { t, i -> onPlayTracks(t, i, null, null) },
             contentPadding = contentPadding,
             viewModel = homeViewModel ?: hiltViewModel(),
         )
@@ -136,7 +136,7 @@ fun SwirlApp(
             onOpenPlaylist = openPlaylist,
             onOpenAlbum = openAlbum,
             onOpenArtist = openArtist,
-            onPlayTracks = { t, i -> onPlayTracks(t, i, null) },
+            onPlayTracks = { t, i -> onPlayTracks(t, i, null, null) },
             contentPadding = contentPadding,
             viewModel = libraryViewModel ?: hiltViewModel(),
         )
@@ -320,7 +320,7 @@ fun SwirlApp(
                     ArtistRoute(
                         id = key.id,
                         onBack = { backStack.removeLastOrNull() },
-                        onPlayTracks = { tracks, index -> onPlayTracks(tracks, index, null) },
+                        onPlayTracks = { tracks, index -> onPlayTracks(tracks, index, null, null) },
                         onOpenAlbum = { id -> backStack.add(AlbumKey(id)) },
                         contentPadding = innerPadding,
                     )
@@ -331,7 +331,7 @@ fun SwirlApp(
                         onOpenPlaylist = { id -> backStack.add(PlaylistKey(id)) },
                         onOpenAlbum = { id -> backStack.add(AlbumKey(id)) },
                         onOpenArtist = { id -> backStack.add(ArtistKey(id)) },
-                        onPlayTracks = { t, i -> onPlayTracks(t, i, null) },
+                        onPlayTracks = { t, i -> onPlayTracks(t, i, null, null) },
                         contentPadding = innerPadding,
                     )
                 }

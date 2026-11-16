@@ -118,7 +118,7 @@ class SongUrlResolverTest {
             )
         }
 
-        override suspend fun scrobble(trackId: Long, playedSeconds: Int): ApiResult<Unit> =
+        override suspend fun scrobble(trackId: Long, playedSeconds: Int, sourceAlbumId: Long?): ApiResult<Unit> =
             ApiResult.Success(Unit)
     }
 }

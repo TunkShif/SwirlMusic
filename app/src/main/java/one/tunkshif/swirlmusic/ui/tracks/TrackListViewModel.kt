@@ -277,6 +277,12 @@ class TrackListViewModel @Inject constructor(
      * Snapshots the pending ids so it never touches VM state or viewModelScope. Empty
      * successful slices are skipped; null means the snapshot is exhausted or a call failed.
      */
+    /**
+     * The album this list's plays scrobble as their source (recently-played-albums); null for
+     * playlists — only album-screen plays count.
+     */
+    fun playSourceAlbumId(): Long? = (source as? TrackListSource.Album)?.id
+
     fun playPager(): PlayerController.TrackPager? {
         if (source !is TrackListSource.Playlist) return null
         val snapshot = pendingIds.toList()

@@ -88,7 +88,7 @@ import one.tunkshif.swirlmusic.ui.theme.Spacing
 fun TrackListRoute(
     source: TrackListSource,
     onBack: () -> Unit,
-    onPlayTracks: (List<Track>, Int, PlayerController.TrackPager?) -> Unit,
+    onPlayTracks: (List<Track>, Int, PlayerController.TrackPager?, Long?) -> Unit,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(),
     onOpenArtist: (Long) -> Unit = {},
@@ -135,7 +135,7 @@ fun TrackListRoute(
         onOpenComments = { onOpenComments(state.title) },
         onArtworkClick = state.artworkUrl?.let { { showArtwork = true } },
         onPlayTracks = { tracks, index ->
-            onPlayTracks(tracks, index, viewModel.playPager())
+            onPlayTracks(tracks, index, viewModel.playPager(), viewModel.playSourceAlbumId())
         },
         toastState = toastState,
         modifier = modifier,

@@ -133,11 +133,20 @@ class NcmApi @Inject constructor(
         ).map { response -> response.data.map { it.toDomain(timeSource.nowMillis()) } }
     }
 
-    override suspend fun scrobble(trackId: Long, playedSeconds: Int): ApiResult<Unit> =
+    override suspend fun scrobble(trackId: Long, playedSeconds: Int, sourceAlbumId: Long?): ApiResult<Unit> =
         request(
             "/scrobble/v1",
             ScrobbleResponse.serializer(),
-            mapOf("id" to trackId.toString(), "time" to playedSeconds.toString()),
+            buildMap {
+                put("id", trackId.toString())
+                put("time", playedSeconds.toString())
+                // All three are required; NetEase ignores a bare sourceid (measured).
+                if (sourceAlbumId != null) {
+                    put("source", "album")
+                    put("sourcetype", "album")
+                    put("sourceid", sourceAlbumId.toString())
+                }
+            },
         ).map { }
 
     override suspend fun userPlaylists(
