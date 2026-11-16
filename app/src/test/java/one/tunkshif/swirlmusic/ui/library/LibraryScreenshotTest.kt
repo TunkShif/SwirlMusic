@@ -7,6 +7,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
 import com.github.takahirom.roborazzi.captureRoboImage
 import one.tunkshif.swirlmusic.data.model.Page
+import one.tunkshif.swirlmusic.data.model.RecentAlbum
 import one.tunkshif.swirlmusic.ui.common.PagedList
 import one.tunkshif.swirlmusic.ui.common.SectionState
 import one.tunkshif.swirlmusic.ui.components.LocalArtworkPainter
@@ -46,6 +47,64 @@ class LibraryScreenshotTest {
     }
 
     @Test
+    fun recent_albums_light() {
+        compose.setContent {
+            CompositionLocalProvider(LocalArtworkPainter provides ColorPainter(Color(0xFF9AA0C8))) {
+                SwirlMusicTheme(dynamicColor = false) {
+                    LibraryScreenFor(state = state().copy(tab = LibraryTab.Recent))
+                }
+            }
+        }
+        compose.onRoot().captureRoboImage("src/test/screenshots/library/recent-albums-light.png")
+    }
+
+    @Test
+    fun recent_albums_dark() {
+        compose.setContent {
+            CompositionLocalProvider(LocalArtworkPainter provides ColorPainter(Color(0xFF9AA0C8))) {
+                SwirlMusicTheme(darkTheme = true, dynamicColor = false) {
+                    LibraryScreenFor(state = state().copy(tab = LibraryTab.Recent))
+                }
+            }
+        }
+        compose.onRoot().captureRoboImage("src/test/screenshots/library/recent-albums-dark.png")
+    }
+
+    @Test
+    fun recent_songs_light() {
+        compose.setContent {
+            CompositionLocalProvider(LocalArtworkPainter provides ColorPainter(Color(0xFF9AA0C8))) {
+                SwirlMusicTheme(dynamicColor = false) {
+                    LibraryScreenFor(
+                        state = state().copy(
+                            tab = LibraryTab.Recent,
+                            recentSection = RecentSection.TopSongs,
+                        ),
+                    )
+                }
+            }
+        }
+        compose.onRoot().captureRoboImage("src/test/screenshots/library/recent-songs-light.png")
+    }
+
+    @Test
+    fun recent_songs_dark() {
+        compose.setContent {
+            CompositionLocalProvider(LocalArtworkPainter provides ColorPainter(Color(0xFF9AA0C8))) {
+                SwirlMusicTheme(darkTheme = true, dynamicColor = false) {
+                    LibraryScreenFor(
+                        state = state().copy(
+                            tab = LibraryTab.Recent,
+                            recentSection = RecentSection.TopSongs,
+                        ),
+                    )
+                }
+            }
+        }
+        compose.onRoot().captureRoboImage("src/test/screenshots/library/recent-songs-dark.png")
+    }
+
+    @Test
     fun empty_playlists_light() {
         capture(
             "empty-light",
@@ -77,7 +136,13 @@ class LibraryScreenshotTest {
         ),
         albums = paged(listOf(album(1), album(2))),
         artists = paged(listOf(artist(1))),
-        recent = SectionState.Content(listOf(playedEntry())),
+        recentSection = RecentSection.Albums,
+        recentAlbums = SectionState.Content(
+            listOf(recentAlbum(1), recentAlbum(2), recentAlbum(3)),
+        ),
+        recent = SectionState.Content(listOf(playedEntry(), playedEntry().copy(
+            track = track(2),
+        ))),
     )
 
     private fun <T> paged(items: List<T>) = PagedList(
@@ -97,6 +162,7 @@ private fun LibraryScreenFor(state: LibraryUiState) {
     LibraryScreen(
         state = state,
         onSelectTab = {},
+        onSelectRecentSection = {},
         onRetry = {},
         onLoadMore = {},
         onOpenSearch = {},

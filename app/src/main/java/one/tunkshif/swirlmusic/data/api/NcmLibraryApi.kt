@@ -4,6 +4,7 @@ import one.tunkshif.swirlmusic.data.model.AlbumSummary
 import one.tunkshif.swirlmusic.data.model.ArtistSummary
 import one.tunkshif.swirlmusic.data.model.Page
 import one.tunkshif.swirlmusic.data.model.PlayedEntry
+import one.tunkshif.swirlmusic.data.model.RecentAlbum
 import one.tunkshif.swirlmusic.data.model.PlaylistContents
 import one.tunkshif.swirlmusic.data.model.PlaylistDetail
 import one.tunkshif.swirlmusic.data.model.PlaylistSummary
@@ -34,6 +35,12 @@ interface NcmLibraryApi {
     suspend fun songsByIds(ids: List<Long>): ApiResult<List<Track>>
 
     suspend fun recentlyPlayed(uid: Long, limit: Int): ApiResult<List<PlayedEntry>>
+
+    /**
+     * The account's recently played albums, newest first (server cap: 100). Always fetched
+     * fresh: the two-minute response cache would hide a just-played album.
+     */
+    suspend fun recentAlbums(limit: Int): ApiResult<List<RecentAlbum>>
 
     /** `fresh` adds a timestamp so a write isn't hidden by the server's URL cache. */
     suspend fun followedAlbums(limit: Int, offset: Int, fresh: Boolean = false): ApiResult<Page<AlbumSummary>>

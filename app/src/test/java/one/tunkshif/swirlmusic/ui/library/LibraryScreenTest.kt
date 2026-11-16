@@ -8,13 +8,16 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasProgressBarRangeInfo
 import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isSelected
+import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
@@ -64,6 +67,9 @@ class LibraryScreenTest {
             items = listOf(artist(1)),
             state = SectionState.Content(Unit),
         ),
+        recentSection: RecentSection = RecentSection.Albums,
+        recentAlbums: SectionState<List<one.tunkshif.swirlmusic.data.model.RecentAlbum>> =
+            SectionState.Content(listOf(recentAlbum(1))),
         recent: SectionState<List<PlayedEntry>> = SectionState.Content(
             listOf(PlayedEntry(track(1), playCount = 7)),
         ),
@@ -72,6 +78,8 @@ class LibraryScreenTest {
         playlists = playlists,
         albums = albums,
         artists = artists,
+        recentSection = recentSection,
+        recentAlbums = recentAlbums,
         recent = recent,
     )
 
@@ -81,6 +89,7 @@ class LibraryScreenTest {
                 LibraryScreen(
                     state = uiState,
                     onSelectTab = { uiState = uiState.copy(tab = it) },
+                    onSelectRecentSection = { uiState = uiState.copy(recentSection = it) },
                     onRetry = {},
                     onLoadMore = {},
                     onOpenSearch = {},
@@ -129,6 +138,7 @@ class LibraryScreenTest {
                 LibraryScreen(
                     state = uiState,
                     onSelectTab = { uiState = uiState.copy(tab = it) },
+                    onSelectRecentSection = {},
                     onRetry = {},
                     onLoadMore = {},
                     onOpenSearch = {},
@@ -178,6 +188,63 @@ class LibraryScreenTest {
 
         assertThat(uiState.tab).isEqualTo(LibraryTab.Playlists)
         compose.onNodeWithText("Playlist 26").assertIsDisplayed()
+    }
+
+    @Test
+    fun `the recent tab shows albums behind a connected toggle`() {
+        uiState = state(tab = LibraryTab.Recent)
+        content()
+
+        // The toggle shares its "Albums" label with the tab pill — pick the toggleable one.
+        compose.onNode(isToggleable() and hasText(res(R.string.library_recent_albums)))
+            .assertIsOn()
+        compose.onNodeWithText("Album 101").assertIsDisplayed()
+    }
+
+    @Test
+    fun `the recent toggle switches to the top-songs record and back`() {
+        uiState = state(tab = LibraryTab.Recent)
+        content()
+
+        compose.onNodeWithText(res(R.string.library_recent_top_songs)).performClick()
+        compose.waitForIdle()
+
+        assertThat(uiState.recentSection).isEqualTo(RecentSection.TopSongs)
+        compose.onNodeWithText("Track 1").assertIsDisplayed()
+        compose.onNodeWithText(res(R.string.library_play_all)).assertIsDisplayed()
+
+        compose.onNode(isToggleable() and hasText(res(R.string.library_recent_albums)))
+            .performClick()
+        compose.waitForIdle()
+
+        assertThat(uiState.recentSection).isEqualTo(RecentSection.Albums)
+        compose.onNodeWithText("Album 101").assertIsDisplayed()
+    }
+
+    @Test
+    fun `tapping a recent album opens it`() {
+        var opened = -1L
+        uiState = state(tab = LibraryTab.Recent)
+        compose.setContent {
+            SwirlMusicTheme(dynamicColor = false) {
+                LibraryScreen(
+                    state = uiState,
+                    onSelectTab = {},
+                    onSelectRecentSection = {},
+                    onRetry = {},
+                    onLoadMore = {},
+                    onOpenSearch = {},
+                    onOpenPlaylist = {},
+                    onOpenAlbum = { opened = it },
+                    onOpenArtist = {},
+                    onPlayTracks = { _, _ -> },
+                )
+            }
+        }
+
+        compose.onNodeWithText("Album 101").performClick()
+
+        assertThat(opened).isEqualTo(101)
     }
 
     @Test

@@ -122,10 +122,11 @@ fun SwirlApp(
      * The home destination. A parameter, not a hard reference, so shell tests can render the shell
      * without Hilt or a network. Production uses the default.
      */
-    homeContent: @Composable (contentPadding: PaddingValues) -> Unit = { contentPadding ->
+    homeContent: @Composable (contentPadding: PaddingValues, openAlbum: (Long) -> Unit) -> Unit = { contentPadding, openAlbum ->
         HomeRoute(
             nickname = profile?.nickname,
-            onPlayTracks = { t, i -> onPlayTracks(t, i, null, null) },
+            onPlayTracks = { t, i, p -> onPlayTracks(t, i, p, null) },
+            onOpenAlbum = openAlbum,
             contentPadding = contentPadding,
             viewModel = homeViewModel ?: hiltViewModel(),
         )
@@ -283,7 +284,9 @@ fun SwirlApp(
                 rememberViewModelStoreNavEntryDecorator(),
             ),
             entryProvider = entryProvider {
-                entry<HomeKey> { homeContent(innerPadding) }
+                entry<HomeKey> {
+                    homeContent(innerPadding, { id -> backStack.add(AlbumKey(id)) })
+                }
                 entry<LibraryKey> {
                     libraryContent(
                         innerPadding,

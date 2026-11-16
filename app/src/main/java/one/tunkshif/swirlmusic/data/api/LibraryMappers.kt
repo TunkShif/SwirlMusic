@@ -7,11 +7,13 @@ import one.tunkshif.swirlmusic.data.api.dto.AlbumSubDto
 import one.tunkshif.swirlmusic.data.api.dto.ArtistDto
 import one.tunkshif.swirlmusic.data.api.dto.PlayRecordDto
 import one.tunkshif.swirlmusic.data.api.dto.PlaylistDto
+import one.tunkshif.swirlmusic.data.api.dto.RecordRecentItemDto
 import one.tunkshif.swirlmusic.data.model.AlbumSummary
 import one.tunkshif.swirlmusic.data.model.ArtistSummary
 import one.tunkshif.swirlmusic.data.model.PlayedEntry
 import one.tunkshif.swirlmusic.data.model.PlaylistDetail
 import one.tunkshif.swirlmusic.data.model.PlaylistSummary
+import one.tunkshif.swirlmusic.data.model.RecentAlbum
 
 internal fun PlaylistDto.toDetail(): PlaylistDetail = PlaylistDetail(
     id = id,
@@ -59,6 +61,21 @@ internal fun ArtistDto.toSummary(): ArtistSummary = ArtistSummary(
 internal fun PlayRecordDto.toEntry(): PlayedEntry? {
     val track = song?.toDomain() ?: return null
     return PlayedEntry(track = track, playCount = playCount)
+}
+
+internal fun RecordRecentItemDto.toDomain(): RecentAlbum? {
+    val album = data ?: return null
+    if (album.id <= 0 || album.name.isBlank()) return null
+    return RecentAlbum(
+        album = AlbumSummary(
+            id = album.id,
+            name = album.name,
+            artistLine = album.artists.joinToString(" / ") { it.name },
+            artworkUrl = album.picUrl?.let { sizedArtwork(it, 300) },
+            trackCount = album.size,
+        ),
+        playedAtMillis = playTime,
+    )
 }
 
 internal fun publishYearOf(publishTimeMillis: Long): Int =

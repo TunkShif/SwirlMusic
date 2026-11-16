@@ -8,6 +8,7 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import one.tunkshif.swirlmusic.data.api.ApiResult
@@ -53,7 +54,7 @@ class LibraryViewModelTest {
     }
 
     @Test
-    fun `all four sections load`() = runTest {
+    fun `the paged sections load while recent stays lazy`() = runTest {
         useTestMain()
         val viewModel = LibraryViewModel(api, signedInSession(), collection, nowPlaying)
 
@@ -63,7 +64,108 @@ class LibraryViewModelTest {
         assertThat(state.playlists.items).hasSize(3)
         assertThat(state.albums.items).hasSize(1)
         assertThat(state.artists.items).hasSize(1)
-        assertThat(state.recent).isInstanceOf(SectionState.Content::class.java)
+        // The ~3 MB albums call only runs once the Recent tab opens (0013-D56).
+        assertThat(api.calls.filter { it == "recent" || it.startsWith("recentAlbums") }).isEmpty()
+        assertThat(state.recentAlbums).isInstanceOf(SectionState.Loading::class.java)
+        assertThat(state.recent).isInstanceOf(SectionState.Loading::class.java)
+    }
+
+    @Test
+    fun `the first recent selection loads albums and top songs once`() = runTest {
+        useTestMain()
+        val viewModel = LibraryViewModel(api, signedInSession(), collection, nowPlaying)
+        advanceUntilIdle()
+
+        viewModel.selectTab(LibraryTab.Recent)
+        advanceUntilIdle()
+
+        assertThat(api.calls).contains("recentAlbums:100")
+        assertThat(api.calls).contains("recent")
+        assertThat(viewModel.state.value.recentAlbums)
+            .isInstanceOf(SectionState.Content::class.java)
+        assertThat(viewModel.state.value.recent)
+            .isInstanceOf(SectionState.Content::class.java)
+    }
+
+    @Test
+    fun `reselecting recent refreshes the albums but keeps the shown list`() = runTest {
+        useTestMain()
+        val viewModel = LibraryViewModel(api, signedInSession(), collection, nowPlaying)
+        advanceUntilIdle()
+        viewModel.selectTab(LibraryTab.Recent)
+        advanceUntilIdle()
+
+        // Hold the refresh open: the shown list must survive it (no skeleton flash).
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        api.recentAlbumsGate = gate
+        api.recentAlbumsResult = ApiResult.Success(listOf(recentAlbum(2)))
+        viewModel.selectTab(LibraryTab.Artists)
+        viewModel.selectTab(LibraryTab.Recent)
+        runCurrent()
+
+        val shown = viewModel.state.value.recentAlbums
+        assertThat((shown as SectionState.Content).value.first().album.id).isEqualTo(101)
+
+        gate.complete(Unit)
+        advanceUntilIdle()
+
+        val refreshed = viewModel.state.value.recentAlbums
+        assertThat((refreshed as SectionState.Content).value.first().album.id).isEqualTo(102)
+        // Top songs fetched once per session; the refresh only touches the albums.
+        assertThat(api.calls.count { it == "recentAlbums:100" }).isEqualTo(2)
+        assertThat(api.calls.count { it == "recent" }).isEqualTo(1)
+    }
+
+    @Test
+    fun `a recent refresh failure keeps the shown albums`() = runTest {
+        useTestMain()
+        val viewModel = LibraryViewModel(api, signedInSession(), collection, nowPlaying)
+        advanceUntilIdle()
+        viewModel.selectTab(LibraryTab.Recent)
+        advanceUntilIdle()
+        val shown = viewModel.state.value.recentAlbums
+
+        api.recentAlbumsResult = ApiResult.NetworkError(IOException("offline"))
+        viewModel.selectTab(LibraryTab.Artists)
+        viewModel.selectTab(LibraryTab.Recent)
+        advanceUntilIdle()
+
+        assertThat(viewModel.state.value.recentAlbums).isEqualTo(shown)
+    }
+
+    @Test
+    fun `a first-load failure on recent offers retry`() = runTest {
+        useTestMain()
+        api.recentAlbumsResult = ApiResult.NetworkError(IOException("offline"))
+        val viewModel = LibraryViewModel(api, signedInSession(), collection, nowPlaying)
+        advanceUntilIdle()
+
+        viewModel.selectTab(LibraryTab.Recent)
+        advanceUntilIdle()
+
+        assertThat(viewModel.state.value.recentAlbums)
+            .isEqualTo(SectionState.Failed(LoadError.Network))
+
+        api.recentAlbumsResult = ApiResult.Success(listOf(recentAlbum(1)))
+        viewModel.retry(LibraryTab.Recent)
+        advanceUntilIdle()
+
+        assertThat(viewModel.state.value.recentAlbums)
+            .isInstanceOf(SectionState.Content::class.java)
+    }
+
+    @Test
+    fun `the recent toggle switches between albums and top songs`() = runTest {
+        useTestMain()
+        val viewModel = LibraryViewModel(api, signedInSession(), collection, nowPlaying)
+        advanceUntilIdle()
+        viewModel.selectTab(LibraryTab.Recent)
+
+        assertThat(viewModel.state.value.recentSection).isEqualTo(RecentSection.Albums)
+
+        viewModel.selectRecentSection(RecentSection.TopSongs)
+
+        assertThat(viewModel.state.value.recentSection).isEqualTo(RecentSection.TopSongs)
     }
 
     @Test

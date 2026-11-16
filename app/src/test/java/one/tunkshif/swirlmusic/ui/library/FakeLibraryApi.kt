@@ -20,6 +20,7 @@ import one.tunkshif.swirlmusic.data.model.PlayedEntry
 import one.tunkshif.swirlmusic.data.model.PlaylistContents
 import one.tunkshif.swirlmusic.data.model.PlaylistDetail
 import one.tunkshif.swirlmusic.data.model.PlaylistSummary
+import one.tunkshif.swirlmusic.data.model.RecentAlbum
 import one.tunkshif.swirlmusic.data.model.SearchResults
 import one.tunkshif.swirlmusic.data.model.SearchType
 import one.tunkshif.swirlmusic.data.model.Track
@@ -94,10 +95,25 @@ class FakeLibraryApi : NcmLibraryApi {
     }
 
     var likedIdsResult: ApiResult<List<Long>> = ApiResult.Success(emptyList())
+    /** When set, `likedIds` suspends on it — for double-tap tests. */
+    var likedIdsGate: kotlinx.coroutines.CompletableDeferred<Unit>? = null
 
     override suspend fun likedIds(uid: Long): ApiResult<List<Long>> {
         calls += "likedIds:$uid"
+        likedIdsGate?.await()
         return likedIdsResult
+    }
+
+    var recentAlbumsResult: ApiResult<List<RecentAlbum>> =
+        ApiResult.Success(listOf(recentAlbum(1)))
+    /** When set, `recentAlbums` suspends on it — for keep-the-list-while-refreshing tests. */
+    var recentAlbumsGate: kotlinx.coroutines.CompletableDeferred<Unit>? = null
+
+    override suspend fun recentAlbums(limit: Int): ApiResult<List<RecentAlbum>> {
+        calls += "recentAlbums:$limit"
+        recentAlbumsGate?.await()
+        failWith?.let { return it }
+        return recentAlbumsResult
     }
 
     var contentsTrackIds: List<Long> = emptyList()
@@ -249,6 +265,11 @@ fun album(id: Long) = AlbumSummary(
     artistLine = "Artist $id",
     artworkUrl = null,
     trackCount = 12,
+)
+
+fun recentAlbum(id: Long) = RecentAlbum(
+    album = album(100 + id),
+    playedAtMillis = id * 60_000L,
 )
 
 fun artist(id: Long) = ArtistSummary(

@@ -20,6 +20,7 @@ import one.tunkshif.swirlmusic.data.model.ArtistSummary
 import one.tunkshif.swirlmusic.data.model.Page
 import one.tunkshif.swirlmusic.data.model.PlayedEntry
 import one.tunkshif.swirlmusic.data.model.PlaylistSummary
+import one.tunkshif.swirlmusic.data.model.RecentAlbum
 import one.tunkshif.swirlmusic.data.session.SessionRepository
 import one.tunkshif.swirlmusic.data.session.SessionState
 import one.tunkshif.swirlmusic.ui.common.LoadError
@@ -28,11 +29,17 @@ import one.tunkshif.swirlmusic.ui.common.SectionState
 
 enum class LibraryTab { Playlists, Albums, Artists, Recent }
 
+/** The Recent tab's two views: server-reported albums (default) or the top-songs record. */
+enum class RecentSection { Albums, TopSongs }
+
 data class LibraryUiState(
     val tab: LibraryTab = LibraryTab.Playlists,
     val playlists: PagedList<PlaylistSummary> = PagedList(),
     val albums: PagedList<AlbumSummary> = PagedList(),
     val artists: PagedList<ArtistSummary> = PagedList(),
+    val recentSection: RecentSection = RecentSection.Albums,
+    val recentAlbums: SectionState<List<RecentAlbum>> = SectionState.Loading,
+    /** The top-songs record ("/user/record"); moves to Profile in Phase 13. */
     val recent: SectionState<List<PlayedEntry>> = SectionState.Loading,
 )
 
@@ -60,7 +67,7 @@ class LibraryViewModel @Inject constructor(
         loadPlaylists(reset = true)
         loadAlbums(reset = true)
         loadArtists(reset = true)
-        loadRecent()
+        // Recent stays lazy: the albums body is ~3 MB and only needed once the tab opens.
         // A save/follow elsewhere reloads exactly that tab, bypassing the server cache.
         viewModelScope.launch {
             collection.changes.collect { change ->
@@ -75,6 +82,11 @@ class LibraryViewModel @Inject constructor(
 
     fun selectTab(tab: LibraryTab) {
         _state.update { it.copy(tab = tab) }
+        if (tab == LibraryTab.Recent) onRecentShown()
+    }
+
+    fun selectRecentSection(section: RecentSection) {
+        _state.update { it.copy(recentSection = section) }
     }
 
     fun retry(tab: LibraryTab) {
@@ -82,7 +94,10 @@ class LibraryViewModel @Inject constructor(
             LibraryTab.Playlists -> loadPlaylists(reset = true)
             LibraryTab.Albums -> loadAlbums(reset = true)
             LibraryTab.Artists -> loadArtists(reset = true)
-            LibraryTab.Recent -> loadRecent()
+            LibraryTab.Recent -> when (_state.value.recentSection) {
+                RecentSection.Albums -> loadRecentAlbums()
+                RecentSection.TopSongs -> loadRecent()
+            }
         }
     }
 
@@ -165,6 +180,48 @@ class LibraryViewModel @Inject constructor(
         }
     }
 
+    private var recentStarted = false
+
+    /**
+     * First selection of Recent loads both sections (the albums call is the expensive one);
+     * every later selection silently refreshes just the albums so a just-played album shows up.
+     */
+    private fun onRecentShown() {
+        if (!recentStarted) {
+            recentStarted = true
+            loadRecentAlbums()
+            loadRecent()
+        } else {
+            viewModelScope.launch { refreshRecentAlbums() }
+        }
+    }
+
+    private fun loadRecentAlbums() {
+        if (_state.value.recentAlbums !is SectionState.Content) {
+            _state.update { it.copy(recentAlbums = SectionState.Loading) }
+        }
+        viewModelScope.launch { refreshRecentAlbums() }
+    }
+
+    private suspend fun refreshRecentAlbums() {
+        when (val result = api.recentAlbums(RECENT_ALBUMS_LIMIT)) {
+            is ApiResult.Success ->
+                _state.update { it.copy(recentAlbums = SectionState.Content(result.value)) }
+            is ApiResult.Unauthorized ->
+                if (_state.value.recentAlbums !is SectionState.Content) {
+                    _state.update { it.copy(recentAlbums = SectionState.Failed(LoadError.Server)) }
+                }
+            is ApiResult.NetworkError ->
+                if (_state.value.recentAlbums !is SectionState.Content) {
+                    _state.update { it.copy(recentAlbums = SectionState.Failed(LoadError.Network)) }
+                }
+            is ApiResult.HttpError ->
+                if (_state.value.recentAlbums !is SectionState.Content) {
+                    _state.update { it.copy(recentAlbums = SectionState.Failed(LoadError.Server)) }
+                }
+        }
+    }
+
     private fun loadRecent() {
         val uid = userId
         if (uid == null) {
@@ -189,5 +246,7 @@ class LibraryViewModel @Inject constructor(
     private companion object {
         const val PAGE_SIZE = 30
         const val RECENT_SIZE = 50
+        /** `/record/recent/album` hard-caps at 100 rows. */
+        const val RECENT_ALBUMS_LIMIT = 100
     }
 }

@@ -113,7 +113,7 @@ class ShellScreenshotTest {
                         albumSeed = albumSeed,
                         onPlayPause = {},
                         onPlayTracks = { _, _, _, _ -> },
-                        homeContent = { _ -> TestHome() },
+                        homeContent = { _, _ -> TestHome() },
                         libraryContent = { _, _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
                         playingContent = { _, _, _, _, _ ->
                             one.tunkshif.swirlmusic.ui.playing.NowPlayingScreen(
@@ -150,7 +150,7 @@ class ShellScreenshotTest {
                     ),
                     onPlayPause = {},
                     onPlayTracks = { _, _, _, _ -> },
-                    homeContent = { _ -> TestHome() },
+                    homeContent = { _, _ -> TestHome() },
                     libraryContent = { _, _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
                 )
             }
@@ -178,7 +178,7 @@ class ShellScreenshotTest {
                     albumSeed = albumSeed,
                     onPlayPause = {},
                     onPlayTracks = { _, _, _, _ -> },
-                    homeContent = { _ -> TestHome() },
+                    homeContent = { _, _ -> TestHome() },
                     libraryContent = { _, _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
                 )
             }

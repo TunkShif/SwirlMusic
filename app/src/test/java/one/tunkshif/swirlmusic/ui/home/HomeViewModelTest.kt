@@ -5,47 +5,64 @@ import one.tunkshif.swirlmusic.ui.common.SectionState
 
 import com.google.common.truth.Truth.assertThat
 import java.io.IOException
+import kotlin.random.Random
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import one.tunkshif.swirlmusic.data.api.ApiResult
-import one.tunkshif.swirlmusic.data.api.NcmAuthApi
 import one.tunkshif.swirlmusic.data.api.NcmHomeApi
-import one.tunkshif.swirlmusic.data.api.dto.LogoutResponse
-import one.tunkshif.swirlmusic.data.api.dto.QrCheckResponse
-import one.tunkshif.swirlmusic.data.api.dto.QrCreateBody
-import one.tunkshif.swirlmusic.data.api.dto.QrKeyBody
-import one.tunkshif.swirlmusic.data.api.dto.UserAccountResponse
-import one.tunkshif.swirlmusic.data.model.ChartSummary
-import one.tunkshif.swirlmusic.data.model.PlaylistSummary
+import one.tunkshif.swirlmusic.data.api.TimeSource
+import one.tunkshif.swirlmusic.data.library.TrackListRepository
 import one.tunkshif.swirlmusic.data.model.Track
-import one.tunkshif.swirlmusic.data.session.SessionCache
-import one.tunkshif.swirlmusic.data.session.SessionCipher
-import one.tunkshif.swirlmusic.data.session.SessionRepository
 import one.tunkshif.swirlmusic.data.session.SessionState
-import one.tunkshif.swirlmusic.data.session.SessionStorage
-import one.tunkshif.swirlmusic.data.session.SessionStore
+import one.tunkshif.swirlmusic.player.PlayerController
+import one.tunkshif.swirlmusic.ui.library.FakeLibraryApi
+import one.tunkshif.swirlmusic.ui.library.signedInSession
 import org.junit.After
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 @OptIn(ExperimentalCoroutinesApi::class)
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [36])
 class HomeViewModelTest {
 
     private val api = FakeHomeApi()
-    private val storage = FakeStorage()
-    private val session = SessionRepository(
-        FakeAuthApi(),
-        SessionStore(storage, PlainCipher()),
-        SessionCache(),
-        one.tunkshif.swirlmusic.data.cache.AccountScopedCache {},
+    private val libraryApi = FakeLibraryApi().apply {
+        likedIdsResult = ApiResult.Success(listOf(1L, 2L, 3L))
+    }
+    private val db = androidx.room.Room.inMemoryDatabaseBuilder(
+        org.robolectric.RuntimeEnvironment.getApplication(),
+        one.tunkshif.swirlmusic.data.cache.SwirlDatabase::class.java,
+    ).allowMainThreadQueries().build()
+    private var now = 1_000_000L
+    private val timeSource = object : TimeSource { override fun nowMillis() = now }
+    private val repository = TrackListRepository(
+        libraryApi,
+        db.trackListDao(),
+        timeSource,
+        UnconfinedTestDispatcher(),
+        one.tunkshif.swirlmusic.data.cache.CacheGate(
+            db.trackListDao(),
+            UnconfinedTestDispatcher(),
+        ),
     )
+    private val session = signedInSession()
+    private val random = Random(7)
+
+    private fun viewModel() = HomeViewModel(api, libraryApi, repository, session, timeSource, random)
 
     @After
     fun tearDown() {
@@ -57,63 +74,62 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `all three sections load in parallel`() = runTest {
+    fun `daily, recent albums, and liked ids load in parallel`() = runTest {
         useTestMain()
-        val viewModel = HomeViewModel(api, session)
+        val viewModel = viewModel()
 
         advanceUntilIdle()
 
         val state = viewModel.state.value
         assertThat(state.daily).isInstanceOf(SectionState.Content::class.java)
-        assertThat(state.playlists).isInstanceOf(SectionState.Content::class.java)
-        assertThat(state.charts).isInstanceOf(SectionState.Content::class.java)
-        assertThat((state.daily as SectionState.Content).value).hasSize(2)
+        assertThat(state.recent).isInstanceOf(SectionState.Content::class.java)
+        assertThat(state.likedIds).containsExactly(1L, 2L, 3L)
         assertThat(api.dailyCalls).isEqualTo(1)
+        assertThat(libraryApi.calls).contains("recentAlbums:10")
+        assertThat(libraryApi.calls).contains("likedIds:42")
     }
 
     @Test
     fun `a failing section leaves the others readable`() = runTest {
         useTestMain()
         api.dailyResult = ApiResult.NetworkError(IOException("offline"))
-        val viewModel = HomeViewModel(api, session)
+        val viewModel = viewModel()
 
         advanceUntilIdle()
 
         val state = viewModel.state.value
         assertThat(state.daily).isEqualTo(SectionState.Failed(LoadError.Network))
-        assertThat(state.playlists).isInstanceOf(SectionState.Content::class.java)
+        assertThat(state.recent).isInstanceOf(SectionState.Content::class.java)
     }
 
     @Test
     fun `a server error is told apart from a network error`() = runTest {
         useTestMain()
-        api.chartsResult = ApiResult.HttpError(503, "busy")
-        val viewModel = HomeViewModel(api, session)
+        libraryApi.recentAlbumsResult = ApiResult.HttpError(503, "busy")
+        val viewModel = viewModel()
 
         advanceUntilIdle()
 
-        assertThat(viewModel.state.value.charts).isEqualTo(SectionState.Failed(LoadError.Server))
+        assertThat(viewModel.state.value.recent).isEqualTo(SectionState.Failed(LoadError.Server))
     }
 
     @Test
-    fun `an expired session signs out instead of showing three errors`() = runTest {
+    fun `an expired session signs out instead of showing errors`() = runTest {
         useTestMain()
-        storage.value = PlainCipher().encrypt("MUSIC_U=stale")
-        api.playlistsResult = ApiResult.Unauthorized("{\"code\":301}")
         api.dailyResult = ApiResult.Unauthorized("{\"code\":301}")
-        api.chartsResult = ApiResult.Unauthorized("{\"code\":301}")
+        libraryApi.recentAlbumsResult = ApiResult.Unauthorized("{\"code\":301}")
+        libraryApi.likedIdsResult = ApiResult.Unauthorized("{\"code\":301}")
 
-        val viewModel = HomeViewModel(api, session)
+        val viewModel = viewModel()
         advanceUntilIdle()
 
         assertThat(session.state.value).isEqualTo(SessionState.SignedOut)
-        assertThat(viewModel.state.value.daily).isEqualTo(SectionState.Loading)
     }
 
     @Test
     fun `refresh flags the pull to refresh indicator and clears it`() = runTest {
         useTestMain()
-        val viewModel = HomeViewModel(api, session)
+        val viewModel = viewModel()
         advanceUntilIdle()
 
         // Hold the next load open so the refreshing flag can be observed.
@@ -128,13 +144,14 @@ class HomeViewModelTest {
 
         assertThat(viewModel.state.value.isRefreshing).isFalse()
         assertThat(api.dailyCalls).isEqualTo(2)
+        assertThat(libraryApi.calls.count { it == "recentAlbums:10" }).isEqualTo(2)
     }
 
     @Test
     fun `retry reloads after a failure`() = runTest {
         useTestMain()
         api.dailyResult = ApiResult.NetworkError(IOException("offline"))
-        val viewModel = HomeViewModel(api, session)
+        val viewModel = viewModel()
         advanceUntilIdle()
 
         api.dailyResult = ApiResult.Success(listOf(sampleTrack))
@@ -144,10 +161,120 @@ class HomeViewModelTest {
         assertThat(viewModel.state.value.daily).isInstanceOf(SectionState.Content::class.java)
     }
 
+    @Test
+    fun `onShown leaves the recent row alone inside thirty seconds`() = runTest {
+        useTestMain()
+        val viewModel = viewModel()
+        advanceUntilIdle()
+        libraryApi.calls.clear()
+
+        now += 29_000L
+        viewModel.onShown()
+        advanceUntilIdle()
+
+        assertThat(libraryApi.calls.filter { it.startsWith("recentAlbums") }).isEmpty()
+    }
+
+    @Test
+    fun `onShown refreshes the recent row once it is stale`() = runTest {
+        useTestMain()
+        val viewModel = viewModel()
+        advanceUntilIdle()
+        libraryApi.calls.clear()
+
+        now += 31_000L
+        viewModel.onShown()
+        advanceUntilIdle()
+
+        assertThat(libraryApi.calls).containsExactly("recentAlbums:10")
+        assertThat(viewModel.state.value.recent).isInstanceOf(SectionState.Content::class.java)
+    }
+
+    @Test
+    fun `a failed silent refresh keeps the shown albums`() = runTest {
+        useTestMain()
+        val viewModel = viewModel()
+        advanceUntilIdle()
+        val shown = viewModel.state.value.recent
+
+        libraryApi.recentAlbumsResult = ApiResult.NetworkError(IOException("offline"))
+        now += 31_000L
+        viewModel.onShown()
+        advanceUntilIdle()
+
+        assertThat(viewModel.state.value.recent).isEqualTo(shown)
+    }
+
+    @Test
+    fun `feeling lucky shuffles the liked ids and plays the first window`() = runTest {
+        useTestMain()
+        val ids = (1L..250L).toList()
+        libraryApi.likedIdsResult = ApiResult.Success(ids)
+        val viewModel = viewModel()
+        advanceUntilIdle()
+
+        var played: List<Track>? = null
+        var index = -1
+        var pager: PlayerController.TrackPager? = null
+        viewModel.feelingLucky { tracks, i, p ->
+            played = tracks
+            index = i
+            pager = p
+        }
+        advanceUntilIdle()
+
+        val shuffled = ids.shuffled(Random(7))
+        assertThat(played!!.map { it.id }).isEqualTo(shuffled.take(100))
+        assertThat(index).isEqualTo(0)
+        assertThat(pager!!.next()!!.map { it.id }).isEqualTo(shuffled.drop(100).take(100))
+        assertThat(pager!!.next()!!.map { it.id }).isEqualTo(shuffled.drop(200))
+        assertThat(pager!!.next()).isNull()
+        assertThat(viewModel.state.value.feelingLucky).isFalse()
+    }
+
+    @Test
+    fun `feeling lucky reports a failure as one transient message`() = runTest {
+        useTestMain()
+        val viewModel = viewModel()
+        advanceUntilIdle()
+
+        libraryApi.likedIdsResult = ApiResult.NetworkError(IOException("offline"))
+        val message = async { viewModel.messages.first() }
+        viewModel.feelingLucky { _, _, _ -> }
+        advanceUntilIdle()
+
+        assertThat(message.await()).isEqualTo(HomeMessage.LuckyFailed)
+        assertThat(viewModel.state.value.feelingLucky).isFalse()
+    }
+
+    @Test
+    fun `feeling lucky ignores a second tap while the window loads`() = runTest {
+        useTestMain()
+        val viewModel = viewModel()
+        advanceUntilIdle()
+
+        libraryApi.likedIdsGate = CompletableDeferred()
+        viewModel.feelingLucky { _, _, _ -> }
+        runCurrent()
+        viewModel.feelingLucky { _, _, _ -> }
+        advanceUntilIdle()
+
+        assertThat(libraryApi.calls.count { it.startsWith("likedIds") }).isEqualTo(2)
+        // One during load(), one for the tap — the second tap was ignored.
+    }
+
+    @Test
+    fun `an empty liked list keeps the button hidden`() = runTest {
+        useTestMain()
+        libraryApi.likedIdsResult = ApiResult.Success(emptyList())
+        val viewModel = viewModel()
+        advanceUntilIdle()
+
+        assertThat(viewModel.state.value.likedIds).isEmpty()
+    }
+
     private class FakeHomeApi : NcmHomeApi {
         var dailyResult: ApiResult<List<Track>> = ApiResult.Success(listOf(sampleTrack, secondTrack))
-        var playlistsResult: ApiResult<List<PlaylistSummary>> = ApiResult.Success(emptyList())
-        var chartsResult: ApiResult<List<ChartSummary>> = ApiResult.Success(emptyList())
         var dailyCalls = 0
         var gate: CompletableDeferred<Unit>? = null
 
@@ -156,35 +283,6 @@ class HomeViewModelTest {
             gate?.await()
             return dailyResult
         }
-
-        override suspend fun recommendedPlaylists(): ApiResult<List<PlaylistSummary>> =
-            playlistsResult
-
-        override suspend fun charts(): ApiResult<List<ChartSummary>> = chartsResult
-    }
-
-    private class FakeAuthApi : NcmAuthApi {
-        override suspend fun qrKey(): ApiResult<QrKeyBody> = ApiResult.Success(QrKeyBody())
-        override suspend fun qrCreate(key: String): ApiResult<QrCreateBody> =
-            ApiResult.Success(QrCreateBody())
-        override suspend fun qrCheck(key: String): ApiResult<QrCheckResponse> =
-            ApiResult.Success(QrCheckResponse())
-        override suspend fun userAccount(): ApiResult<UserAccountResponse> =
-            ApiResult.Success(UserAccountResponse())
-        override suspend fun logout(): ApiResult<LogoutResponse> =
-            ApiResult.Success(LogoutResponse())
-    }
-
-    private class FakeStorage(var value: String? = null) : SessionStorage {
-        override suspend fun read(): String? = value
-        override suspend fun write(value: String?) {
-            this.value = value
-        }
-    }
-
-    private class PlainCipher : SessionCipher {
-        override fun encrypt(plaintext: String): String = "plain:$plaintext"
-        override fun decrypt(ciphertext: String): String = ciphertext.removePrefix("plain:")
     }
 
     private companion object {

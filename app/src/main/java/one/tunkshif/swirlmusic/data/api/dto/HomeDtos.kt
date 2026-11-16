@@ -58,12 +58,6 @@ data class AlbumDto(
     val isSub: Boolean = false,
 )
 
-/** `/recommend/resource` returns the list at the top level, with `playcount` spelled lower case. */
-@Serializable
-data class RecommendResourceResponse(
-    val code: Int = 0,
-    val recommend: List<PlaylistDto> = emptyList(),
-)
 
 @Serializable
 data class PlaylistDto(
@@ -103,29 +97,3 @@ data class CreatorDto(
     val nickname: String = "",
 )
 
-/** `/toplist` and `/toplist/detail` share the `list` shape. */
-@Serializable
-data class ToplistResponse(
-    val code: Int = 0,
-    val list: List<ChartDto> = emptyList(),
-)
-
-@Serializable
-data class ChartDto(
-    val id: Long = 0,
-    val name: String = "",
-    val coverImgUrl: String? = null,
-    val updateFrequency: String? = null,
-    val trackCount: Int = 0,
-    /**
-     * Chart previews are text, not tracks: `{"first": "song", "second": "artist"}`.
-     * Full track objects appear in other endpoints, never here.
-     */
-    val tracks: List<ChartLineDto> = emptyList(),
-)
-
-@Serializable
-data class ChartLineDto(
-    val first: String = "",
-    val second: String = "",
-)

@@ -46,6 +46,10 @@ or renames something.
 - `like_true.json` — real `/like?id=…&like=true` body; `playlistId` is the liked-songs list.
 - `like_false.json` — real `/like?id=…&like=false` body; identical shape to the like answer.
 - `like_bad_id.json` — real `/like?id=1` body; HTTP 200 carrying `code:400`, i.e. a refusal.
+- `record_recent_album.json` — real `/record/recent/album?limit=3` (2026-11-20). Item
+  `data` trimmed to the fields the mapper reads plus `type`/`subType`/`alias`/`company`/
+  `publishTime` for `ignoreUnknownKeys`; `songs`/`lastSong` dropped (that pair is ~90% of the
+  body). Public album data; nothing user-identifying.
 - `comment_new_*.json` — real `/comment/new` bodies (2026-11-16), comments trimmed to 2–4 per
   file. Redacted: `nickname` → `Listener N`, `userId` → `9000000N`, `encryptUserId` replaced,
   every image URL → `example.invalid`. Comment text is kept. `song_recommended` (song 186016,

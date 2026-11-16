@@ -36,6 +36,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
@@ -44,6 +45,8 @@ import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -69,6 +72,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import one.tunkshif.swirlmusic.R
 import one.tunkshif.swirlmusic.data.model.PlayedEntry
+import one.tunkshif.swirlmusic.data.model.RecentAlbum
 import one.tunkshif.swirlmusic.data.model.Track
 import one.tunkshif.swirlmusic.ui.common.PagedList
 import one.tunkshif.swirlmusic.ui.common.SectionError
@@ -104,6 +108,7 @@ fun LibraryRoute(
     LibraryScreen(
         state = state,
         onSelectTab = viewModel::selectTab,
+        onSelectRecentSection = viewModel::selectRecentSection,
         onRetry = viewModel::retry,
         onLoadMore = viewModel::loadMore,
         onOpenSearch = onOpenSearch,
@@ -121,6 +126,7 @@ fun LibraryRoute(
 fun LibraryScreen(
     state: LibraryUiState,
     onSelectTab: (LibraryTab) -> Unit,
+    onSelectRecentSection: (RecentSection) -> Unit,
     onRetry: (LibraryTab) -> Unit,
     onLoadMore: (LibraryTab) -> Unit,
     onOpenSearch: () -> Unit,
@@ -141,6 +147,7 @@ fun LibraryScreen(
             contentPadding = contentPadding,
             nowPlayingId = nowPlayingId,
             onSelectTab = onSelectTab,
+            onSelectRecentSection = onSelectRecentSection,
             onRetry = onRetry,
             onLoadMore = onLoadMore,
             onOpenSearch = onOpenSearch,
@@ -156,6 +163,7 @@ fun LibraryScreen(
 private fun LibraryContent(
     state: LibraryUiState,
     onSelectTab: (LibraryTab) -> Unit,
+    onSelectRecentSection: (RecentSection) -> Unit,
     onRetry: (LibraryTab) -> Unit,
     onLoadMore: (LibraryTab) -> Unit,
     onOpenSearch: () -> Unit,
@@ -272,11 +280,15 @@ private fun LibraryContent(
                         circularArtwork = true,
                     )
 
-                    LibraryTab.Recent -> RecentList(
+                    LibraryTab.Recent -> RecentPage(
                         bottomPad = contentPadding.calculateBottomPadding(),
                         nowPlayingId = nowPlayingId,
-                        state = state.recent,
+                        mode = state.recentSection,
+                        albums = state.recentAlbums,
+                        recent = state.recent,
+                        onSelectSection = onSelectRecentSection,
                         onRetry = { onRetry(LibraryTab.Recent) },
+                        onOpenAlbum = onOpenAlbum,
                         onPlayTracks = onPlayTracks,
                     )
                 }
@@ -540,7 +552,79 @@ private fun <T> CardGrid(
     }
 }
 
+/**
+ * The Recent tab (0013-D56): server-reported albums by default, the top-songs record behind a
+ * compact connected toggle. The group is start-aligned with the grid's first card.
+ */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun RecentPage(
+    mode: RecentSection,
+    albums: SectionState<List<RecentAlbum>>,
+    recent: SectionState<List<PlayedEntry>>,
+    onSelectSection: (RecentSection) -> Unit,
+    onRetry: () -> Unit,
+    onOpenAlbum: (Long) -> Unit,
+    onPlayTracks: (List<Track>, Int) -> Unit,
+    nowPlayingId: Long? = null,
+    bottomPad: androidx.compose.ui.unit.Dp = 0.dp,
+) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        Row(
+            horizontalArrangement =
+                Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
+            modifier = Modifier.padding(start = Spacing.md, top = Spacing.md),
+        ) {
+            RecentSection.entries.forEachIndexed { index, section ->
+                ToggleButton(
+                    checked = mode == section,
+                    onCheckedChange = { onSelectSection(section) },
+                    buttonSize = ToggleButtonSize.ExtraSmall,
+                    shapes = if (index == 0) {
+                        ButtonGroupDefaults.connectedLeadingButtonShapes()
+                    } else {
+                        ButtonGroupDefaults.connectedTrailingButtonShapes()
+                    },
+                ) {
+                    Text(stringResource(section.labelRes()))
+                }
+            }
+        }
+        Box(modifier = Modifier.weight(1f)) {
+            when (mode) {
+                RecentSection.Albums -> CardGrid(
+                    bottomPad = bottomPad,
+                    paged = PagedList(
+                        items = (albums as? SectionState.Content)?.value.orEmpty(),
+                        state = when (albums) {
+                            is SectionState.Content -> SectionState.Content(Unit)
+                            is SectionState.Failed -> SectionState.Failed(albums.error)
+                            SectionState.Loading -> SectionState.Loading
+                        },
+                        hasMore = false,
+                    ),
+                    cards = (albums as? SectionState.Content)?.value.orEmpty().map {
+                        LibraryCard(it.album.id, it.album.name, it.album.artistLine, it.album.artworkUrl)
+                    },
+                    onOpen = onOpenAlbum,
+                    onRetry = onRetry,
+                    onLoadMore = {},
+                    emptyRes = R.string.library_empty_recent,
+                    circularArtwork = false,
+                )
+
+                RecentSection.TopSongs -> RecentList(
+                    bottomPad = bottomPad,
+                    nowPlayingId = nowPlayingId,
+                    state = recent,
+                    onRetry = onRetry,
+                    onPlayTracks = onPlayTracks,
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun RecentList(
     state: SectionState<List<PlayedEntry>>,
@@ -795,4 +879,9 @@ private fun LikedCard(
             }
         }
     }
+}
+
+private fun RecentSection.labelRes(): Int = when (this) {
+    RecentSection.Albums -> R.string.library_recent_albums
+    RecentSection.TopSongs -> R.string.library_recent_top_songs
 }

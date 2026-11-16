@@ -1,0 +1,98 @@
+{
+  "code": 200,
+  "data": {
+    "total": 3,
+    "list": [
+      {
+        "playTime": 1794839388651,
+        "resourceId": "34720827",
+        "resourceType": "ALBUM",
+        "multiTerminalInfo": {
+          "icon": "https://p6.music.126.net/obj/wonDlsKUwrLClGjCm8Kx/44266364630/cef0/cc7b/8a64/cdfe6c6231d20fb6666563450581183c.png",
+          "osText": "未知",
+          "os": "pc"
+        },
+        "os": "pc",
+        "data": {
+          "size": 10,
+          "type": "专辑",
+          "alias": [
+            "Jay Chou's Bedtime Stories"
+          ],
+          "company": "杰威尔",
+          "name": "周杰伦的床边故事",
+          "publishTime": 1466697600007,
+          "artists": [
+            {
+              "id": 6452,
+              "name": "周杰伦"
+            }
+          ],
+          "id": 34720827,
+          "subType": "录音室版",
+          "picUrl": "http://p3.music.126.net/cUTk0ewrQtYGP2YpPZoUng==/3265549553028224.jpg"
+        }
+      },
+      {
+        "playTime": 1794838816799,
+        "resourceId": "18905",
+        "resourceType": "ALBUM",
+        "multiTerminalInfo": {
+          "icon": "https://p6.music.126.net/obj/wonDlsKUwrLClGjCm8Kx/44266364630/cef0/cc7b/8a64/cdfe6c6231d20fb6666563450581183c.png",
+          "osText": "未知",
+          "os": "pc"
+        },
+        "os": "pc",
+        "data": {
+          "size": 11,
+          "type": "专辑",
+          "alias": [
+            "Yeh Hui–mei"
+          ],
+          "company": "杰威尔",
+          "name": "叶惠美",
+          "publishTime": 1059580800000,
+          "artists": [
+            {
+              "id": 6452,
+              "name": "周杰伦"
+            }
+          ],
+          "id": 18905,
+          "subType": "录音室版",
+          "picUrl": "http://p4.music.126.net/ZGffiDQZrGj5s_hnR1CNbg==/109951165566379710.jpg"
+        }
+      },
+      {
+        "playTime": 1794838784636,
+        "resourceId": "18915",
+        "resourceType": "ALBUM",
+        "multiTerminalInfo": {
+          "icon": "https://p6.music.126.net/obj/wonDlsKUwrLClGjCm8Kx/44266364630/cef0/cc7b/8a64/cdfe6c6231d20fb6666563450581183c.png",
+          "osText": "未知",
+          "os": "pc"
+        },
+        "os": "pc",
+        "data": {
+          "size": 10,
+          "type": "专辑",
+          "alias": [
+            "Fantasy"
+          ],
+          "company": "杰威尔",
+          "name": "范特西",
+          "publishTime": 1000396800000,
+          "artists": [
+            {
+              "id": 6452,
+              "name": "周杰伦"
+            }
+          ],
+          "id": 18915,
+          "subType": "录音室版",
+          "picUrl": "http://p3.music.126.net/7R4UhE4MBErGHvI-dB3Rzg==/109951165606034156.jpg"
+        }
+      }
+    ]
+  }
+}

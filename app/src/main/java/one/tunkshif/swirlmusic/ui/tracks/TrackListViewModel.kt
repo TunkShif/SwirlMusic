@@ -24,6 +24,7 @@ import one.tunkshif.swirlmusic.ui.player.toAlbumSeeds
 import one.tunkshif.swirlmusic.data.model.ArtistRef
 import one.tunkshif.swirlmusic.data.model.Track
 import one.tunkshif.swirlmusic.player.PlayerController
+import one.tunkshif.swirlmusic.player.idTrackPager
 import one.tunkshif.swirlmusic.ui.common.LoadError
 import one.tunkshif.swirlmusic.ui.common.SectionState
 
@@ -287,18 +288,7 @@ class TrackListViewModel @Inject constructor(
         if (source !is TrackListSource.Playlist) return null
         val snapshot = pendingIds.toList()
         if (snapshot.isEmpty()) return null
-        var offset = 0
-        return PlayerController.TrackPager {
-            while (offset < snapshot.size) {
-                val slice = snapshot.drop(offset).take(PAGE_SIZE)
-                offset += slice.size
-                when (val result = repository.tracksByIds(slice)) {
-                    is ApiResult.Success -> if (result.value.isNotEmpty()) return@TrackPager result.value
-                    else -> return@TrackPager null
-                }
-            }
-            null
-        }
+        return idTrackPager(snapshot, PAGE_SIZE, repository::tracksByIds)
     }
 
     /**

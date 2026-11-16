@@ -31,7 +31,7 @@ import one.tunkshif.swirlmusic.data.api.dto.LikeResponse
 import one.tunkshif.swirlmusic.data.api.dto.LyricResponse
 import one.tunkshif.swirlmusic.data.api.dto.LikelistResponse
 import one.tunkshif.swirlmusic.data.api.dto.PlaylistDetailResponse
-import one.tunkshif.swirlmusic.data.api.dto.RecommendResourceResponse
+import one.tunkshif.swirlmusic.data.api.dto.RecordRecentAlbumResponse
 import one.tunkshif.swirlmusic.data.api.dto.SearchResponse
 import one.tunkshif.swirlmusic.data.api.dto.SongDetailResponse
 import one.tunkshif.swirlmusic.data.api.dto.UserPlaylistResponse
@@ -40,7 +40,6 @@ import one.tunkshif.swirlmusic.data.api.dto.WriteResponse
 import one.tunkshif.swirlmusic.data.api.dto.ScrobbleResponse
 import one.tunkshif.swirlmusic.data.api.dto.SongUrlResponse
 import one.tunkshif.swirlmusic.data.api.dto.RecommendSongsResponse
-import one.tunkshif.swirlmusic.data.api.dto.ToplistResponse
 import one.tunkshif.swirlmusic.data.api.dto.UserAccountResponse
 import one.tunkshif.swirlmusic.data.model.AlbumDetail
 import one.tunkshif.swirlmusic.data.model.AlbumSummary
@@ -48,7 +47,6 @@ import one.tunkshif.swirlmusic.data.model.ArtistDescription
 import one.tunkshif.swirlmusic.data.model.ArtistDetail
 import one.tunkshif.swirlmusic.data.model.ArtistRelease
 import one.tunkshif.swirlmusic.data.model.ArtistSummary
-import one.tunkshif.swirlmusic.data.model.ChartSummary
 import one.tunkshif.swirlmusic.data.model.CommentPage
 import one.tunkshif.swirlmusic.data.model.CommentPageKey
 import one.tunkshif.swirlmusic.data.model.CommentSort
@@ -61,6 +59,7 @@ import one.tunkshif.swirlmusic.data.model.SearchResults
 import one.tunkshif.swirlmusic.data.model.SearchType
 import one.tunkshif.swirlmusic.data.model.PlayableUrl
 import one.tunkshif.swirlmusic.data.model.PlaylistSummary
+import one.tunkshif.swirlmusic.data.model.RecentAlbum
 import one.tunkshif.swirlmusic.data.model.Track
 import one.tunkshif.swirlmusic.di.IoDispatcher
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -115,14 +114,6 @@ class NcmApi @Inject constructor(
     override suspend fun dailySongs(): ApiResult<List<Track>> =
         request("/recommend/songs", RecommendSongsResponse.serializer())
             .map { response -> response.data.dailySongs.map { it.toDomain() } }
-
-    override suspend fun recommendedPlaylists(): ApiResult<List<PlaylistSummary>> =
-        request("/recommend/resource", RecommendResourceResponse.serializer())
-            .map { response -> response.recommend.map { it.toDomain() } }
-
-    override suspend fun charts(): ApiResult<List<ChartSummary>> =
-        request("/toplist/detail", ToplistResponse.serializer())
-            .map { response -> response.list.take(CHART_PREVIEW_COUNT).map { it.toDomain() } }
 
     override suspend fun songUrls(ids: List<Long>, level: String): ApiResult<List<PlayableUrl>> {
         if (ids.isEmpty()) return ApiResult.Success(emptyList())
@@ -197,6 +188,30 @@ class NcmApi @Inject constructor(
             UserRecordResponse.serializer(),
             mapOf("uid" to uid.toString(), "type" to "0"),
         ).map { response -> response.allData.mapNotNull { it.toEntry() }.take(limit) }
+
+    override suspend fun recentAlbums(limit: Int): ApiResult<List<RecentAlbum>> {
+        var rawBody: String? = null
+        return when (
+            val result = request(
+                "/record/recent/album",
+                RecordRecentAlbumResponse.serializer(),
+                mapOf("limit" to limit.toString()),
+                fresh = true,
+            ) { rawBody = it }
+        ) {
+            is ApiResult.Success -> {
+                val body = result.value.data
+                when {
+                    result.value.code != 200 || body == null ->
+                        ApiResult.HttpError(result.value.code, rawBody)
+                    else -> ApiResult.Success(body.list.mapNotNull { it.toDomain() })
+                }
+            }
+            is ApiResult.Unauthorized,
+            is ApiResult.HttpError,
+            is ApiResult.NetworkError -> result
+        }
+    }
 
     override suspend fun followedAlbums(
         limit: Int,

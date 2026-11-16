@@ -2,9 +2,8 @@ package one.tunkshif.swirlmusic.data.api
 
 import com.google.common.truth.Truth.assertThat
 import kotlinx.serialization.json.Json
-import one.tunkshif.swirlmusic.data.api.dto.RecommendResourceResponse
 import one.tunkshif.swirlmusic.data.api.dto.RecommendSongsResponse
-import one.tunkshif.swirlmusic.data.api.dto.ToplistResponse
+import one.tunkshif.swirlmusic.data.api.dto.PlaylistDto
 import one.tunkshif.swirlmusic.data.api.dto.TrackDto
 import one.tunkshif.swirlmusic.data.model.ArtistRef
 import org.junit.Test
@@ -69,31 +68,15 @@ class HomeMappersTest {
 
     @Test
     fun `play counts are read from either spelling`() {
-        val response = json.decodeFromString<RecommendResourceResponse>(
-            fixture("recommend_resource.json"),
+        val lower = json.decodeFromString<PlaylistDto>(
+            """{"id":1,"name":"A","playcount":1234567}""",
+        )
+        val camel = json.decodeFromString<PlaylistDto>(
+            """{"id":1,"name":"A","playCount":987000}""",
         )
 
-        assertThat(response.recommend[0].toDomain().playCount).isEqualTo(1234567)
-        assertThat(response.recommend[1].toDomain().playCount).isEqualTo(987000)
-    }
-
-    @Test
-    fun `charts keep three preview lines at most and are cut to three charts`() {
-        val response = json.decodeFromString<ToplistResponse>(fixture("toplist_detail.json"))
-        val charts = response.list.take(CHART_PREVIEW_COUNT).map { it.toDomain() }
-
-        assertThat(charts).hasSize(3)
-        assertThat(charts.first().previewLines).hasSize(3)
-        assertThat(charts.first().previewLines.first()).isEqualTo("Song A — Artist A")
-        assertThat(charts.first().updateFrequency).isEqualTo("Updated daily")
-    }
-
-    @Test
-    fun `a chart preview line without an artist has no separator`() {
-        val response = json.decodeFromString<ToplistResponse>(fixture("toplist_detail.json"))
-        val empty = response.list.take(CHART_PREVIEW_COUNT).flatMap { it.toDomain().previewLines }
-
-        assertThat(empty).isNotEmpty()
+        assertThat(lower.toDomain().playCount).isEqualTo(1234567)
+        assertThat(camel.toDomain().playCount).isEqualTo(987000)
     }
 
     @Test

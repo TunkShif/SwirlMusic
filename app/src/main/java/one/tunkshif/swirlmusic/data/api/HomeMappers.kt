@@ -1,17 +1,10 @@
 package one.tunkshif.swirlmusic.data.api
 
-import one.tunkshif.swirlmusic.data.api.dto.ChartDto
 import one.tunkshif.swirlmusic.data.api.dto.PlaylistDto
 import one.tunkshif.swirlmusic.data.api.dto.TrackDto
 import one.tunkshif.swirlmusic.data.model.ArtistRef
-import one.tunkshif.swirlmusic.data.model.ChartSummary
 import one.tunkshif.swirlmusic.data.model.PlaylistSummary
 import one.tunkshif.swirlmusic.data.model.Track
-
-/** How many charts the home preview shows. */
-internal const val CHART_PREVIEW_COUNT = 3
-
-private const val CHART_LINE_PREVIEW = 3
 
 internal fun TrackDto.toDomain(): Track {
     // `/recommend/songs` and `/cloudsearch` use `ar` and `al`; `/song/detail` uses `artists` and `album`.
@@ -41,16 +34,6 @@ internal fun PlaylistDto.toDomain(): PlaylistSummary = PlaylistSummary(
     // NetEase spells this `playcount` here and `playCount` elsewhere; accept both.
     playCount = if (playcount > 0) playcount else playCount,
     trackCount = trackCount,
-)
-
-internal fun ChartDto.toDomain(): ChartSummary = ChartSummary(
-    id = id,
-    name = name,
-    artworkUrl = coverImgUrl?.let { sizedArtwork(it, 160) },
-    updateFrequency = updateFrequency?.takeIf { it.isNotBlank() },
-    previewLines = tracks
-        .take(CHART_LINE_PREVIEW)
-        .map { line -> line.first + if (line.second.isBlank()) "" else " — " + line.second },
 )
 
 /**

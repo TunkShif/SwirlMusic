@@ -24,8 +24,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -33,13 +36,16 @@ import androidx.compose.material3.Surface
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -50,32 +56,49 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.time.LocalTime
 import one.tunkshif.swirlmusic.R
-import one.tunkshif.swirlmusic.data.model.ChartSummary
-import one.tunkshif.swirlmusic.data.model.PlaylistSummary
+import one.tunkshif.swirlmusic.data.model.RecentAlbum
 import one.tunkshif.swirlmusic.data.model.Track
+import one.tunkshif.swirlmusic.player.PlayerController
 import one.tunkshif.swirlmusic.ui.common.LoadError
 import one.tunkshif.swirlmusic.ui.common.SectionState
 import one.tunkshif.swirlmusic.ui.components.Artwork
-import one.tunkshif.swirlmusic.ui.format.formatCount
+import one.tunkshif.swirlmusic.ui.components.ToastPillHost
+import one.tunkshif.swirlmusic.ui.components.ToastPillState
+import one.tunkshif.swirlmusic.ui.components.rememberToastPillState
 import one.tunkshif.swirlmusic.ui.theme.HeroTitleStyle
 import one.tunkshif.swirlmusic.ui.theme.Spacing
 
 @Composable
 fun HomeRoute(
     nickname: String?,
-    onPlayTracks: (List<Track>, Int) -> Unit,
+    onPlayTracks: (List<Track>, Int, PlayerController.TrackPager?) -> Unit,
+    onOpenAlbum: (Long) -> Unit,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(),
     now: LocalTime = LocalTime.now(),
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val toastState = rememberToastPillState()
+    // Coming back to Home refreshes the recent row when it is stale (see HomeViewModel).
+    LaunchedEffect(Unit) { viewModel.onShown() }
+    LaunchedEffect(viewModel) {
+        viewModel.messages.collect { message ->
+            when (message) {
+                HomeMessage.LuckyFailed ->
+                    toastState.show(R.drawable.ic_error, R.string.home_lucky_failed)
+            }
+        }
+    }
     HomeScreen(
         nickname = nickname,
         state = state,
         onRefresh = viewModel::refresh,
         onRetry = viewModel::retry,
         onPlayTracks = onPlayTracks,
+        onOpenAlbum = onOpenAlbum,
+        onLucky = { viewModel.feelingLucky(onPlayTracks) },
+        toastState = toastState,
         contentPadding = contentPadding,
         modifier = modifier,
         now = now,
@@ -91,7 +114,10 @@ fun HomeScreen(
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(),
     now: LocalTime = LocalTime.now(),
-    onPlayTracks: (List<Track>, Int) -> Unit = { _, _ -> },
+    onPlayTracks: (List<Track>, Int, PlayerController.TrackPager?) -> Unit = { _, _, _ -> },
+    onOpenAlbum: (Long) -> Unit = {},
+    onLucky: () -> Unit = {},
+    toastState: ToastPillState = rememberToastPillState(),
 ) {
     // A Surface, not a Box: it also supplies the default content colour, without which section
     // titles fall back to black on a dark scheme.
@@ -99,7 +125,18 @@ fun HomeScreen(
         modifier = modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background,
     ) {
-        HomeContent(nickname, state, onRefresh, onRetry, now, onPlayTracks, contentPadding)
+        HomeContent(
+            nickname,
+            state,
+            onRefresh,
+            onRetry,
+            now,
+            onPlayTracks,
+            onOpenAlbum,
+            onLucky,
+            toastState,
+            contentPadding,
+        )
     }
 }
 
@@ -111,36 +148,51 @@ private fun HomeContent(
     onRefresh: () -> Unit,
     onRetry: () -> Unit,
     now: LocalTime,
-    onPlayTracks: (List<Track>, Int) -> Unit,
+    onPlayTracks: (List<Track>, Int, PlayerController.TrackPager?) -> Unit,
+    onOpenAlbum: (Long) -> Unit,
+    onLucky: () -> Unit,
+    toastState: ToastPillState,
     contentPadding: PaddingValues,
 ) {
-    PullToRefreshBox(
-        isRefreshing = state.isRefreshing,
-        onRefresh = onRefresh,
-        modifier = Modifier.fillMaxSize(),
-    ) {
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(
-                    top = contentPadding.calculateTopPadding(),
-                    start = contentPadding.calculateStartPadding(LocalLayoutDirection.current),
-                    end = contentPadding.calculateEndPadding(LocalLayoutDirection.current),
-                ),
-            contentPadding = PaddingValues(
-                bottom = contentPadding.calculateBottomPadding() + Spacing.xxl,
-            ),
-            verticalArrangement = Arrangement.spacedBy(Spacing.lg),
+    Box(modifier = Modifier.fillMaxSize()) {
+        PullToRefreshBox(
+            isRefreshing = state.isRefreshing,
+            onRefresh = onRefresh,
+            modifier = Modifier.fillMaxSize(),
         ) {
-            item { Greeting(nickname = nickname, dayPart = dayPartFor(now.hour)) }
-            item { HeroSection(state.daily, onPlayTracks) }
-            item { SectionHeader(R.string.home_daily_title) }
-            item { DailySection(state.daily, onRetry, onPlayTracks) }
-            item { SectionHeader(R.string.home_playlists_title) }
-            item { PlaylistSection(state.playlists, onRetry) }
-            item { SectionHeader(R.string.home_charts_title) }
-            item { ChartSection(state.charts, onRetry) }
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(
+                        top = contentPadding.calculateTopPadding(),
+                        start = contentPadding.calculateStartPadding(LocalLayoutDirection.current),
+                        end = contentPadding.calculateEndPadding(LocalLayoutDirection.current),
+                    ),
+                contentPadding = PaddingValues(
+                    bottom = contentPadding.calculateBottomPadding() + Spacing.xxl,
+                ),
+                verticalArrangement = Arrangement.spacedBy(Spacing.lg),
+            ) {
+                item { Greeting(nickname = nickname, dayPart = dayPartFor(now.hour)) }
+                item { HeroSection(state.daily, onPlayTracks) }
+                if (state.likedIds.isNotEmpty()) {
+                    item { LuckyButton(loading = state.feelingLucky, onClick = onLucky) }
+                }
+                item { SectionHeader(R.string.home_daily_title) }
+                item { DailySection(state.daily, onRetry, onPlayTracks) }
+                // An empty recent row hides its header too; loading and errors still show one.
+                if (state.recent !is SectionState.Content || state.recent.value.isNotEmpty()) {
+                    item { SectionHeader(R.string.home_recent_title) }
+                    item { RecentSection(state.recent, onRetry, onOpenAlbum) }
+                }
+            }
         }
+        ToastPillHost(
+            state = toastState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = contentPadding.calculateBottomPadding() + Spacing.lg),
+        )
     }
 }
 
@@ -178,7 +230,7 @@ private fun Greeting(nickname: String?, dayPart: DayPart) {
 @Composable
 private fun HeroSection(
     state: SectionState<List<Track>>,
-    onPlayTracks: (List<Track>, Int) -> Unit,
+    onPlayTracks: (List<Track>, Int, PlayerController.TrackPager?) -> Unit,
 ) {
     val tracks = (state as? SectionState.Content)?.value ?: return
     val track = tracks.firstOrNull() ?: return
@@ -213,7 +265,7 @@ private fun HeroSection(
                 )
             }
             FilledIconButton(
-                onClick = { onPlayTracks(tracks, 0) },
+                onClick = { onPlayTracks(tracks, 0, null) },
                 modifier = Modifier.size(96.dp),
                 shape = CircleShape,
                 colors = IconButtonDefaults.filledIconButtonColors(
@@ -289,7 +341,7 @@ private fun SectionHeader(titleRes: Int) {
 private fun DailySection(
     state: SectionState<List<Track>>,
     onRetry: () -> Unit,
-    onPlayTracks: (List<Track>, Int) -> Unit,
+    onPlayTracks: (List<Track>, Int, PlayerController.TrackPager?) -> Unit,
 ) {
     when (state) {
         is SectionState.Loading -> CardRowSkeleton()
@@ -310,7 +362,7 @@ private fun DailySection(
                             title = track.title,
                             subtitle = track.artistLine,
                             artworkUrl = track.artworkUrl,
-                            onClick = { onPlayTracks(tracks, index) },
+                            onClick = { onPlayTracks(tracks, index, null) },
                         )
                     }
                 }
@@ -319,56 +371,59 @@ private fun DailySection(
     }
 }
 
+/**
+ * The "Feeling lucky" action (0013-D57): a full-width tonal button under the hero. While the
+ * first shuffled page resolves it swaps its content for a spinner and ignores taps, so the
+ * button keeps its colour instead of greying out.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun PlaylistSection(state: SectionState<List<PlaylistSummary>>, onRetry: () -> Unit) {
+private fun LuckyButton(loading: Boolean, onClick: () -> Unit) {
+    FilledTonalButton(
+        onClick = { if (!loading) onClick() },
+        modifier = Modifier
+            .padding(horizontal = Spacing.xl)
+            .fillMaxWidth()
+            .height(48.dp),
+    ) {
+        if (loading) {
+            LoadingIndicator(modifier = Modifier.size(24.dp))
+        } else {
+            Icon(
+                painter = painterResource(R.drawable.ic_shuffle),
+                contentDescription = null,
+                modifier = Modifier.size(ButtonDefaults.IconSize),
+            )
+            Text(
+                text = stringResource(R.string.home_feeling_lucky),
+                modifier = Modifier.padding(start = Spacing.sm),
+            )
+        }
+    }
+}
+
+@Composable
+private fun RecentSection(
+    state: SectionState<List<RecentAlbum>>,
+    onRetry: () -> Unit,
+    onOpenAlbum: (Long) -> Unit,
+) {
     when (state) {
         is SectionState.Loading -> CardRowSkeleton()
 
         is SectionState.Failed -> SectionError(state.error, onRetry)
 
-        is SectionState.Content -> {
-            if (state.value.isEmpty()) {
-                SectionEmpty()
-            } else {
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = Spacing.xl),
-                    horizontalArrangement = Arrangement.spacedBy(Spacing.md),
-                ) {
-                    items(state.value, key = { it.id }) { playlist ->
-                        TrackCard(
-                            title = playlist.name,
-                            subtitle = stringResource(
-                                R.string.home_plays,
-                                formatCount(playlist.playCount),
-                            ),
-                            artworkUrl = playlist.artworkUrl,
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ChartSection(state: SectionState<List<ChartSummary>>, onRetry: () -> Unit) {
-    when (state) {
-        is SectionState.Loading -> ChartSkeleton()
-
-        is SectionState.Failed -> SectionError(state.error, onRetry)
-
-        is SectionState.Content -> {
-            if (state.value.isEmpty()) {
-                SectionEmpty()
-            } else {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = Spacing.xl),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.md),
-                ) {
-                    state.value.forEach { chart -> ChartRow(chart) }
-                }
+        is SectionState.Content -> LazyRow(
+            contentPadding = PaddingValues(horizontal = Spacing.xl),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.md),
+        ) {
+            items(state.value, key = { it.album.id }) { recent ->
+                TrackCard(
+                    title = recent.album.name,
+                    subtitle = recent.album.artistLine,
+                    artworkUrl = recent.album.artworkUrl,
+                    onClick = { onOpenAlbum(recent.album.id) },
+                )
             }
         }
     }
@@ -406,50 +461,6 @@ private fun TrackCard(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-    }
-}
-
-@Composable
-private fun ChartRow(chart: ChartSummary) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceContainer,
-    ) {
-        Row(
-            modifier = Modifier.padding(Spacing.md),
-            horizontalArrangement = Arrangement.spacedBy(Spacing.md),
-        ) {
-            Artwork(
-                url = chart.artworkUrl,
-                contentDescription = null,
-                modifier = Modifier.size(72.dp),
-            )
-            Column(modifier = Modifier.align(Alignment.CenterVertically)) {
-            Text(
-                text = chart.name,
-                style = MaterialTheme.typography.titleMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            chart.updateFrequency?.let { frequency ->
-                Text(
-                    text = frequency,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            chart.previewLines.forEach { line ->
-                Text(
-                    text = line,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            }
-        }
     }
 }
 
@@ -524,47 +535,6 @@ private fun CardRowSkeleton() {
     }
 }
 
-@Composable
-private fun ChartSkeleton() {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = Spacing.xl),
-        verticalArrangement = Arrangement.spacedBy(Spacing.md),
-    ) {
-        repeat(2) {
-            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
-                Box(
-                    modifier = Modifier
-                        .size(72.dp)
-                        .clip(MaterialTheme.shapes.medium)
-                        .background(MaterialTheme.colorScheme.surfaceContainerHigh),
-                )
-                Column(
-                    modifier = Modifier
-                        .align(Alignment.CenterVertically)
-                        .fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.xs),
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth(0.4f)
-                            .height(16.dp)
-                            .clip(MaterialTheme.shapes.extraSmall)
-                            .background(MaterialTheme.colorScheme.surfaceContainerHigh),
-                    )
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth(0.7f)
-                            .height(12.dp)
-                            .clip(MaterialTheme.shapes.extraSmall)
-                            .background(MaterialTheme.colorScheme.surfaceContainerHigh),
-                    )
-                }
-            }
-        }
-    }
-}
 
 private fun DayPart.plainGreeting(): Int = when (this) {
     DayPart.Morning -> R.string.home_greeting_morning_plain

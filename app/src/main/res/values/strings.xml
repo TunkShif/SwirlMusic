@@ -40,9 +40,9 @@
     <string name="home_greeting_evening_plain">Good evening</string>
     <string name="home_greeting_night_plain">Good night</string>
     <string name="home_daily_title">Made for you</string>
-    <string name="home_playlists_title">Recommended playlists</string>
-    <string name="home_charts_title">Charts</string>
-    <string name="home_plays">%1$s plays</string>
+    <string name="home_recent_title">Recently played</string>
+    <string name="home_feeling_lucky">Feeling lucky</string>
+    <string name="home_lucky_failed">Couldn\'t start. Try again.</string>
     <string name="home_empty_title">Nothing here yet</string>
     <string name="home_error_network">Could not load. Check your connection.</string>
     <string name="home_error_server">Could not load.</string>
@@ -55,6 +55,8 @@
     <string name="library_tab_albums">Albums</string>
     <string name="library_tab_artists">Artists</string>
     <string name="library_tab_recent">Recent</string>
+    <string name="library_recent_albums">Albums</string>
+    <string name="library_recent_top_songs">Top songs</string>
     <string name="library_empty_playlists">No playlists yet</string>
     <string name="library_empty_albums">No saved albums</string>
     <string name="library_empty_artists">No followed artists</string>

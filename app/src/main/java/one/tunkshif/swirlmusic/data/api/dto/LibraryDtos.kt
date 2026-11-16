@@ -50,6 +50,38 @@ data class PlayRecordDto(
 )
 
 /**
+ * `/record/recent/album`: recently played albums, newest first. Each item's `data` also
+ * carries the album's full `songs` list — around 90% of the body — so it is deliberately
+ * not declared; `ignoreUnknownKeys` skips it.
+ */
+@Serializable
+data class RecordRecentAlbumResponse(
+    val code: Int = 0,
+    val data: RecordRecentAlbumBody? = null,
+)
+
+@Serializable
+data class RecordRecentAlbumBody(
+    val total: Int = 0,
+    val list: List<RecordRecentItemDto> = emptyList(),
+)
+
+@Serializable
+data class RecordRecentItemDto(
+    val playTime: Long = 0,
+    val data: RecentAlbumDto? = null,
+)
+
+@Serializable
+data class RecentAlbumDto(
+    val id: Long = 0,
+    val name: String = "",
+    val picUrl: String? = null,
+    val artists: List<ArtistDto> = emptyList(),
+    val size: Int = 0,
+)
+
+/**
  * NetEase is inconsistent about this one: some builds answer `subList`, others `data`, and the
  * album may sit inside the item or be the item. All variants are read, the first non-empty wins.
  */

@@ -50,6 +50,12 @@ data class PlayedEntry(
     val playCount: Int,
 )
 
+/** One row of `/record/recent/album`: an album the account played, newest first. */
+data class RecentAlbum(
+    val album: AlbumSummary,
+    val playedAtMillis: Long,
+)
+
 data class AlbumDetail(
     val id: Long,
     val name: String,

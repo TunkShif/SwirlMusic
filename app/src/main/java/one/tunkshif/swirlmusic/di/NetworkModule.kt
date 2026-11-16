@@ -5,6 +5,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import java.util.concurrent.TimeUnit
+import kotlin.random.Random
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.serialization.json.Json
@@ -47,6 +48,10 @@ object NetworkModule {
     @Provides
     @Singleton
     fun timeSource(): TimeSource = SystemTimeSource
+
+    @Provides
+    @Singleton
+    fun random(): Random = Random
 
     @Provides
     @Singleton

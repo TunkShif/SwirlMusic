@@ -27,11 +27,3 @@ data class PlaylistSummary(
     /** `specialType == 5`: the account's liked-songs list. */
     val isLiked: Boolean = false,
 )
-
-data class ChartSummary(
-    val id: Long,
-    val name: String,
-    val artworkUrl: String?,
-    val updateFrequency: String?,
-    val previewLines: List<String>,
-)
