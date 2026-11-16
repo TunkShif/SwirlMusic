@@ -243,6 +243,8 @@ fun TrackListScreen(
                         Icon(
                             painter = painterResource(R.drawable.ic_comment),
                             contentDescription = stringResource(R.string.comments_open),
+                            // The Saved pill's icon size, so the round button doesn't read heavier.
+                            modifier = Modifier.size(20.dp),
                         )
                     }
                 },
