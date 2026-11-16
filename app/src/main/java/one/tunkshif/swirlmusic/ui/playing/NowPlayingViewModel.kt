@@ -45,6 +45,7 @@ import one.tunkshif.swirlmusic.player.QueueEntry
 internal const val COVER_ARTWORK_PX = 1080
 
 data class NowPlayingTrack(
+    val id: Long,
     val title: String,
     val artistLine: String,
     val albumName: String?,
@@ -247,6 +248,7 @@ internal fun PlaybackState.toNowPlayingUiState(): NowPlayingUiState {
     return NowPlayingUiState(
         track = current?.let { track ->
             NowPlayingTrack(
+                id = track.id,
                 title = track.title,
                 artistLine = track.artistLine,
                 albumName = track.albumName,

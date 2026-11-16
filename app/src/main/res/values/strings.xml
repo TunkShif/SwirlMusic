@@ -209,4 +209,31 @@
     <string name="playing_show_lyrics">Show lyrics</string>
     <string name="playing_open_artist">Open artist</string>
     <string name="playing_choose_artist">Choose artist</string>
+
+    <!-- Comments -->
+    <string name="comments_title">Comments</string>
+    <string name="comments_open">Comments</string>
+    <string name="comments_sort_hot">Hot</string>
+    <string name="comments_sort_newest">Newest</string>
+    <string name="comments_empty">No comments yet</string>
+    <string name="comments_empty_body">Nobody has commented on this yet.</string>
+    <string name="comments_quote_fmt">%1$s: %2$s</string>
+    <string name="comments_time_just_now">Just now</string>
+    <string name="comments_time_yesterday">Yesterday</string>
+    <plurals name="comments_count">
+        <item quantity="one">%1$s comment</item>
+        <item quantity="other">%1$s comments</item>
+    </plurals>
+    <plurals name="comments_reply_count">
+        <item quantity="one">%1$d reply</item>
+        <item quantity="other">%1$d replies</item>
+    </plurals>
+    <plurals name="comments_time_minutes">
+        <item quantity="one">%1$d min ago</item>
+        <item quantity="other">%1$d min ago</item>
+    </plurals>
+    <plurals name="comments_time_hours">
+        <item quantity="one">%1$d h ago</item>
+        <item quantity="other">%1$d h ago</item>
+    </plurals>
 </resources>

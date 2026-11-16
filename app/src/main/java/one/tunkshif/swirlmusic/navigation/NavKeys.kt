@@ -2,6 +2,7 @@ package one.tunkshif.swirlmusic.navigation
 
 import androidx.navigation3.runtime.NavKey
 import kotlinx.serialization.Serializable
+import one.tunkshif.swirlmusic.data.model.CommentTargetKind
 
 /**
  * Navigation keys. Serializable, because `rememberNavBackStack` saves the stack through
@@ -31,3 +32,11 @@ data class ArtistKey(val id: Long) : NavKey
 
 @Serializable
 data object SearchKey : NavKey
+
+/** Full-screen comments view (0015); [title] is the track/list name shown under the bar. */
+@Serializable
+data class CommentsKey(
+    val kind: CommentTargetKind,
+    val id: Long,
+    val title: String,
+) : NavKey

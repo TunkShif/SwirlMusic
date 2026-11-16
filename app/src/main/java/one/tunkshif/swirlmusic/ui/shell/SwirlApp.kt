@@ -44,6 +44,7 @@ import androidx.navigationevent.NavigationEvent
 import one.tunkshif.swirlmusic.R
 import one.tunkshif.swirlmusic.navigation.AlbumKey
 import one.tunkshif.swirlmusic.navigation.ArtistKey
+import one.tunkshif.swirlmusic.navigation.CommentsKey
 import one.tunkshif.swirlmusic.navigation.HomeKey
 import one.tunkshif.swirlmusic.navigation.LibraryKey
 import one.tunkshif.swirlmusic.navigation.PlayingKey
@@ -51,6 +52,8 @@ import one.tunkshif.swirlmusic.navigation.PlaylistKey
 import one.tunkshif.swirlmusic.navigation.SearchKey
 import one.tunkshif.swirlmusic.navigation.ProfileKey
 import one.tunkshif.swirlmusic.navigation.TopLevelDestination
+import one.tunkshif.swirlmusic.data.model.CommentTarget
+import one.tunkshif.swirlmusic.data.model.CommentTargetKind
 import one.tunkshif.swirlmusic.data.model.Track
 import one.tunkshif.swirlmusic.ui.components.LocalSharedTransitionScope
 import androidx.compose.runtime.LaunchedEffect
@@ -69,6 +72,7 @@ import one.tunkshif.swirlmusic.ui.home.HomeRoute
 import one.tunkshif.swirlmusic.ui.home.HomeViewModel
 import one.tunkshif.swirlmusic.ui.library.LibraryRoute
 import one.tunkshif.swirlmusic.ui.library.LibraryViewModel
+import one.tunkshif.swirlmusic.ui.comments.CommentsRoute
 import one.tunkshif.swirlmusic.ui.search.SearchRoute
 import one.tunkshif.swirlmusic.ui.artist.ArtistRoute
 import one.tunkshif.swirlmusic.ui.tracks.TrackListRoute
@@ -78,8 +82,8 @@ import one.tunkshif.swirlmusic.ui.playing.NowPlayingRoute
 import one.tunkshif.swirlmusic.ui.theme.AlbumColorTheme
 import one.tunkshif.swirlmusic.ui.profile.ProfileScreen
 
-/** Every screen shows the dock except the full-screen player. */
-internal fun showsDock(key: NavKey?): Boolean = key !is PlayingKey
+/** Every screen shows the dock except the full-screen ones: player and comments. */
+internal fun showsDock(key: NavKey?): Boolean = key !is PlayingKey && key !is CommentsKey
 
 /**
  * The tab that owns the current stack: the stack's root. A playlist opened from Library keeps
@@ -148,13 +152,33 @@ fun SwirlApp(
         onOpenAlbum: (Long) -> Unit,
         onOpenArtist: (Long) -> Unit,
         onOpenQueue: () -> Unit,
+        onOpenComments: (trackId: Long, title: String) -> Unit,
     ) -> Unit =
-        { onBack, onOpenAlbum, onOpenArtist, onOpenQueue ->
+        { onBack, onOpenAlbum, onOpenArtist, onOpenQueue, onOpenComments ->
             NowPlayingRoute(
                 onBack = onBack,
                 onOpenAlbum = onOpenAlbum,
                 onOpenArtist = onOpenArtist,
                 onOpenQueue = onOpenQueue,
+                onOpenComments = onOpenComments,
+            )
+        },
+    /**
+     * The comments destination. A parameter, like [playingContent], so shell tests can render
+     * it without Hilt. Production uses the default.
+     */
+    commentsContent: @Composable (
+        target: CommentTarget,
+        title: String,
+        onBack: () -> Unit,
+        contentPadding: PaddingValues,
+    ) -> Unit =
+        { target, title, onBack, contentPadding ->
+            CommentsRoute(
+                target = target,
+                title = title,
+                onBack = onBack,
+                contentPadding = contentPadding,
             )
         },
 ) {
@@ -275,6 +299,9 @@ fun SwirlApp(
                         onBack = { backStack.removeLastOrNull() },
                         onPlayTracks = onPlayTracks,
                         contentPadding = innerPadding,
+                        onOpenComments = { title ->
+                            backStack.add(CommentsKey(CommentTargetKind.Playlist, key.id, title))
+                        },
                     )
                 }
                 entry<AlbumKey> { key ->
@@ -284,6 +311,9 @@ fun SwirlApp(
                         onPlayTracks = onPlayTracks,
                         contentPadding = innerPadding,
                         onOpenArtist = { id -> backStack.add(ArtistKey(id)) },
+                        onOpenComments = { title ->
+                            backStack.add(CommentsKey(CommentTargetKind.Album, key.id, title))
+                        },
                     )
                 }
                 entry<ArtistKey> { key ->
@@ -303,6 +333,14 @@ fun SwirlApp(
                         onOpenArtist = { id -> backStack.add(ArtistKey(id)) },
                         onPlayTracks = { t, i -> onPlayTracks(t, i, null) },
                         contentPadding = innerPadding,
+                    )
+                }
+                entry<CommentsKey> { key ->
+                    commentsContent(
+                        CommentTarget(key.kind, key.id),
+                        key.title,
+                        { backStack.removeLastOrNull() },
+                        innerPadding,
                     )
                 }
                 entry<ProfileKey> {
@@ -343,6 +381,10 @@ fun SwirlApp(
                                 backStack.add(ArtistKey(id))
                             },
                             { showQueue = true },
+                            // Comments sits on top of Playing; back returns here.
+                            { id, title ->
+                                backStack.add(CommentsKey(CommentTargetKind.Song, id, title))
+                            },
                         )
                     }
                 }

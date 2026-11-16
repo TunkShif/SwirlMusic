@@ -42,7 +42,7 @@ class CoverCarouselTest {
     private val skips = mutableListOf<Long>()
     private var taps = 0
 
-    private val track = NowPlayingTrack("t", "a", null, null, null, null)
+    private val track = NowPlayingTrack(1, "t", "a", null, null, null, null)
     private val prev = NowPlayingCover(uid = 7, artworkUrl = null, placeholderArtworkUrl = null)
     private val next = NowPlayingCover(uid = 9, artworkUrl = null, placeholderArtworkUrl = null)
 

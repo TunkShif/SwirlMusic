@@ -121,7 +121,7 @@ class ShellBehaviorTest {
                     onPlayTracks = { _, _, _ -> },
                     homeContent = { _ -> TestHome() },
                     libraryContent = { _, _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
-                    playingContent = { onBack, _, _, _ -> PlayingStub(onBack) },
+                    playingContent = { onBack, _, _, _, _ -> PlayingStub(onBack) },
                 )
             }
         }
@@ -152,7 +152,7 @@ class ShellBehaviorTest {
                     onPlayTracks = { _, _, _ -> },
                     homeContent = { _ -> TestHome() },
                     libraryContent = { _, _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
-                    playingContent = { onBack, _, _, _ -> PlayingStub(onBack) },
+                    playingContent = { onBack, _, _, _, _ -> PlayingStub(onBack) },
                 )
             }
         }
@@ -243,7 +243,7 @@ class ShellBehaviorTest {
                     onQueueEvent = {},
                     homeContent = { _ -> TestHome() },
                     libraryContent = { _, _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
-                    playingContent = { _, _, _, _ -> androidx.compose.material3.Text("Playing stub") },
+                    playingContent = { _, _, _, _, _ -> androidx.compose.material3.Text("Playing stub") },
                 )
             }
         }
@@ -274,7 +274,7 @@ class ShellBehaviorTest {
                     onQueueEvent = {},
                     homeContent = { _ -> TestHome() },
                     libraryContent = { _, _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
-                    playingContent = { _, _, _, onOpenQueue ->
+                    playingContent = { _, _, _, onOpenQueue, _ ->
                         androidx.compose.foundation.layout.Column {
                             androidx.compose.material3.Text("Playing stub")
                             androidx.compose.runtime.SideEffect { onOpenQueue() }
@@ -305,7 +305,7 @@ class ShellBehaviorTest {
                     onPlayTracks = { _, _, _ -> },
                     homeContent = { _ -> TestHome() },
                     libraryContent = { _, _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
-                    playingContent = { onBack, _, _, _ -> PlayingStub(onBack) },
+                    playingContent = { onBack, _, _, _, _ -> PlayingStub(onBack) },
                 )
             }
         }
@@ -342,7 +342,7 @@ class ShellBehaviorTest {
                     onPlayTracks = { _, _, _ -> },
                     homeContent = { _ -> TestHome() },
                     libraryContent = { _, _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
-                    playingContent = { onBack, _, _, _ -> PlayingStub(onBack) },
+                    playingContent = { onBack, _, _, _, _ -> PlayingStub(onBack) },
                 )
             }
         }
@@ -365,7 +365,7 @@ class ShellBehaviorTest {
     }
 
     private val coverState = NowPlayingUiState(
-        track = NowPlayingTrack("Nightcall", "Kavinsky", null, null, "u1", null),
+        track = NowPlayingTrack(7, "Nightcall", "Kavinsky", null, null, "u1", null),
         currentUid = 1,
         previous = NowPlayingCover(0, "u0", null),
         next = NowPlayingCover(2, "u2", null),
@@ -385,7 +385,7 @@ class ShellBehaviorTest {
                     onPlayTracks = { _, _, _ -> },
                     homeContent = { _ -> TestHome() },
                     libraryContent = { _, _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
-                    playingContent = { onBack, _, _, _ ->
+                    playingContent = { onBack, _, _, _, _ ->
                         NowPlayingScreen(
                             state = coverState,
                             onEvent = {},
@@ -430,7 +430,7 @@ class ShellBehaviorTest {
                     onPlayTracks = { _, _, _ -> },
                     homeContent = { _ -> TestHome() },
                     libraryContent = { _, _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
-                    playingContent = { onBack, _, _, _ ->
+                    playingContent = { onBack, _, _, _, _ ->
                         NowPlayingScreen(
                             state = coverState,
                             onEvent = { events += it },
@@ -452,6 +452,57 @@ class ShellBehaviorTest {
 
         assertThat(events).contains(NowPlayingEvent.SkipToCover(2L))
         // Still on Playing: the cover slot remains.
+        compose.onNodeWithTag(one.tunkshif.swirlmusic.ui.playing.PLAYING_COVER_TAG)
+            .assertExists()
+    }
+
+    @Test
+    fun `comments opens over playing and back returns without the dock`() {
+        compose.setContent {
+            SwirlMusicTheme(dynamicColor = false) {
+                SwirlApp(
+                    profile = profile,
+                    onSignOut = {},
+                    miniPlayer = MiniPlayerUiState(title = "Nightcall", subtitle = "Kavinsky"),
+                    onPlayPause = {},
+                    onPlayTracks = { _, _, _ -> },
+                    homeContent = { _ -> TestHome() },
+                    libraryContent = { _, _, _, _, _ -> androidx.compose.material3.Text("Library stub") },
+                    playingContent = { onBack, _, _, _, onOpenComments ->
+                        NowPlayingScreen(
+                            state = coverState,
+                            onEvent = {},
+                            onBack = onBack,
+                            onOpenAlbum = {},
+                            onOpenQueue = {},
+                            onOpenComments = onOpenComments,
+                        )
+                    },
+                    commentsContent = { _, title, onBack, _ ->
+                        androidx.compose.foundation.layout.Column {
+                            androidx.compose.material3.Text("Comments stub $title")
+                            androidx.compose.material3.TextButton(onClick = onBack) {
+                                androidx.compose.material3.Text("Stub back")
+                            }
+                        }
+                    },
+                )
+            }
+        }
+
+        compose.onNodeWithTag(MINI_PLAYER_TAG).performClick()
+        compose.onNodeWithContentDescription(context.getString(R.string.comments_open))
+            .performClick()
+
+        // Comments pushed on top of Playing, carrying the track's title.
+        compose.onNodeWithText("Comments stub Nightcall").assertExists()
+        // Full screen: no bottom-bar destination labels under it.
+        assertThat(
+            compose.onAllNodesWithText(label(TopLevelDestination.Home)).fetchSemanticsNodes(),
+        ).isEmpty()
+
+        compose.onNodeWithText("Stub back").performClick()
+        // Straight back to Playing: no mini-player loop in between.
         compose.onNodeWithTag(one.tunkshif.swirlmusic.ui.playing.PLAYING_COVER_TAG)
             .assertExists()
     }

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -23,6 +24,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FilledTonalIconToggleButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
@@ -87,6 +89,8 @@ fun TrackListRoute(
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(),
     onOpenArtist: (Long) -> Unit = {},
+    /** Opens the list's comments; the header's title goes along for the app-bar subtitle. */
+    onOpenComments: (title: String) -> Unit = {},
     viewModel: TrackListViewModel = hiltViewModel(),
     artworkSaver: ArtworkSaverViewModel = hiltViewModel(),
 ) {
@@ -125,6 +129,7 @@ fun TrackListRoute(
         nowPlayingId = nowPlayingId,
         onToggleSave = viewModel::toggleSave,
         onOpenArtist = onOpenArtist,
+        onOpenComments = { onOpenComments(state.title) },
         onArtworkClick = state.artworkUrl?.let { { showArtwork = true } },
         onPlayTracks = { tracks, index ->
             onPlayTracks(tracks, index, viewModel.playPager())
@@ -160,6 +165,7 @@ fun TrackListScreen(
     onLoadMore: () -> Unit,
     onToggleSave: () -> Unit = {},
     onOpenArtist: (Long) -> Unit = {},
+    onOpenComments: () -> Unit = {},
     onArtworkClick: (() -> Unit)? = null,
     nowPlayingId: Long? = null,
     onPlayTracks: (List<Track>, Int) -> Unit,
@@ -227,6 +233,17 @@ fun TrackListScreen(
                                 uncheckedLabel = R.string.track_list_save,
                             )
                         }
+                        Spacer(Modifier.width(Spacing.sm))
+                    }
+                    // The slot only renders once the header content is there (D50).
+                    FilledTonalIconButton(
+                        onClick = onOpenComments,
+                        modifier = Modifier.size(40.dp),
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_comment),
+                            contentDescription = stringResource(R.string.comments_open),
+                        )
                     }
                 },
             )

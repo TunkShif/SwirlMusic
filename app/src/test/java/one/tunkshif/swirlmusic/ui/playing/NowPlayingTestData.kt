@@ -5,6 +5,7 @@ import one.tunkshif.swirlmusic.player.PlaybackError
 /** Fixed states for goldens and behaviour tests. */
 internal val PlayingStatePlaying = NowPlayingUiState(
     track = NowPlayingTrack(
+        id = 186016,
         title = "Nightcall",
         artistLine = "Kavinsky",
         albumName = "OutRun",

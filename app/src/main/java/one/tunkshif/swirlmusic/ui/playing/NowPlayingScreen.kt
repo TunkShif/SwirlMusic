@@ -101,6 +101,7 @@ fun NowPlayingRoute(
     modifier: Modifier = Modifier,
     onOpenQueue: () -> Unit = {},
     onOpenArtist: (Long) -> Unit = {},
+    onOpenComments: (trackId: Long, title: String) -> Unit = { _, _ -> },
     viewModel: NowPlayingViewModel = hiltViewModel(),
     artworkSaver: ArtworkSaverViewModel = hiltViewModel(),
 ) {
@@ -130,6 +131,7 @@ fun NowPlayingRoute(
         onOpenAlbum = onOpenAlbum,
         onOpenQueue = onOpenQueue,
         onOpenArtist = onOpenArtist,
+        onOpenComments = onOpenComments,
         lyrics = lyrics,
         showLyrics = showLyrics,
         onToggleLyrics = { showLyrics = !showLyrics },
@@ -158,6 +160,7 @@ fun NowPlayingScreen(
     onOpenAlbum: (Long) -> Unit,
     onOpenQueue: () -> Unit,
     onOpenArtist: (Long) -> Unit = {},
+    onOpenComments: (trackId: Long, title: String) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
     lyrics: LyricsUiState = LyricsUiState.Loading,
     showLyrics: Boolean = false,
@@ -281,6 +284,7 @@ fun NowPlayingScreen(
                     isTrial = state.isTrial,
                     liked = state.liked,
                     onToggleLike = { onEvent(NowPlayingEvent.ToggleLike) },
+                    onOpenComments = { onOpenComments(track.id, track.title) },
                 )
                 Spacer(Modifier.size(Spacing.xl))
                 SeekBlock(state, onEvent, displayed, seekTo)
@@ -374,6 +378,7 @@ private fun TrackText(
     isTrial: Boolean,
     liked: Boolean,
     onToggleLike: () -> Unit,
+    onOpenComments: () -> Unit,
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Column(
@@ -428,8 +433,19 @@ private fun TrackText(
                 }
             }
         }
-        // The like toggle now; a comments button joins this row in Phase 10.
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+        ) {
+            FilledTonalIconButton(
+                onClick = onOpenComments,
+                modifier = Modifier.size(NowPlayingDimens.actionSmall),
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_comment),
+                    contentDescription = stringResource(R.string.comments_open),
+                )
+            }
             FilledTonalIconToggleButton(
                 checked = liked,
                 onCheckedChange = { onToggleLike() },
@@ -595,6 +611,7 @@ private fun NowPlayingScreenPreview() {
         NowPlayingScreen(
             state = NowPlayingUiState(
                 track = NowPlayingTrack(
+                    id = 186016,
                     title = "Nightcall",
                     artistLine = "Kavinsky",
                     albumName = "OutRun",

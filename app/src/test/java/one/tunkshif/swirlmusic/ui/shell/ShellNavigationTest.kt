@@ -4,6 +4,7 @@ import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
 import one.tunkshif.swirlmusic.navigation.AlbumKey
 import one.tunkshif.swirlmusic.navigation.ArtistKey
+import one.tunkshif.swirlmusic.navigation.CommentsKey
 import one.tunkshif.swirlmusic.navigation.HomeKey
 import one.tunkshif.swirlmusic.navigation.LibraryKey
 import androidx.navigation3.runtime.NavKey
@@ -11,6 +12,7 @@ import one.tunkshif.swirlmusic.navigation.PlayingKey
 import one.tunkshif.swirlmusic.navigation.PlaylistKey
 import one.tunkshif.swirlmusic.navigation.ProfileKey
 import one.tunkshif.swirlmusic.navigation.SearchKey
+import one.tunkshif.swirlmusic.data.model.CommentTargetKind
 import one.tunkshif.swirlmusic.navigation.TopLevelDestination
 import org.junit.Test
 
@@ -26,6 +28,8 @@ class ShellNavigationTest {
             assertWithMessage("$key shows dock").that(showsDock(key)).isTrue()
         }
         assertThat(showsDock(PlayingKey)).isFalse()
+        // Comments is a full-screen reading screen like Playing: no dock under it.
+        assertThat(showsDock(CommentsKey(CommentTargetKind.Song, 1, "t"))).isFalse()
     }
 
     @Test
