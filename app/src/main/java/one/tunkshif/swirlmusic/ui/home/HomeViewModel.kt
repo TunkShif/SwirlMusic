@@ -18,6 +18,7 @@ import one.tunkshif.swirlmusic.data.api.ApiResult
 import one.tunkshif.swirlmusic.data.api.NcmHomeApi
 import one.tunkshif.swirlmusic.data.api.NcmLibraryApi
 import one.tunkshif.swirlmusic.data.api.TimeSource
+import one.tunkshif.swirlmusic.data.library.RecentAlbumsRepository
 import one.tunkshif.swirlmusic.data.library.TrackListRepository
 import one.tunkshif.swirlmusic.data.model.RecentAlbum
 import one.tunkshif.swirlmusic.data.model.Track
@@ -47,6 +48,7 @@ sealed interface HomeMessage {
 class HomeViewModel @Inject constructor(
     private val api: NcmHomeApi,
     private val libraryApi: NcmLibraryApi,
+    private val recentAlbums: RecentAlbumsRepository,
     private val tracks: TrackListRepository,
     private val session: SessionRepository,
     private val timeSource: TimeSource,
@@ -163,7 +165,13 @@ class HomeViewModel @Inject constructor(
 
     /** Stale-while-revalidate: a refresh failure keeps the row it would have replaced. */
     private suspend fun fetchRecent() {
-        when (val result = libraryApi.recentAlbums(RECENT_ALBUM_LIMIT)) {
+        if (_state.value.recent !is SectionState.Content) {
+            val cached = recentAlbums.cached()
+            if (cached.isNotEmpty()) {
+                _state.update { it.copy(recent = SectionState.Content(cached.take(RECENT_ALBUM_LIMIT))) }
+            }
+        }
+        when (val result = recentAlbums.refresh(RECENT_ALBUM_LIMIT)) {
             is ApiResult.Success -> {
                 recentLoadedAt = timeSource.nowMillis()
                 _state.update { it.copy(recent = SectionState.Content(result.value)) }

@@ -96,7 +96,25 @@ interface TrackListDao {
         clearQueue()
         clearResume()
         clearCollectionStates()
+        clearRecentAlbums()
     }
+
+    // Recently played albums (account data — `/record/recent/album`, newest first)
+
+    @Query("SELECT * FROM recent_album ORDER BY position")
+    fun recentAlbums(): List<RecentAlbumEntity>
+
+    @Query("DELETE FROM recent_album")
+    fun clearRecentAlbums()
+
+    @Transaction
+    fun replaceRecentAlbums(albums: List<RecentAlbumEntity>) {
+        clearRecentAlbums()
+        albums.forEach(::upsertRecentAlbum)
+    }
+
+    @androidx.room.Upsert
+    fun upsertRecentAlbum(entity: RecentAlbumEntity)
 
     // Resume playback state
 

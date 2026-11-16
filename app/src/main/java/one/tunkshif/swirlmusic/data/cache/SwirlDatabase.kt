@@ -19,8 +19,9 @@ import androidx.room.RoomDatabase
         PlaybackResumeEntity::class,
         LyricsEntity::class,
         CollectionStateEntity::class,
+        RecentAlbumEntity::class,
     ],
-    version = 9,
+    version = 10,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 4, to = 5),
@@ -28,6 +29,7 @@ import androidx.room.RoomDatabase
         AutoMigration(from = 6, to = 7),
         AutoMigration(from = 7, to = 8),
         AutoMigration(from = 8, to = 9),
+        AutoMigration(from = 9, to = 10),
     ],
 )
 abstract class SwirlDatabase : RoomDatabase() {

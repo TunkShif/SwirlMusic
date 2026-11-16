@@ -22,11 +22,13 @@ import kotlinx.coroutines.test.setMain
 import one.tunkshif.swirlmusic.data.api.ApiResult
 import one.tunkshif.swirlmusic.data.api.NcmHomeApi
 import one.tunkshif.swirlmusic.data.api.TimeSource
+import one.tunkshif.swirlmusic.data.library.RecentAlbumsRepository
 import one.tunkshif.swirlmusic.data.library.TrackListRepository
 import one.tunkshif.swirlmusic.data.model.Track
 import one.tunkshif.swirlmusic.data.session.SessionState
 import one.tunkshif.swirlmusic.player.PlayerController
 import one.tunkshif.swirlmusic.ui.library.FakeLibraryApi
+import one.tunkshif.swirlmusic.ui.library.recentAlbum
 import one.tunkshif.swirlmusic.ui.library.signedInSession
 import org.junit.After
 import org.junit.Test
@@ -49,20 +51,27 @@ class HomeViewModelTest {
     ).allowMainThreadQueries().build()
     private var now = 1_000_000L
     private val timeSource = object : TimeSource { override fun nowMillis() = now }
+    private val gate = one.tunkshif.swirlmusic.data.cache.CacheGate(
+        db.trackListDao(),
+        UnconfinedTestDispatcher(),
+    )
     private val repository = TrackListRepository(
         libraryApi,
         db.trackListDao(),
         timeSource,
         UnconfinedTestDispatcher(),
-        one.tunkshif.swirlmusic.data.cache.CacheGate(
-            db.trackListDao(),
-            UnconfinedTestDispatcher(),
-        ),
+        gate,
+    )
+    private val recentAlbums = RecentAlbumsRepository(
+        libraryApi,
+        db.trackListDao(),
+        gate,
+        UnconfinedTestDispatcher(),
     )
     private val session = signedInSession()
     private val random = Random(7)
 
-    private fun viewModel() = HomeViewModel(api, libraryApi, repository, session, timeSource, random)
+    private fun viewModel() = HomeViewModel(api, libraryApi, recentAlbums, repository, session, timeSource, random)
 
     @After
     fun tearDown() {
@@ -288,5 +297,49 @@ class HomeViewModelTest {
     private companion object {
         val sampleTrack = Track(1, "Nightcall", "Kavinsky", null, 258_000)
         val secondTrack = Track(2, "Midnight City", "M83", null, 244_000)
+    }
+
+    @Test
+    fun `cached albums show before the refresh answers, then are replaced`() = runTest {
+        // Twelve rows persisted by a previous session; the row shows at most ten.
+        libraryApi.recentAlbumsResult = ApiResult.Success((1L..12L).map(::recentAlbum))
+        recentAlbums.refresh(RecentAlbumsRepository.RECENT_ALBUMS_CAP)
+        libraryApi.calls.clear()
+
+        val held = kotlinx.coroutines.CompletableDeferred<Unit>()
+        libraryApi.recentAlbumsGate = held
+        libraryApi.recentAlbumsResult = ApiResult.Success(listOf(recentAlbum(42)))
+
+        val viewModel = viewModel()
+        advanceUntilIdle()
+
+        val shown = viewModel.state.value.recent
+        assertThat((shown as SectionState.Content).value.map { it.album.id })
+            .containsExactly(*(1L..10L).map { 100L + it }.toTypedArray()).inOrder()
+        assertThat(libraryApi.calls).contains("recentAlbums:10")
+
+        held.complete(Unit)
+        advanceUntilIdle()
+
+        val fresh = viewModel.state.value.recent
+        assertThat((fresh as SectionState.Content).value.map { it.album.id }).containsExactly(142L)
+    }
+
+    @Test
+    fun `an empty cache keeps the recent row loading until the refresh answers`() = runTest {
+        val held = kotlinx.coroutines.CompletableDeferred<Unit>()
+        libraryApi.recentAlbumsGate = held
+        libraryApi.recentAlbumsResult = ApiResult.Success(listOf(recentAlbum(5)))
+
+        val viewModel = viewModel()
+        advanceUntilIdle()
+
+        assertThat(viewModel.state.value.recent).isInstanceOf(SectionState.Loading::class.java)
+
+        held.complete(Unit)
+        advanceUntilIdle()
+
+        assertThat(viewModel.state.value.recent)
+            .isEqualTo(SectionState.Content(listOf(recentAlbum(5))))
     }
 }

@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 import one.tunkshif.swirlmusic.data.api.ApiResult
 import one.tunkshif.swirlmusic.data.api.NcmLibraryApi
 import one.tunkshif.swirlmusic.data.library.CollectionRepository
+import one.tunkshif.swirlmusic.data.library.RecentAlbumsRepository
 import one.tunkshif.swirlmusic.data.library.LibraryChange
 import one.tunkshif.swirlmusic.data.model.AlbumSummary
 import one.tunkshif.swirlmusic.data.model.ArtistSummary
@@ -47,6 +48,7 @@ data class LibraryUiState(
 class LibraryViewModel @Inject constructor(
     private val api: NcmLibraryApi,
     session: SessionRepository,
+    private val recentAlbums: RecentAlbumsRepository,
     private val collection: CollectionRepository,
     private val currentTrack: one.tunkshif.swirlmusic.player.CurrentTrackSource,
 ) : ViewModel() {
@@ -196,15 +198,26 @@ class LibraryViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Cache-first: rows persisted from a previous session show at once, then a refresh
+     * replaces them. The skeleton shows only while both cache and network are pending.
+     */
     private fun loadRecentAlbums() {
-        if (_state.value.recentAlbums !is SectionState.Content) {
-            _state.update { it.copy(recentAlbums = SectionState.Loading) }
+        viewModelScope.launch {
+            if (_state.value.recentAlbums !is SectionState.Content) {
+                val cached = recentAlbums.cached()
+                if (cached.isNotEmpty()) {
+                    _state.update { it.copy(recentAlbums = SectionState.Content(cached)) }
+                } else {
+                    _state.update { it.copy(recentAlbums = SectionState.Loading) }
+                }
+            }
+            refreshRecentAlbums()
         }
-        viewModelScope.launch { refreshRecentAlbums() }
     }
 
     private suspend fun refreshRecentAlbums() {
-        when (val result = api.recentAlbums(RECENT_ALBUMS_LIMIT)) {
+        when (val result = recentAlbums.refresh(RECENT_ALBUMS_LIMIT)) {
             is ApiResult.Success ->
                 _state.update { it.copy(recentAlbums = SectionState.Content(result.value)) }
             is ApiResult.Unauthorized ->
