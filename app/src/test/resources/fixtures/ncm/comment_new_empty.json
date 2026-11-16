@@ -1,0 +1,47 @@
+{
+  "code": 200,
+  "data": {
+    "commentsTitle": "全部评论",
+    "comments": [],
+    "currentCommentTitle": "当前评论",
+    "currentComment": null,
+    "lottery": null,
+    "totalCount": 0,
+    "hasMore": false,
+    "cursor": "0",
+    "albumPagination": null,
+    "sortType": 99,
+    "sortTypeList": [
+      {
+        "sortType": 99,
+        "sortTypeName": "按推荐排序",
+        "target": "order_by_alg"
+      },
+      {
+        "sortType": 2,
+        "sortTypeName": "按热度排序",
+        "target": "order_by_hot"
+      },
+      {
+        "sortType": 3,
+        "sortTypeName": "按时间排序",
+        "target": "order_by_time"
+      }
+    ],
+    "style": "DEFAULT",
+    "bottomAction": null,
+    "likeAnimation": {
+      "animationConfigMap": {
+        "EVENT_FEED": [],
+        "MOMENT": [],
+        "INPUT": [],
+        "COMMENT_AREA": []
+      },
+      "version": 1794478730608
+    },
+    "linkJumps": null,
+    "newReplyExpGroupName": "c",
+    "expandCount": 3
+  },
+  "message": ""
+}

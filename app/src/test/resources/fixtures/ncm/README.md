@@ -46,3 +46,9 @@ or renames something.
 - `like_true.json` — real `/like?id=…&like=true` body; `playlistId` is the liked-songs list.
 - `like_false.json` — real `/like?id=…&like=false` body; identical shape to the like answer.
 - `like_bad_id.json` — real `/like?id=1` body; HTTP 200 carrying `code:400`, i.e. a refusal.
+- `comment_new_*.json` — real `/comment/new` bodies (2026-11-16), comments trimmed to 2–4 per
+  file. Redacted: `nickname` → `Listener N`, `userId` → `9000000N`, `encryptUserId` replaced,
+  every image URL → `example.invalid`. Comment text is kept. `song_recommended` (song 186016,
+  sort 99 page 1), `song_recommended_page2` (sort 99 page 2: `hasMore` false, cursor `"0"`),
+  `song_hot` (sort 2, cursor `normalHot#20`), `album_newest` (album 18905, sort 3, ms cursor,
+  one `beReplied` entry), `empty` (song id 1), `bad_resource` (`type=9`, HTTP 200 + `code:400`).
