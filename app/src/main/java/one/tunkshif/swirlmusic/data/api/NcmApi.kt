@@ -26,6 +26,7 @@ import one.tunkshif.swirlmusic.data.api.dto.ArtistDetailResponse
 import one.tunkshif.swirlmusic.data.api.dto.ArtistDynamicResponse
 import one.tunkshif.swirlmusic.data.api.dto.ArtistProfileResponse
 import one.tunkshif.swirlmusic.data.api.dto.ArtistSublistResponse
+import one.tunkshif.swirlmusic.data.api.dto.CommentNewResponse
 import one.tunkshif.swirlmusic.data.api.dto.LikeResponse
 import one.tunkshif.swirlmusic.data.api.dto.LyricResponse
 import one.tunkshif.swirlmusic.data.api.dto.LikelistResponse
@@ -48,6 +49,10 @@ import one.tunkshif.swirlmusic.data.model.ArtistDetail
 import one.tunkshif.swirlmusic.data.model.ArtistRelease
 import one.tunkshif.swirlmusic.data.model.ArtistSummary
 import one.tunkshif.swirlmusic.data.model.ChartSummary
+import one.tunkshif.swirlmusic.data.model.CommentPage
+import one.tunkshif.swirlmusic.data.model.CommentPageKey
+import one.tunkshif.swirlmusic.data.model.CommentSort
+import one.tunkshif.swirlmusic.data.model.CommentTarget
 import one.tunkshif.swirlmusic.data.model.LyricsSource
 import one.tunkshif.swirlmusic.data.model.Page
 import one.tunkshif.swirlmusic.data.model.PlayedEntry
@@ -72,7 +77,7 @@ class NcmApi @Inject constructor(
     private val timeSource: TimeSource,
     @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : NcmAuthApi, NcmHomeApi, NcmPlaybackApi, NcmLibraryApi, NcmLyricsApi, NcmArtistApi,
-    NcmCollectionApi {
+    NcmCollectionApi, NcmCommentsApi {
 
     override suspend fun artistAvatar(id: Long): ApiResult<String?> =
         request(
@@ -266,6 +271,49 @@ class NcmApi @Inject constructor(
             ),
         ).map { response -> response.result.toResults(type, offset) }
 
+    /**
+     * `/comment/new` (decision 0015): hot pages by `pageNo`, newest by the `cursor` query —
+     * the deployment ignores whichever the sort doesn't use. Not `fresh`: the two-minute
+     * server cache is fine for reads. A refusal answers HTTP 200 with `code != 200` and no
+     * `data` (e.g. `{"msg":"…","code":400}` for a bad id), an [ApiResult.HttpError] like the
+     * `/like` refusals.
+     */
+    override suspend fun comments(
+        target: CommentTarget,
+        sort: CommentSort,
+        key: CommentPageKey?,
+    ): ApiResult<CommentPage> {
+        var rawBody: String? = null
+        return when (
+            val result = request(
+                "/comment/new",
+                CommentNewResponse.serializer(),
+                buildMap {
+                    put("type", target.kind.apiType.toString())
+                    put("id", target.id.toString())
+                    put("sortType", sort.apiSort.toString())
+                    put("pageSize", COMMENT_PAGE_SIZE.toString())
+                    put("pageNo", (key?.pageNo ?: 1).toString())
+                    if (sort == CommentSort.Newest) {
+                        put("cursor", key?.cursor ?: "0")
+                    }
+                },
+            ) { rawBody = it }
+        ) {
+            is ApiResult.Success -> {
+                val page = result.value.data
+                when {
+                    result.value.code != 200 || page == null ->
+                        ApiResult.HttpError(result.value.code, rawBody)
+                    else -> ApiResult.Success(page.toCommentPage(key?.pageNo ?: 1))
+                }
+            }
+            is ApiResult.Unauthorized,
+            is ApiResult.HttpError,
+            is ApiResult.NetworkError -> result
+        }
+    }
+
     override suspend fun albumSaved(id: Long): ApiResult<Boolean> =
         request(
             "/album/detail/dynamic",
@@ -424,3 +472,5 @@ private fun JsonElement.isExpiredSession(): Boolean {
 
 private fun JsonElement?.asIntOrNull(): Int? =
     (this as? JsonPrimitive)?.content?.toIntOrNull()
+
+private const val COMMENT_PAGE_SIZE = 20

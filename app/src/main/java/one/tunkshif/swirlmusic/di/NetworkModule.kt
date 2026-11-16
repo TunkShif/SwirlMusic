@@ -13,6 +13,7 @@ import one.tunkshif.swirlmusic.data.api.ApiConfig
 import one.tunkshif.swirlmusic.data.api.NcmArtistApi
 import one.tunkshif.swirlmusic.data.api.NcmAuthApi
 import one.tunkshif.swirlmusic.data.api.NcmCollectionApi
+import one.tunkshif.swirlmusic.data.api.NcmCommentsApi
 import one.tunkshif.swirlmusic.data.api.NcmHomeApi
 import one.tunkshif.swirlmusic.data.api.NcmLibraryApi
 import one.tunkshif.swirlmusic.data.api.NcmLyricsApi
@@ -95,6 +96,10 @@ object NetworkModule {
     @Provides
     @Singleton
     fun collectionApi(api: NcmApi): NcmCollectionApi = api
+
+    @Provides
+    @Singleton
+    fun commentsApi(api: NcmApi): NcmCommentsApi = api
 
     @Provides
     @Singleton
